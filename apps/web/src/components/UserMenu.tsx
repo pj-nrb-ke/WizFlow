@@ -20,7 +20,7 @@ export function UserMenu() {
   function logout() {
     setOpen(false);
     signOut();
-    navigate("/login");
+    navigate("/login", { replace: true });
   }
 
   const initials =

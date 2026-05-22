@@ -45,10 +45,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser();
   }, [refreshUser]);
 
-  const signOut = () => {
-    auth.logout();
+  const signOut = useCallback(() => {
+    auth.clearToken();
     setUser(null);
-  };
+    setLoading(false);
+  }, []);
 
   return (
     <AuthContext.Provider value={{ user, loading, refreshUser, signOut }}>

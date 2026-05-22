@@ -28,7 +28,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="min-h-screen flex flex-col bg-[rgb(var(--wf-page-bg))]">
       <div className="flex-1 flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div className="wf-home-hero mb-6 text-center">
