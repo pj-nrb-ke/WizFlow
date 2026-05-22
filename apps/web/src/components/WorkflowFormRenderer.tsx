@@ -132,7 +132,9 @@ function groupSections(fields: FormField[]): { title: string; fields: FormField[
   if (dates.length) sections.push({ title: "Dates", fields: dates });
   if (other.length) sections.push({ title: "Details", fields: other });
   if (details.length) sections.push({ title: "Description", fields: details });
-  if (!sections.length && fields.length) sections.push({ title: "Request details", fields });
+  if (!sections.length && fields.length) {
+    sections.push({ title: "Request details", fields: [...fields] });
+  }
   return sections;
 }
 

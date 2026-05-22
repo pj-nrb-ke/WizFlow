@@ -84,6 +84,19 @@ class WorkflowDefinitionSummary(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class WorkflowDefinitionListOut(BaseModel):
+    """List item including form schema (required for submit UI)."""
+
+    id: UUID
+    name: str
+    version: int
+    status: str
+    form_schema: dict = Field(default_factory=dict)
+    settings: dict = Field(default_factory=dict)
+
+    model_config = {"from_attributes": True}
+
+
 class SimulationRequest(BaseModel):
     data: dict = Field(default_factory=dict)
 

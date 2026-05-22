@@ -15,6 +15,7 @@ from app.schemas.workflow import (
     SimulationResult,
     WorkflowDefinitionCreate,
     WorkflowDefinitionOut,
+    WorkflowDefinitionListOut,
     WorkflowDefinitionSummary,
     WorkflowDefinitionUpdate,
     WorkflowEventOut,
@@ -44,7 +45,7 @@ def _get_definition(db: Session, workflow_id: UUID, company_id: UUID) -> Workflo
     return defn
 
 
-@router.get("", response_model=list[WorkflowDefinitionSummary])
+@router.get("", response_model=list[WorkflowDefinitionListOut])
 def list_workflows(
     status_filter: str | None = Query(None, alias="status"),
     user: CurrentUser = Depends(require_company),

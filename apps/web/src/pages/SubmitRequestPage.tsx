@@ -1,9 +1,15 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ThemeScope } from "../context/ThemeContext";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
 import { ApiError, apiFetch, apiUpload, FormField, WorkflowDefinition } from "../lib/api";
 import { getToken } from "../lib/auth";
+import {
+  buildInitialForm,
+  formToPayload,
+  getFormFields,
+  validateFormClient,
+} from "../lib/formValidation";
 import { LAYOUT_META, parseUiSettings, THEME_META } from "../lib/themes";
 
 export function SubmitRequestPage() {
@@ -15,43 +21,87 @@ export function SubmitRequestPage() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [fieldsLoading, setFieldsLoading] = useState(false);
 
   const selected = workflows.find((w) => w.id === selectedId);
   const ui = parseUiSettings(selected?.settings);
 
+  const applyWorkflow = useCallback((wf: WorkflowDefinition) => {
+    const nextFields = getFormFields(wf.form_schema);
+    setFields(nextFields);
+    setForm(buildInitialForm(nextFields));
+    setError("");
+  }, []);
+
+  const loadWorkflowDetail = useCallback(
+    async (id: string) => {
+      setFieldsLoading(true);
+      try {
+        const detail = await apiFetch<WorkflowDefinition>(
+          `/api/v1/workflows/${id}`,
+          {},
+          getToken()
+        );
+        setWorkflows((prev) => prev.map((w) => (w.id === id ? { ...w, ...detail } : w)));
+        applyWorkflow(detail);
+      } catch (e) {
+        setError(e instanceof ApiError ? e.detail ?? e.message : "Failed to load workflow form");
+        setFields([]);
+        setForm({});
+      } finally {
+        setFieldsLoading(false);
+      }
+    },
+    [applyWorkflow]
+  );
+
   useEffect(() => {
     apiFetch<WorkflowDefinition[]>("/api/v1/workflows?status=published", {}, getToken())
-      .then((list) => {
+      .then(async (list) => {
         setWorkflows(list);
         if (list.length) {
-          setSelectedId(list[0].id);
-          setFields(list[0].form_schema?.fields || []);
+          const first = list[0].id;
+          setSelectedId(first);
+          const fromList = getFormFields(list[0].form_schema);
+          if (fromList.length > 0) {
+            applyWorkflow(list[0]);
+          } else {
+            await loadWorkflowDetail(first);
+          }
         }
       })
       .catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed to load"))
       .finally(() => setLoading(false));
-  }, []);
+  }, [applyWorkflow, loadWorkflowDetail]);
 
   function onWorkflowChange(id: string) {
     setSelectedId(id);
+    setFile(null);
     const wf = workflows.find((w) => w.id === id);
-    setFields(wf?.form_schema?.fields || []);
-    setForm({});
+    const fromList = wf ? getFormFields(wf.form_schema) : [];
+    if (fromList.length > 0) {
+      applyWorkflow(wf!);
+    } else {
+      loadWorkflowDetail(id);
+    }
   }
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    const data: Record<string, unknown> = {};
-    for (const f of fields) {
-      const v = form[f.key];
-      if (f.type === "number" && v !== "") data[f.key] = Number(v);
-      else if (v !== "") data[f.key] = v;
+    const clientErr = validateFormClient(fields, form);
+    if (clientErr) {
+      setError(clientErr);
+      return;
+    }
+    if (fields.length === 0) {
+      setError("This workflow has no form fields configured.");
+      return;
     }
     try {
       const inst = await apiFetch<{ id: string }>(
         `/api/v1/workflows/${selectedId}/submit`,
-        { method: "POST", body: JSON.stringify({ data }) },
+        { method: "POST", body: JSON.stringify({ data: formToPayload(fields, form) }) },
         getToken()
       );
       if (file) {
@@ -71,7 +121,7 @@ export function SubmitRequestPage() {
   return (
     <div>
       <h1 className="wf-page-title mb-1">New request</h1>
-      <p className="text-sm text-slate-500 mb-4">Each workflow uses its own theme and form layout.</p>
+      <p className="text-sm text-slate-500 mb-4">Choose a workflow and complete all required fields.</p>
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
       {workflows.length === 0 ? (
         <p className="text-slate-600">
@@ -105,12 +155,18 @@ export function SubmitRequestPage() {
                 })}
               </select>
             </div>
-            <WorkflowFormRenderer
-              fields={fields}
-              values={form}
-              onChange={(key, value) => setForm({ ...form, [key]: value })}
-              layout={ui.form_layout}
-            />
+            {fieldsLoading ? (
+              <p className="text-sm text-slate-500 py-4">Loading form fields…</p>
+            ) : fields.length === 0 ? (
+              <p className="text-sm text-amber-700 py-2">No form fields for this workflow.</p>
+            ) : (
+              <WorkflowFormRenderer
+                fields={fields}
+                values={form}
+                onChange={(key, value) => setForm({ ...form, [key]: value })}
+                layout={ui.form_layout}
+              />
+            )}
             <div>
               <label className="block text-sm font-medium mb-1">Attachment (optional)</label>
               <input
@@ -119,7 +175,11 @@ export function SubmitRequestPage() {
                 className="text-sm"
               />
             </div>
-            <button type="submit" className="w-full wf-btn-primary py-2 text-sm">
+            <button
+              type="submit"
+              disabled={fieldsLoading || fields.length === 0}
+              className="w-full wf-btn-primary py-2 text-sm disabled:opacity-50"
+            >
               Submit request
             </button>
           </form>
