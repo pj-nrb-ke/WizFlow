@@ -87,3 +87,11 @@ npm run dev
 ## Repository
 
 https://github.com/pj-nrb-ke/WizFlow
+
+**Clone (SSH, no account popup):**
+
+```bash
+git clone git@github.com-pj-nrb-ke:pj-nrb-ke/WizFlow.git
+```
+
+Agent setup: [docs/PARALLEL-AGENT-NOTE.md](docs/PARALLEL-AGENT-NOTE.md) · `scripts/setup-github-ssh.ps1`
