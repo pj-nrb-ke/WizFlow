@@ -5,7 +5,7 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     app_name: str = "WizFlow API"
-    api_version: str = "0.3.0"
+    api_version: str = "0.4.0"
     database_url: str = "postgresql://wizflow:wizflow@localhost:5433/wizflow_dev"
     redis_url: str = "redis://localhost:6380/0"
     jwt_secret: str = "change-me-in-production"
@@ -18,6 +18,8 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_pass: str = ""
     app_url: str = "http://localhost:5200"
+    ai_api_key: str = ""
+    ai_model: str = "gpt-4o-mini"
 
 
 settings = Settings()

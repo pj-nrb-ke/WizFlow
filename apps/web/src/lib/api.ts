@@ -84,12 +84,56 @@ export type WorkflowSummary = {
 
 export type WorkflowDefinition = WorkflowSummary & {
   company_id: string;
+  family_id: string;
   form_schema: { fields?: FormField[] };
   steps: Record<string, unknown>[];
   routing_rules: Record<string, unknown>[];
   settings: Record<string, unknown>;
+  ai_generated?: boolean;
+  ai_prompt?: string | null;
   created_at: string;
   updated_at: string;
+};
+
+export type WorkflowPreview = {
+  id: string;
+  name: string;
+  version: number;
+  status: string;
+  ai_generated: boolean;
+  form_fields: FormField[];
+  steps: { order: number; id: string; name: string; assignee_type?: string; assignee_value?: string }[];
+  routing_rules: Record<string, unknown>[];
+  settings: Record<string, unknown>;
+  gaps: string[];
+  ready_to_publish: boolean;
+};
+
+export type PublishPreview = {
+  change_summary: string;
+  current: Record<string, unknown>;
+  previous: Record<string, unknown> | null;
+};
+
+export type WorkflowVersion = {
+  id: string;
+  version: number;
+  change_summary: string | null;
+  published_at: string;
+  workflow_definition_id: string | null;
+};
+
+export type PublishRequest = {
+  confirm_preview: boolean;
+  test_completed: boolean;
+  change_summary_note?: string;
+};
+
+export type AiDraftResponse = {
+  draft: Record<string, unknown>;
+  explanation: string;
+  gaps: string[];
+  source: string;
 };
 
 export type FormField = {

@@ -7,6 +7,7 @@ const nav = [
   { to: "/requests", label: "My Requests" },
   { to: "/inbox", label: "Inbox" },
   { to: "/workflows", label: "Workflows" },
+  { to: "/ai", label: "AI creator" },
   { to: "/admin", label: "Admin" },
 ];
 

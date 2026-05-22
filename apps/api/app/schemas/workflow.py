@@ -23,6 +23,7 @@ class WorkflowDefinitionUpdate(BaseModel):
 class WorkflowDefinitionOut(BaseModel):
     id: UUID
     company_id: UUID
+    family_id: UUID
     name: str
     version: int
     status: str
@@ -30,8 +31,46 @@ class WorkflowDefinitionOut(BaseModel):
     steps: list
     routing_rules: list
     settings: dict
+    ai_generated: bool = False
+    ai_prompt: str | None = None
     created_at: datetime
     updated_at: datetime
+
+    model_config = {"from_attributes": True}
+
+
+class PublishRequest(BaseModel):
+    confirm_preview: bool = False
+    test_completed: bool = False
+    change_summary_note: str | None = None
+
+
+class WorkflowPreview(BaseModel):
+    id: str
+    name: str
+    version: int
+    status: str
+    ai_generated: bool
+    form_fields: list
+    steps: list
+    routing_rules: list
+    settings: dict
+    gaps: list[str]
+    ready_to_publish: bool
+
+
+class PublishPreview(BaseModel):
+    change_summary: str
+    current: dict
+    previous: dict | None = None
+
+
+class WorkflowVersionOut(BaseModel):
+    id: UUID
+    version: int
+    change_summary: str | None
+    published_at: datetime
+    workflow_definition_id: UUID | None
 
     model_config = {"from_attributes": True}
 

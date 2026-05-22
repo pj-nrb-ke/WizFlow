@@ -2,11 +2,11 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import admin, auth, health, inbox, notifications, requests, workflows
+from app.routers import admin, ai, auth, health, inbox, notifications, requests, workflows
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.3.0",
+    version="0.4.0",
     description="WizFlow API — see packages/openapi/wizflow.yaml",
 )
 
@@ -24,6 +24,7 @@ v1.include_router(health.router)
 v1.include_router(auth.router)
 v1.include_router(admin.router)
 v1.include_router(workflows.router)
+v1.include_router(ai.router)
 v1.include_router(requests.router)
 v1.include_router(inbox.router)
 v1.include_router(notifications.router)

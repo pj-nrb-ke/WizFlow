@@ -9,6 +9,7 @@ import { LoginPage } from "./pages/LoginPage";
 import { MyRequestsPage } from "./pages/MyRequestsPage";
 import { RequestDetailPage } from "./pages/RequestDetailPage";
 import { SubmitRequestPage } from "./pages/SubmitRequestPage";
+import { AiWorkflowPage } from "./pages/AiWorkflowPage";
 import { WorkflowsPage } from "./pages/WorkflowsPage";
 import { isAuthenticated } from "./lib/auth";
 
@@ -24,6 +25,7 @@ export default function App() {
           <Route element={<AppLayout />}>
             <Route index element={<DashboardPage />} />
             <Route path="workflows" element={<WorkflowsPage />} />
+            <Route path="ai" element={<AiWorkflowPage />} />
             <Route path="submit" element={<SubmitRequestPage />} />
             <Route path="requests" element={<MyRequestsPage />} />
             <Route path="requests/:id" element={<RequestDetailPage />} />

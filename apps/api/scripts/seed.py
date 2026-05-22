@@ -1,6 +1,7 @@
-"""Seed demo company, roles, admin user, and sample workflow. Run: python -m scripts.seed"""
+"""Seed demo company, roles, admin user, and sample workflows. Run: python -m scripts.seed"""
 
 import sys
+import uuid
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -49,29 +50,79 @@ PETTY_CASH = {
     "settings": {"sla_hours": 48, "allow_delegate": False},
 }
 
+PURCHASE_REQUEST = {
+    "name": "Purchase Request",
+    "form_schema": {
+        "fields": [
+            {"key": "amount", "type": "number", "label": "Total amount", "required": True},
+            {"key": "item_description", "type": "text", "label": "Item / service", "required": True},
+            {"key": "vendor", "type": "text", "label": "Vendor", "required": True},
+            {"key": "department", "type": "text", "label": "Department", "required": True},
+        ]
+    },
+    "steps": [
+        {
+            "id": "step_manager",
+            "name": "Manager Approval",
+            "type": "approval",
+            "assignee": {"type": "role", "value": "manager"},
+        },
+        {
+            "id": "step_finance",
+            "name": "Finance Approval",
+            "type": "approval",
+            "assignee": {"type": "role", "value": "company_admin"},
+        },
+    ],
+    "routing_rules": [
+        {"when": {"field": "amount", "op": "gt", "value": 10000}, "skip_to": "step_finance"}
+    ],
+    "settings": {"sla_hours": 72, "allow_delegate": False},
+}
 
-def _seed_workflow(db, company_id) -> None:
+DEMO_WORKFLOWS = (PETTY_CASH, PURCHASE_REQUEST)
+
+
+def _add_published_workflow(db, company_id, spec: dict) -> None:
     existing = db.scalar(
+        select(WorkflowDefinition).where(
+            WorkflowDefinition.company_id == company_id,
+            WorkflowDefinition.name == spec["name"],
+            WorkflowDefinition.status == "published",
+        )
+    )
+    if existing:
+        return
+    fid = uuid.uuid4()
+    defn = WorkflowDefinition(
+        id=fid,
+        company_id=company_id,
+        family_id=fid,
+        name=spec["name"],
+        form_schema=spec["form_schema"],
+        steps=spec["steps"],
+        routing_rules=spec["routing_rules"],
+        settings=spec["settings"],
+        status="published",
+        version=1,
+    )
+    db.add(defn)
+
+
+def _seed_workflows(db, company_id) -> None:
+    for spec in DEMO_WORKFLOWS:
+        _add_published_workflow(db, company_id, spec)
+    # Ensure legacy petty cash row is published
+    legacy = db.scalar(
         select(WorkflowDefinition).where(
             WorkflowDefinition.company_id == company_id,
             WorkflowDefinition.name == PETTY_CASH["name"],
         )
     )
-    if existing:
-        if existing.status == "draft":
-            existing.status = "published"
-        return
-    db.add(
-        WorkflowDefinition(
-            company_id=company_id,
-            name=PETTY_CASH["name"],
-            form_schema=PETTY_CASH["form_schema"],
-            steps=PETTY_CASH["steps"],
-            routing_rules=PETTY_CASH["routing_rules"],
-            settings=PETTY_CASH["settings"],
-            status="published",
-        )
-    )
+    if legacy and legacy.status == "draft":
+        legacy.status = "published"
+        if not legacy.family_id:
+            legacy.family_id = legacy.id
 
 
 ORIGINATOR_EMAIL = "originator@demo.wizflow.biz"
@@ -114,7 +165,7 @@ def seed() -> None:
             roles = db.scalars(select(Role).where(Role.company_id == company.id)).all()
             role_map = {r.slug: r for r in roles}
             _seed_originator(db, company.id, role_map)
-            _seed_workflow(db, company.id)
+            _seed_workflows(db, company.id)
             db.commit()
             print(f"Seed updated for existing company '{COMPANY_SLUG}'.")
             print(f"  Originator: {ORIGINATOR_EMAIL} / {ADMIN_PASSWORD}")
@@ -143,13 +194,13 @@ def seed() -> None:
         db.add(UserRole(user_id=admin.id, role_id=role_by_slug[ROLE_COMPANY_ADMIN].id))
         db.add(UserRole(user_id=admin.id, role_id=role_by_slug[ROLE_MANAGER].id))
         _seed_originator(db, company.id, role_by_slug)
-        _seed_workflow(db, company.id)
+        _seed_workflows(db, company.id)
         db.commit()
         print("Seed complete.")
         print(f"  Company: {COMPANY_NAME} ({COMPANY_SLUG})")
         print(f"  Admin:     {ADMIN_EMAIL} / {ADMIN_PASSWORD}")
         print(f"  Originator: {ORIGINATOR_EMAIL} / {ADMIN_PASSWORD}")
-        print(f"  Workflow: {PETTY_CASH['name']} (published)")
+        print(f"  Workflows: {', '.join(w['name'] for w in DEMO_WORKFLOWS)} (published)")
     finally:
         db.close()
 

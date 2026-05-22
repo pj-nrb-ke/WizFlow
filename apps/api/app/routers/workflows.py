@@ -9,6 +9,8 @@ from app.db.models import WorkflowDefinition, WorkflowEvent
 from app.db.session import get_db
 from app.schemas.request import RequestSubmit, WorkflowInstanceOut
 from app.schemas.workflow import (
+    PublishPreview,
+    PublishRequest,
     SimulationRequest,
     SimulationResult,
     WorkflowDefinitionCreate,
@@ -16,11 +18,14 @@ from app.schemas.workflow import (
     WorkflowDefinitionSummary,
     WorkflowDefinitionUpdate,
     WorkflowEventOut,
+    WorkflowPreview,
+    WorkflowVersionOut,
 )
 from app.services import instance_engine, workflow_engine
 from app.services.events import record_event
 from app.services.instance_queries import to_out
 from app.services.notifications import notify_users
+from app.services import versioning
 
 router = APIRouter(prefix="/workflows", tags=["Workflows"])
 
@@ -60,8 +65,11 @@ def create_workflow(
     if not any(r in MANAGER_ROLES for r in user.roles):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
 
+    import uuid as _uuid
+
     defn = WorkflowDefinition(
         company_id=user.company_id,
+        family_id=_uuid.uuid4(),
         name=body.name.strip(),
         form_schema=body.form_schema,
         steps=body.steps,
@@ -71,6 +79,8 @@ def create_workflow(
         version=1,
     )
     db.add(defn)
+    db.flush()
+    defn.family_id = defn.id
     db.commit()
     db.refresh(defn)
     return defn
@@ -115,9 +125,86 @@ def update_workflow(
     return defn
 
 
+@router.get("/{workflow_id}/preview", response_model=WorkflowPreview)
+def preview_workflow(
+    workflow_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> WorkflowPreview:
+    defn = _get_definition(db, workflow_id, user.company_id)
+    data = versioning.build_preview(defn)
+    return WorkflowPreview(**data)
+
+
+@router.get("/{workflow_id}/publish-preview", response_model=PublishPreview)
+def publish_preview(
+    workflow_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> PublishPreview:
+    defn = _get_definition(db, workflow_id, user.company_id)
+    before = versioning.get_last_published_snapshot(db, defn.family_id, user.company_id)
+    after = versioning.snapshot_definition(defn)
+    return PublishPreview(
+        change_summary=versioning.compute_change_summary(before, after),
+        current=after,
+        previous=before,
+    )
+
+
+@router.get("/{workflow_id}/versions", response_model=list[WorkflowVersionOut])
+def list_versions(
+    workflow_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> list:
+    defn = _get_definition(db, workflow_id, user.company_id)
+    return versioning.list_versions(db, defn.family_id, user.company_id)
+
+
+@router.post("/{workflow_id}/new-version", response_model=WorkflowDefinitionOut, status_code=status.HTTP_201_CREATED)
+def new_version(
+    workflow_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> WorkflowDefinition:
+    if not any(r in MANAGER_ROLES for r in user.roles):
+        raise HTTPException(status_code=403, detail="Manager role required")
+    defn = _get_definition(db, workflow_id, user.company_id)
+    try:
+        draft = versioning.create_new_draft_version(db, defn, user.company_id)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    db.commit()
+    db.refresh(draft)
+    return draft
+
+
+@router.post("/{workflow_id}/rollback/{version}", response_model=WorkflowDefinitionOut, status_code=status.HTTP_201_CREATED)
+def rollback_version(
+    workflow_id: UUID,
+    version: int,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> WorkflowDefinition:
+    if not any(r in MANAGER_ROLES for r in user.roles):
+        raise HTTPException(status_code=403, detail="Manager role required")
+    defn = _get_definition(db, workflow_id, user.company_id)
+    try:
+        draft = versioning.rollback_to_version(
+            db, family_id=defn.family_id, company_id=user.company_id, version=version
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    db.commit()
+    db.refresh(draft)
+    return draft
+
+
 @router.post("/{workflow_id}/publish", response_model=WorkflowDefinitionOut)
 def publish_workflow(
     workflow_id: UUID,
+    body: PublishRequest | None = None,
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> WorkflowDefinition:
@@ -125,16 +212,23 @@ def publish_workflow(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
 
     defn = _get_definition(db, workflow_id, user.company_id)
-    if defn.status == "published":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Already published")
-
+    req = body or PublishRequest()
     try:
-        workflow_engine.validate_definition(defn)
-    except workflow_engine.WorkflowValidationError as e:
+        versioning.ensure_publish_allowed(
+            defn,
+            confirm_preview=req.confirm_preview,
+            test_completed=req.test_completed,
+        )
+    except (ValueError, workflow_engine.WorkflowValidationError) as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    defn.status = "published"
-    defn.version = (defn.version or 1)
+    versioning.archive_and_publish(
+        db,
+        defn,
+        company_id=user.company_id,
+        user_id=user.id,
+        change_summary=req.change_summary_note,
+    )
     record_event(
         db,
         company_id=user.company_id,
@@ -162,6 +256,7 @@ def simulate_workflow(
     except workflow_engine.WorkflowValidationError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
+    versioning.mark_simulated(defn)
     record_event(
         db,
         company_id=user.company_id,

@@ -32,7 +32,8 @@ def test_submit_and_approve(admin_headers, originator_headers) -> None:
     wfs = client.get("/api/v1/workflows?status=published", headers=originator_headers)
     if wfs.status_code != 200 or not wfs.json():
         pytest.skip("No published workflow")
-    wf_id = wfs.json()[0]["id"]
+    petty = next((w for w in wfs.json() if "Petty Cash" in w["name"]), wfs.json()[0])
+    wf_id = petty["id"]
 
     sub = client.post(
         f"/api/v1/workflows/{wf_id}/submit",
