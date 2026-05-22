@@ -1,7 +1,10 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { ThemeScope } from "../context/ThemeContext";
+import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
 import { ApiError, apiFetch, apiUpload, FormField, WorkflowDefinition } from "../lib/api";
 import { getToken } from "../lib/auth";
+import { LAYOUT_META, parseUiSettings, THEME_META } from "../lib/themes";
 
 export function SubmitRequestPage() {
   const navigate = useNavigate();
@@ -12,6 +15,9 @@ export function SubmitRequestPage() {
   const [file, setFile] = useState<File | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+
+  const selected = workflows.find((w) => w.id === selectedId);
+  const ui = parseUiSettings(selected?.settings);
 
   useEffect(() => {
     apiFetch<WorkflowDefinition[]>("/api/v1/workflows?status=published", {}, getToken())
@@ -59,65 +65,65 @@ export function SubmitRequestPage() {
 
   if (loading) return <p className="text-slate-500">Loading…</p>;
 
+  const formWidth =
+    ui.form_layout === "two-column" ? "max-w-3xl" : ui.form_layout === "highlight-amount" ? "max-w-xl" : "max-w-lg";
+
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-4">New request</h1>
+      <h1 className="wf-page-title mb-1">New request</h1>
+      <p className="text-sm text-slate-500 mb-4">Each workflow uses its own theme and form layout.</p>
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
       {workflows.length === 0 ? (
         <p className="text-slate-600">
           No published workflows. Publish one under{" "}
-          <Link to="/workflows" className="text-brand-600">
+          <Link to="/workflows" className="wf-link">
             Workflows
           </Link>
           .
         </p>
       ) : (
-        <form onSubmit={onSubmit} className="bg-white rounded-lg border border-slate-200 p-6 max-w-lg space-y-4">
-          <div>
-            <label className="block text-sm font-medium mb-1">Workflow</label>
-            <select
-              value={selectedId}
-              onChange={(e) => onWorkflowChange(e.target.value)}
-              className="w-full border rounded-lg px-3 py-2 text-sm"
-            >
-              {workflows.map((w) => (
-                <option key={w.id} value={w.id}>
-                  {w.name}
-                </option>
-              ))}
-            </select>
-          </div>
-          {fields.map((f) => (
-            <div key={f.key}>
-              <label className="block text-sm font-medium mb-1">
-                {f.label}
-                {f.required && <span className="text-red-500"> *</span>}
-              </label>
+        <ThemeScope theme={ui.ui_theme} layout={ui.form_layout}>
+          <form onSubmit={onSubmit} className={`wf-card p-6 ${formWidth} space-y-4`}>
+            <div className="flex flex-wrap items-center gap-2 mb-2">
+              <span className="wf-badge">{THEME_META[ui.ui_theme].label}</span>
+              <span className="text-xs text-slate-500">{LAYOUT_META[ui.form_layout].label} layout</span>
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1">Workflow</label>
+              <select
+                value={selectedId}
+                onChange={(e) => onWorkflowChange(e.target.value)}
+                className="wf-input"
+              >
+                {workflows.map((w) => {
+                  const u = parseUiSettings(w.settings);
+                  return (
+                    <option key={w.id} value={w.id}>
+                      {w.name} ({THEME_META[u.ui_theme].label})
+                    </option>
+                  );
+                })}
+              </select>
+            </div>
+            <WorkflowFormRenderer
+              fields={fields}
+              values={form}
+              onChange={(key, value) => setForm({ ...form, [key]: value })}
+              layout={ui.form_layout}
+            />
+            <div>
+              <label className="block text-sm font-medium mb-1">Attachment (optional)</label>
               <input
-                type={f.type === "number" ? "number" : "text"}
-                required={f.required}
-                value={form[f.key] ?? ""}
-                onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
-                className="w-full border rounded-lg px-3 py-2 text-sm"
-                placeholder={f.placeholder}
+                type="file"
+                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
+                className="text-sm"
               />
             </div>
-          ))}
-          <div>
-            <label className="block text-sm font-medium mb-1">Attachment (optional)</label>
-            <input
-              type="file"
-              onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-              className="text-sm"
-            />
-          </div>
-          <button
-            type="submit"
-            className="w-full bg-brand-600 text-white py-2 rounded-lg text-sm font-medium hover:bg-brand-700"
-          >
-            Submit request
-          </button>
-        </form>
+            <button type="submit" className="w-full wf-btn-primary py-2 text-sm">
+              Submit request
+            </button>
+          </form>
+        </ThemeScope>
       )}
     </div>
   );

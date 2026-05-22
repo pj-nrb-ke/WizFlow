@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.db.models import User, WorkflowDefinition, WorkflowInstance
 from app.schemas.request import WorkflowInstanceOut, WorkflowInstanceSummary
 from app.services.instance_engine import _step_name
+from app.services.ui_settings import ui_from_instance
 
 
 def get_instance(db: Session, request_id: UUID, company_id: UUID) -> WorkflowInstance:
@@ -39,6 +40,7 @@ def to_out(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition) -> Wor
         u = db.get(User, inst.originator_user_id)
         originator_name = u.full_name if u else None
     summary = to_summary(inst, defn)
+    ui = ui_from_instance(defn.settings, inst.request_data)
     return WorkflowInstanceOut(
         **summary.model_dump(),
         workflow_definition_id=inst.workflow_definition_id,
@@ -47,6 +49,8 @@ def to_out(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition) -> Wor
         request_data=inst.request_data,
         assignees=inst.assignees or [],
         step_sequence=inst.step_sequence or [],
+        ui_theme=ui["ui_theme"],
+        form_layout=ui["form_layout"],
         created_at=inst.created_at,
         updated_at=inst.updated_at,
     )

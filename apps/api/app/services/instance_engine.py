@@ -11,6 +11,7 @@ from sqlalchemy.orm import Session
 from app.db.models import Role, User, UserRole, WorkflowDefinition, WorkflowInstance
 from app.services import workflow_engine
 from app.services.events import record_event
+from app.services.ui_settings import attach_ui_snapshot, strip_ui_keys
 
 
 class RequestError(ValueError):
@@ -34,12 +35,13 @@ def compute_step_sequence(defn: WorkflowDefinition, request_data: dict) -> list[
 
 
 def validate_form_data(defn: WorkflowDefinition, data: dict) -> None:
+    clean = strip_ui_keys(data)
     fields = (defn.form_schema or {}).get("fields") or []
     for field in fields:
         if not isinstance(field, dict):
             continue
         key = field.get("key")
-        if field.get("required") and key and (data.get(key) is None or data.get(key) == ""):
+        if field.get("required") and key and (clean.get(key) is None or clean.get(key) == ""):
             raise RequestError(f"Field '{field.get('label', key)}' is required")
 
 
@@ -80,7 +82,8 @@ def submit_request(
         raise RequestError("Workflow must be published before submitting requests")
 
     validate_form_data(defn, data)
-    step_sequence = compute_step_sequence(defn, data)
+    stored_data = attach_ui_snapshot(data, defn.settings)
+    step_sequence = compute_step_sequence(defn, strip_ui_keys(data))
     if not step_sequence:
         raise RequestError("No approval steps resolved for this request")
 
@@ -100,7 +103,7 @@ def submit_request(
         originator_user_id=user_id,
         status="in_progress",
         current_step_id=first_step_id,
-        request_data=data,
+        request_data=stored_data,
         assignees=assignees,
         step_sequence=step_sequence,
         workflow_name=defn.name,
@@ -115,7 +118,7 @@ def submit_request(
         event_type="request.submitted",
         actor_user_id=user_id,
         instance_id=instance.id,
-        payload={"workflow_name": defn.name, "data": data},
+        payload={"workflow_name": defn.name, "data": strip_ui_keys(data)},
     )
     record_event(
         db,
@@ -274,14 +277,14 @@ def resubmit_returned(
         raise RequestError("Only the originator can resubmit this request")
 
     validate_form_data(defn, data)
-    step_sequence = compute_step_sequence(defn, data)
+    step_sequence = compute_step_sequence(defn, strip_ui_keys(data))
     first_step_id = step_sequence[0]
     step = _step_map(defn).get(first_step_id)
     if not step:
         raise RequestError("Invalid step sequence")
 
     assignees = resolve_assignees_for_step(db, instance.company_id, step)
-    instance.request_data = data
+    instance.request_data = attach_ui_snapshot(data, defn.settings)
     instance.step_sequence = step_sequence
     instance.status = "in_progress"
     instance.current_step_id = first_step_id

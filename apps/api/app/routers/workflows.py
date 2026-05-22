@@ -106,8 +106,13 @@ def update_workflow(
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
 
     defn = _get_definition(db, workflow_id, user.company_id)
-    if defn.status != "draft":
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Only draft workflows can be edited")
+    if defn.status != "draft" and any(
+        x is not None for x in (body.name, body.form_schema, body.steps, body.routing_rules)
+    ):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Only draft workflows can edit structure; create a new version or update settings (theme) only",
+        )
 
     if body.name is not None:
         defn.name = body.name.strip()
@@ -118,7 +123,9 @@ def update_workflow(
     if body.routing_rules is not None:
         defn.routing_rules = body.routing_rules
     if body.settings is not None:
-        defn.settings = body.settings
+        merged = dict(defn.settings or {})
+        merged.update(body.settings)
+        defn.settings = merged
 
     db.commit()
     db.refresh(defn)

@@ -166,6 +166,8 @@ export type RequestDetail = RequestSummary & {
   request_data: Record<string, unknown>;
   assignees: { user_id: string; full_name: string; email?: string }[];
   step_sequence: string[];
+  ui_theme?: string;
+  form_layout?: string;
   created_at: string;
   updated_at: string;
 };

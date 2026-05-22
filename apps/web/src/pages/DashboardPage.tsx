@@ -27,7 +27,7 @@ export function DashboardPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-1">Dashboard</h1>
+      <h1 className="wf-page-title mb-1">Dashboard</h1>
       <p className="text-slate-600 mb-6">
         Welcome, <span className="font-medium">{user?.full_name}</span>
         {user?.company_name && (
@@ -41,32 +41,32 @@ export function DashboardPage() {
           { label: "Published workflows", value: String(published), link: "/workflows" },
           { label: "New request", value: "+", link: "/submit" },
         ].map((card) => (
-          <Link
-            key={card.label}
-            to={card.link}
-            className="bg-white rounded-lg border border-slate-200 p-4 shadow-sm hover:border-brand-300"
-          >
+          <Link key={card.label} to={card.link} className="wf-card p-4 hover:shadow-md transition-shadow">
             <p className="text-xs text-slate-500 uppercase tracking-wide">{card.label}</p>
             <p className="text-2xl font-semibold text-slate-800 mt-1">{card.value}</p>
           </Link>
         ))}
       </div>
-      <div className="bg-white rounded-lg border border-slate-200 p-4">
+      <div className="wf-card p-4">
         <h2 className="font-semibold text-slate-800 mb-2">Quick links</h2>
-        <ul className="text-sm text-brand-600 space-y-1">
+        <ul className="text-sm space-y-1">
           <li>
-            <Link to="/submit">Submit petty cash or other request</Link>
+            <Link to="/submit" className="wf-link">
+              Submit a request
+            </Link>
           </li>
           <li>
-            <Link to="/inbox">Review approval inbox</Link>
+            <Link to="/inbox" className="wf-link">
+              Review approval inbox
+            </Link>
           </li>
           <li>
-            <Link to="/workflows">Manage workflows</Link>
+            <Link to="/workflows" className="wf-link">
+              Manage workflows & themes
+            </Link>
           </li>
         </ul>
-        <p className="text-xs text-slate-400 mt-3">
-          Roles: {user?.roles.join(", ") || "—"}
-        </p>
+        <p className="text-xs text-slate-400 mt-3">Roles: {user?.roles.join(", ") || "—"}</p>
       </div>
     </div>
   );

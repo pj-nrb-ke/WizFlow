@@ -1,4 +1,5 @@
 import { Link, Outlet, useNavigate } from "react-router-dom";
+import { AppThemeSwitcher } from "../components/ThemeSwitcher";
 import { useAuth } from "../context/AuthContext";
 
 const nav = [
@@ -22,29 +23,22 @@ export function AppLayout() {
 
   return (
     <div className="min-h-screen flex flex-col">
-      <header className="bg-white border-b border-slate-200 shadow-sm">
+      <header className="wf-header shadow-sm">
         <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <Link to="/" className="text-xl font-semibold text-brand-600 shrink-0">
+          <Link to="/" className="text-xl font-semibold wf-header-brand shrink-0">
             WizFlow
           </Link>
           <nav className="flex flex-wrap gap-3 text-sm justify-center">
             {nav.map((item) => (
-              <Link
-                key={item.to}
-                to={item.to}
-                className="text-slate-600 hover:text-brand-600"
-              >
+              <Link key={item.to} to={item.to} className="wf-nav-link">
                 {item.label}
               </Link>
             ))}
           </nav>
-          <div className="text-right shrink-0">
+          <div className="text-right shrink-0 flex flex-col items-end gap-1">
+            <AppThemeSwitcher />
             <p className="text-xs text-slate-500 truncate max-w-[140px]">{user?.email}</p>
-            <button
-              type="button"
-              onClick={logout}
-              className="text-sm text-slate-500 hover:text-slate-800"
-            >
+            <button type="button" onClick={logout} className="text-sm text-slate-500 hover:text-slate-800">
               Log out
             </button>
           </div>

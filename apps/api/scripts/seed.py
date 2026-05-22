@@ -1,4 +1,8 @@
-"""Seed demo company, roles, admin user, and sample workflows. Run: python -m scripts.seed"""
+"""Seed demo company, roles, users, 12 workflows, and rich transactional data.
+
+Run: python -m scripts.seed
+Force rebuild requests: SEED_FORCE=1 python -m scripts.seed
+"""
 
 import sys
 import uuid
@@ -11,6 +15,7 @@ from sqlalchemy import select
 from app.core.security import hash_password
 from app.db.models import Company, Role, User, UserRole, WorkflowDefinition
 from app.db.session import SessionLocal
+from scripts.seed_rich import seed_rich_demo
 
 DEFAULT_ROLES = ("company_admin", "manager", "originator", "approver")
 ROLE_COMPANY_ADMIN = "company_admin"
@@ -166,6 +171,10 @@ def seed() -> None:
             role_map = {r.slug: r for r in roles}
             _seed_originator(db, company.id, role_map)
             _seed_workflows(db, company.id)
+            admin = db.scalar(select(User).where(User.email == ADMIN_EMAIL))
+            originator = db.scalar(select(User).where(User.email == ORIGINATOR_EMAIL))
+            if admin and originator:
+                seed_rich_demo(db, company, admin, originator, role_map)
             db.commit()
             print(f"Seed updated for existing company '{COMPANY_SLUG}'.")
             print(f"  Originator: {ORIGINATOR_EMAIL} / {ADMIN_PASSWORD}")
@@ -194,7 +203,11 @@ def seed() -> None:
         db.add(UserRole(user_id=admin.id, role_id=role_by_slug[ROLE_COMPANY_ADMIN].id))
         db.add(UserRole(user_id=admin.id, role_id=role_by_slug[ROLE_MANAGER].id))
         _seed_originator(db, company.id, role_by_slug)
+        db.flush()
         _seed_workflows(db, company.id)
+        originator = db.scalar(select(User).where(User.email == ORIGINATOR_EMAIL))
+        if originator:
+            seed_rich_demo(db, company, admin, originator, role_by_slug)
         db.commit()
         print("Seed complete.")
         print(f"  Company: {COMPANY_NAME} ({COMPANY_SLUG})")

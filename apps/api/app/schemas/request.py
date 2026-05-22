@@ -44,6 +44,8 @@ class WorkflowInstanceOut(WorkflowInstanceSummary):
     request_data: dict
     assignees: list[dict]
     step_sequence: list[str]
+    ui_theme: str = "corporate"
+    form_layout: str = "stacked"
     created_at: datetime
     updated_at: datetime
 

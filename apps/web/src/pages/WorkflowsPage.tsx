@@ -12,6 +12,15 @@ import {
   WorkflowVersion,
 } from "../lib/api";
 import { getToken } from "../lib/auth";
+import { ThemeSwatches } from "../components/ThemeSwitcher";
+import { StatusBadge } from "../components/StatusBadge";
+import {
+  FORM_LAYOUTS,
+  LAYOUT_META,
+  parseUiSettings,
+  THEME_META,
+  type UiSettings,
+} from "../lib/themes";
 
 export function WorkflowsPage() {
   const location = useLocation();
@@ -178,6 +187,28 @@ export function WorkflowsPage() {
     }
   }
 
+  const selectedUi = parseUiSettings(selected?.settings);
+
+  async function saveUiSettings(next: UiSettings) {
+    if (!selected) return;
+    setError("");
+    try {
+      const updated = await apiFetch<WorkflowDefinition>(
+        `/api/v1/workflows/${selected.id}`,
+        {
+          method: "PATCH",
+          body: JSON.stringify({
+            settings: { ...(selected.settings || {}), ui_theme: next.ui_theme, form_layout: next.form_layout },
+          }),
+        },
+        getToken()
+      );
+      setSelected(updated);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail ?? e.message : "Failed to save theme");
+    }
+  }
+
   if (loading) return <p className="text-slate-500">Loading workflows…</p>;
 
   const tested = Boolean(selected?.settings?.last_simulated_at) || Boolean(simResult);
@@ -185,18 +216,15 @@ export function WorkflowsPage() {
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <h1 className="text-2xl font-bold text-slate-800">Workflows</h1>
-        <Link
-          to="/ai"
-          className="text-sm px-3 py-1.5 bg-brand-50 text-brand-700 rounded-lg hover:bg-brand-100"
-        >
+        <h1 className="wf-page-title">Workflows</h1>
+        <Link to="/ai" className="text-sm px-3 py-1.5 wf-card-accent wf-link font-medium">
           AI creator
         </Link>
       </div>
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 bg-white rounded-lg border border-slate-200 divide-y max-h-[70vh] overflow-y-auto">
+        <div className="lg:col-span-1 wf-card divide-y max-h-[70vh] overflow-y-auto">
           {workflows.length === 0 ? (
             <p className="p-4 text-sm text-slate-500">No workflows yet.</p>
           ) : (
@@ -205,24 +233,13 @@ export function WorkflowsPage() {
                 key={w.id}
                 type="button"
                 onClick={() => openWorkflow(w.id)}
-                className={`w-full text-left p-4 hover:bg-slate-50 ${
-                  selected?.id === w.id ? "bg-brand-50" : ""
+                className={`w-full text-left p-4 hover:bg-slate-50/80 ${
+                  selected?.id === w.id ? "bg-[rgb(var(--wf-accent-muted))]" : ""
                 }`}
               >
                 <p className="font-medium text-slate-800">{w.name}</p>
-                <p className="text-xs text-slate-500">
-                  v{w.version} ·{" "}
-                  <span
-                    className={
-                      w.status === "published"
-                        ? "text-green-700"
-                        : w.status === "archived"
-                          ? "text-slate-500"
-                          : "text-amber-700"
-                    }
-                  >
-                    {w.status}
-                  </span>
+                <p className="text-xs text-slate-500 flex flex-wrap gap-1 items-center mt-0.5">
+                  v{w.version} · <StatusBadge status={w.status} />
                 </p>
               </button>
             ))
@@ -232,17 +249,43 @@ export function WorkflowsPage() {
         <div className="lg:col-span-2 space-y-4">
           {selected ? (
             <>
-              <div className="bg-white rounded-lg border border-slate-200 p-4">
+              <div className="wf-card p-4">
                 <div className="flex flex-wrap items-start justify-between gap-2 mb-2">
                   <div>
                     <h2 className="text-lg font-semibold">{selected.name}</h2>
-                    <p className="text-sm text-slate-500">
-                      v{selected.version} · {selected.status}
-                      {selected.ai_generated && (
-                        <span className="ml-2 text-xs text-brand-600">AI draft</span>
-                      )}
+                    <p className="text-sm text-slate-500 flex flex-wrap gap-2 items-center">
+                      v{selected.version} · <StatusBadge status={selected.status} />
+                      {selected.ai_generated && <span className="wf-badge">AI draft</span>}
                     </p>
                   </div>
+                </div>
+
+                <div className="mb-4 p-3 wf-card-accent text-sm space-y-3">
+                  <p className="font-medium text-slate-700">Appearance</p>
+                  <ThemeSwatches
+                    value={selectedUi.ui_theme}
+                    onChange={(t) => saveUiSettings({ ...selectedUi, ui_theme: t })}
+                  />
+                  <div className="flex flex-wrap gap-2">
+                    {FORM_LAYOUTS.map((layout) => (
+                      <button
+                        key={layout}
+                        type="button"
+                        title={LAYOUT_META[layout].description}
+                        onClick={() => saveUiSettings({ ...selectedUi, form_layout: layout })}
+                        className={`px-3 py-1 rounded-lg text-xs border ${
+                          selectedUi.form_layout === layout
+                            ? "border-slate-800 bg-white font-medium"
+                            : "border-slate-200 hover:border-slate-400"
+                        }`}
+                      >
+                        {LAYOUT_META[layout].label}
+                      </button>
+                    ))}
+                  </div>
+                  <p className="text-xs text-slate-500">
+                    Theme: {THEME_META[selectedUi.ui_theme].description}. Applies to new submissions.
+                  </p>
                 </div>
                 <ol className="list-decimal list-inside text-sm text-slate-700 space-y-1 mb-4">
                   {selected.steps.map((s) => (
@@ -257,7 +300,7 @@ export function WorkflowsPage() {
                     <button
                       type="button"
                       onClick={openPublishModal}
-                      className="px-4 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700"
+                      className="px-4 py-2 wf-btn-primary text-sm"
                     >
                       Publish…
                     </button>
@@ -266,7 +309,7 @@ export function WorkflowsPage() {
                     <button
                       type="button"
                       onClick={newVersion}
-                      className="px-4 py-2 border border-slate-300 text-sm rounded-lg hover:bg-slate-50"
+                      className="px-4 py-2 wf-btn-secondary text-sm"
                     >
                       New version (draft)
                     </button>
@@ -285,7 +328,7 @@ export function WorkflowsPage() {
                       <button
                         type="button"
                         onClick={simulate}
-                        className="px-4 py-2 border border-slate-300 text-sm rounded-lg hover:bg-slate-50"
+                        className="px-4 py-2 wf-btn-secondary text-sm"
                       >
                         Test with sample data
                       </button>
@@ -298,7 +341,7 @@ export function WorkflowsPage() {
               </div>
 
               {preview && (
-                <div className="bg-white rounded-lg border border-slate-200 p-4 text-sm">
+                <div className="wf-card p-4 text-sm">
                   <h3 className="font-medium text-slate-800 mb-2">Preview</h3>
                   <p className="text-slate-600 mb-2">
                     {(preview.form_fields ?? []).length} form field(s) ·{" "}
@@ -317,7 +360,7 @@ export function WorkflowsPage() {
               )}
 
               {versions.length > 0 && (
-                <div className="bg-white rounded-lg border border-slate-200 p-4 text-sm">
+                <div className="wf-card p-4 text-sm">
                   <h3 className="font-medium text-slate-800 mb-2">Version history</h3>
                   <ul className="divide-y">
                     {versions.map((v) => (
@@ -389,7 +432,7 @@ export function WorkflowsPage() {
                 type="button"
                 disabled={!confirmPreview || !tested}
                 onClick={publish}
-                className="px-3 py-1.5 bg-brand-600 text-white rounded-lg disabled:opacity-50"
+                className="px-3 py-1.5 wf-btn-primary disabled:opacity-50"
               >
                 Publish
               </button>

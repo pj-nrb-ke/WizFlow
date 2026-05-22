@@ -10,6 +10,7 @@ import httpx
 
 from app.config import settings
 from app.services import workflow_engine
+from app.services.ui_settings import suggest_ui_for_workflow_name
 
 
 class AiWorkflowError(ValueError):
@@ -101,6 +102,7 @@ TEMPLATES: dict[str, dict[str, Any]] = {
 def _template_draft(description: str) -> dict[str, Any]:
     key = _detect_template(description)
     data = json.loads(json.dumps(TEMPLATES[key]))
+    data["settings"] = {**(data.get("settings") or {}), **suggest_ui_for_workflow_name(data["name"])}
     gaps: list[str] = []
     if "manager" not in description.lower() and key == "generic":
         gaps.append("Consider specifying who approves (e.g. manager, finance).")
