@@ -78,6 +78,8 @@ After web/API edits: rebuild locally (`refresh-local` script or workspace builds
 
 **Status:** Git remote uses SSH (no HTTPS popup). Push/pull via `git@github.com-pj-nrb-ke:…`.
 
+**Last push verified:** 2026-05-21 — `main` @ `bec361f` and later commits via SSH.
+
 ---
 
 ## WizCRM-specific (other folder — do not mix)
