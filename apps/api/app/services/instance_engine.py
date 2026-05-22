@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy import select
-from sqlalchemy.orm import Session, joinedload
+from sqlalchemy.orm import Session
 
 from app.db.models import Role, User, UserRole, WorkflowDefinition, WorkflowInstance
 from app.services import workflow_engine
@@ -62,7 +62,7 @@ def resolve_assignees_for_step(
             Role.company_id == company_id,
             Role.slug == value,
         )
-        .options(joinedload(User.user_roles))
+        .distinct()
     ).all()
 
     return [{"user_id": str(u.id), "full_name": u.full_name, "email": u.email} for u in users]
