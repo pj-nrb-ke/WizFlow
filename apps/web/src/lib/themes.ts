@@ -24,34 +24,56 @@ export type UiSettings = {
   form_layout: FormLayout;
 };
 
-export const THEME_META: Record<
-  AppTheme,
-  { label: string; description: string; swatch: string }
-> = {
+export type ThemePersonality = {
+  label: string;
+  description: string;
+  swatch: string;
+  /** Sample glyph shown in theme picker */
+  sample: string;
+  tagline: string;
+  homeLayout: "classic" | "editorial" | "ops-grid" | "friendly" | "ledger";
+};
+
+export const THEME_META: Record<AppTheme, ThemePersonality> = {
   corporate: {
     label: "Corporate",
-    description: "Classic blue — default professional look",
+    description: "Balanced SaaS layout · Inter",
     swatch: "#1d4ed8",
+    sample: "Ag",
+    tagline: "Clear, familiar, team-friendly",
+    homeLayout: "classic",
   },
   executive: {
     label: "Executive",
-    description: "Dark header, refined neutrals",
+    description: "Editorial serif · dark command bar",
     swatch: "#1e293b",
+    sample: "Ag",
+    tagline: "Boardroom polish and authority",
+    homeLayout: "editorial",
   },
   operations: {
     label: "Operations",
-    description: "Teal accent, crisp and operational",
+    description: "Compact grid · mono metrics",
     swatch: "#0d9488",
+    sample: "01",
+    tagline: "Dense, scan-friendly control room",
+    homeLayout: "ops-grid",
   },
   people: {
     label: "People (HR)",
-    description: "Warm tones for HR and leave workflows",
+    description: "Rounded · Nunito · soft cards",
     swatch: "#c2410c",
+    sample: "Hi",
+    tagline: "Warm and approachable for HR",
+    homeLayout: "friendly",
   },
   finance: {
     label: "Finance",
-    description: "Indigo accent, numbers-first layout",
+    description: "Ledger rows · tabular figures",
     swatch: "#4338ca",
+    sample: "$$",
+    tagline: "Numbers-first finance desk",
+    homeLayout: "ledger",
   },
 };
 

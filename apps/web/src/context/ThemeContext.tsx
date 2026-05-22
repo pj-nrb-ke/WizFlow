@@ -31,6 +31,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", appTheme);
+    document.body.setAttribute("data-theme", appTheme);
   }, [appTheme]);
 
   return (
