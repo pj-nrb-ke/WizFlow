@@ -8,6 +8,7 @@ AI-first workflow and approval platform for non-technical managers.
 - [Phase gates](docs/PHASES.md)
 - [ADRs](docs/adr/)
 - [ERD (P0 core)](docs/erd.md)
+- [UAT checklist (P0–P4)](docs/UAT-CHECKLIST.md)
 - [OpenAPI contract](packages/openapi/wizflow.yaml)
 - [SRS Draft 1.0](docs/Wiz%20Flow%20Srs%20Draft.docx)
 
