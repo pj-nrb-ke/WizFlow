@@ -1,0 +1,596 @@
+openapi: 3.0.3
+info:
+  title: WizFlow API
+  version: 0.1.0
+  description: |
+    MVP API contract for WizFlow. P0 stubs return 501 until implemented in P1–P4.
+    Breaking changes require version bump. Owner — Product Architect (A0).
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local API (via nginx or direct)
+  - url: https://dev.wizflow.biz/api/v1
+    description: Development
+tags:
+  - name: Health
+  - name: Auth
+  - name: Workflows
+  - name: Requests
+  - name: Inbox
+paths:
+  /health:
+    get:
+      tags: [Health]
+      summary: Health check
+      operationId: getHealth
+      responses:
+        "200":
+          description: Service healthy
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthResponse"
+
+  /auth/login:
+    post:
+      tags: [Auth]
+      summary: Login with email and password
+      operationId: login
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Tokens issued
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /auth/refresh:
+    post:
+      tags: [Auth]
+      summary: Refresh access token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        "200":
+          description: New access token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TokenResponse"
+
+  /auth/me:
+    get:
+      tags: [Auth]
+      summary: Current user profile
+      operationId: getMe
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/UserProfile"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+  /workflows:
+    get:
+      tags: [Workflows]
+      summary: List workflow definitions
+      operationId: listWorkflows
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, published, archived]
+      responses:
+        "200":
+          description: Workflow list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkflowDefinitionSummary"
+    post:
+      tags: [Workflows]
+      summary: Create workflow definition (draft)
+      operationId: createWorkflow
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowDefinitionCreate"
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinition"
+
+  /workflows/{workflowId}:
+    get:
+      tags: [Workflows]
+      summary: Get workflow definition
+      operationId: getWorkflow
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkflowId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinition"
+    patch:
+      tags: [Workflows]
+      summary: Update draft workflow
+      operationId: updateWorkflow
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkflowId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WorkflowDefinitionCreate"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinition"
+
+  /workflows/{workflowId}/publish:
+    post:
+      tags: [Workflows]
+      summary: Publish workflow version
+      operationId: publishWorkflow
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkflowId"
+      responses:
+        "200":
+          description: Published
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowDefinition"
+
+  /workflows/{workflowId}/simulate:
+    post:
+      tags: [Workflows]
+      summary: Simulate workflow with sample payload
+      operationId: simulateWorkflow
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkflowId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              additionalProperties: true
+      responses:
+        "200":
+          description: Simulation result
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SimulationResult"
+
+  /workflows/{workflowId}/submit:
+    post:
+      tags: [Requests]
+      summary: Submit a new request against published workflow
+      operationId: submitRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/WorkflowId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RequestSubmit"
+      responses:
+        "201":
+          description: Request created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowInstance"
+
+  /requests:
+    get:
+      tags: [Requests]
+      summary: My requests
+      operationId: listMyRequests
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkflowInstanceSummary"
+
+  /requests/{requestId}:
+    get:
+      tags: [Requests]
+      summary: Get request detail
+      operationId: getRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowInstance"
+
+  /requests/{requestId}/events:
+    get:
+      tags: [Requests]
+      summary: Request timeline (audit events)
+      operationId: getRequestEvents
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/WorkflowEvent"
+
+  /inbox:
+    get:
+      tags: [Inbox]
+      summary: Approval inbox for current user
+      operationId: getInbox
+      security:
+        - bearerAuth: []
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/InboxItem"
+
+  /requests/{requestId}/approve:
+    post:
+      tags: [Inbox]
+      summary: Approve request at current step
+      operationId: approveRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalAction"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowInstance"
+
+  /requests/{requestId}/reject:
+    post:
+      tags: [Inbox]
+      summary: Reject request
+      operationId: rejectRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalAction"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowInstance"
+
+  /requests/{requestId}/return:
+    post:
+      tags: [Inbox]
+      summary: Return request for clarification
+      operationId: returnRequest
+      security:
+        - bearerAuth: []
+      parameters:
+        - $ref: "#/components/parameters/RequestId"
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ApprovalAction"
+      responses:
+        "200":
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/WorkflowInstance"
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  parameters:
+    WorkflowId:
+      name: workflowId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+    RequestId:
+      name: requestId
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+  responses:
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+  schemas:
+    HealthResponse:
+      type: object
+      required: [status, version]
+      properties:
+        status:
+          type: string
+          example: ok
+        version:
+          type: string
+          example: "0.1.0"
+        database:
+          type: string
+          enum: [ok, degraded, unavailable]
+
+    Error:
+      type: object
+      required: [detail]
+      properties:
+        detail:
+          type: string
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+          format: password
+
+    TokenResponse:
+      type: object
+      required: [access_token, token_type]
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        token_type:
+          type: string
+          example: bearer
+        expires_in:
+          type: integer
+
+    UserProfile:
+      type: object
+      required: [id, email, company_id, roles]
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        full_name:
+          type: string
+        company_id:
+          type: string
+          format: uuid
+          nullable: true
+        roles:
+          type: array
+          items:
+            type: string
+
+    WorkflowDefinitionSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+        version:
+          type: integer
+        status:
+          type: string
+          enum: [draft, published, archived]
+
+    WorkflowDefinitionCreate:
+      type: object
+      required: [name, form_schema, steps]
+      properties:
+        name:
+          type: string
+        form_schema:
+          type: object
+        steps:
+          type: array
+          items:
+            type: object
+        routing_rules:
+          type: array
+          items:
+            type: object
+        settings:
+          type: object
+
+    WorkflowDefinition:
+      allOf:
+        - $ref: "#/components/schemas/WorkflowDefinitionSummary"
+        - type: object
+          properties:
+            company_id:
+              type: string
+              format: uuid
+            routing_rules:
+              type: array
+            settings:
+              type: object
+
+    SimulationResult:
+      type: object
+      properties:
+        steps_traversed:
+          type: array
+          items:
+            type: string
+        final_status:
+          type: string
+
+    RequestSubmit:
+      type: object
+      required: [data]
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+
+    WorkflowInstanceSummary:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        workflow_name:
+          type: string
+        status:
+          type: string
+        current_step:
+          type: string
+          nullable: true
+        submitted_at:
+          type: string
+          format: date-time
+
+    WorkflowInstance:
+      allOf:
+        - $ref: "#/components/schemas/WorkflowInstanceSummary"
+        - type: object
+          properties:
+            workflow_definition_id:
+              type: string
+              format: uuid
+            request_data:
+              type: object
+            assignees:
+              type: array
+              items:
+                type: string
+
+    WorkflowEvent:
+      type: object
+      required: [id, event_type, created_at]
+      properties:
+        id:
+          type: string
+          format: uuid
+        event_type:
+          type: string
+        actor_user_id:
+          type: string
+          format: uuid
+          nullable: true
+        payload:
+          type: object
+        created_at:
+          type: string
+          format: date-time
+
+    InboxItem:
+      type: object
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        workflow_name:
+          type: string
+        step_name:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+        originator_name:
+          type: string
+
+    ApprovalAction:
+      type: object
+      properties:
+        comment:
+          type: string

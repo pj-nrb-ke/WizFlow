@@ -21,6 +21,11 @@ venv/
 node_modules/
 dist/
 build/
+apps/web/node_modules/
+
+# Python
+apps/api/.venv/
+*.egg-info/
 
 # Uploads & local data
 uploads/

@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://wizflow.biz/schemas/form-schema.json",
+  "title": "FormSchema",
+  "type": "object",
+  "required": ["fields"],
+  "additionalProperties": false,
+  "properties": {
+    "title": { "type": "string" },
+    "description": { "type": "string" },
+    "fields": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/FormField" }
+    }
+  },
+  "$defs": {
+    "FormField": {
+      "type": "object",
+      "required": ["key", "type", "label"],
+      "additionalProperties": false,
+      "properties": {
+        "key": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "type": {
+          "type": "string",
+          "enum": ["text", "number", "date", "dropdown", "checkbox", "radio", "file", "textarea"]
+        },
+        "label": { "type": "string", "minLength": 1 },
+        "required": { "type": "boolean", "default": false },
+        "placeholder": { "type": "string" },
+        "options": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["value", "label"],
+            "properties": {
+              "value": { "type": "string" },
+              "label": { "type": "string" }
+            }
+          }
+        },
+        "validation": {
+          "type": "object",
+          "properties": {
+            "min": { "type": "number" },
+            "max": { "type": "number" },
+            "pattern": { "type": "string" }
+          }
+        },
+        "visible_when": {
+          "type": "object",
+          "description": "Show field when condition matches (MVP: simple field op value)",
+          "properties": {
+            "field": { "type": "string" },
+            "op": { "type": "string", "enum": ["eq", "ne", "gt", "lt"] },
+            "value": {}
+          }
+        }
+      }
+    }
+  }
+}
