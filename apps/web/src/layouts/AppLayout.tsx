@@ -5,6 +5,7 @@ import {
   IconInbox,
   IconPlusCircle,
   IconShield,
+  IconSettings,
   IconSparkles,
   IconWorkflow,
 } from "../components/icons";
@@ -21,6 +22,7 @@ const nav = [
   { to: "/workflows", label: "Workflows", Icon: IconWorkflow },
   { to: "/ai", label: "AI creator", Icon: IconSparkles },
   { to: "/admin", label: "Admin", Icon: IconShield },
+  { to: "/settings", label: "Settings", Icon: IconSettings },
 ] as const;
 
 export function AppLayout() {

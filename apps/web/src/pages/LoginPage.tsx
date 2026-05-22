@@ -1,15 +1,12 @@
 import { FormEvent, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { AppThemeSwitcher } from "../components/ThemeSwitcher";
 import { ApiError } from "../lib/api";
 import * as auth from "../lib/auth";
 import { useAuth } from "../context/AuthContext";
-import { useAppTheme } from "../context/ThemeContext";
 
 export function LoginPage() {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
-  const { appTheme } = useAppTheme();
   const [email, setEmail] = useState("admin@demo.wizflow.biz");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -31,7 +28,7 @@ export function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col" data-theme={appTheme}>
+    <div className="min-h-screen flex flex-col">
       <div className="flex-1 flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div className="wf-home-hero mb-6 text-center">
@@ -77,10 +74,6 @@ export function LoginPage() {
             <p className="mt-4 text-xs text-slate-400 text-center">
               admin@demo.wizflow.biz / changeme
             </p>
-          </div>
-          <div className="mt-6 wf-card p-4">
-            <p className="text-xs font-medium text-slate-600 mb-2">Preview interface theme</p>
-            <AppThemeSwitcher />
           </div>
         </div>
       </div>

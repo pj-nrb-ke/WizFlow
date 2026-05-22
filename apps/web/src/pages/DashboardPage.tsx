@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { StatusBadge } from "../components/StatusBadge";
-import { AppThemeSwitcher } from "../components/ThemeSwitcher";
 import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
 import { apiFetch, InboxItem, Notification, RequestSummary, WorkflowSummary } from "../lib/api";
@@ -53,6 +52,7 @@ export function DashboardPage() {
     { to: "/inbox", title: "Approval inbox", desc: "Review items waiting on you", icon: "✉" },
     { to: "/workflows", title: "Workflows", desc: "Publish, test, themes", icon: "⚙" },
     { to: "/ai", title: "AI creator", desc: "Draft a process in plain English", icon: "✦" },
+    { to: "/settings", title: "Settings", desc: "Theme and account preferences", icon: "⚙" },
   ];
 
   if (loading) {
@@ -163,7 +163,7 @@ export function DashboardPage() {
       </div>
 
       <h2 className="wf-page-title mb-3">Quick actions</h2>
-      <div className="grid sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-10">
+      <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 mb-10">
         {actions.map((a) => (
           <Link key={a.to} to={a.to} className="wf-action-tile">
             <span className="wf-action-icon" aria-hidden>
@@ -174,15 +174,6 @@ export function DashboardPage() {
           </Link>
         ))}
       </div>
-
-      <section className="wf-card p-5">
-        <h2 className="font-semibold text-slate-800 mb-1">Interface theme</h2>
-        <p className="text-sm text-slate-500 mb-4">
-          Each theme changes <strong>fonts</strong>, <strong>layout density</strong>, navigation
-          style, and home page structure. Try Executive vs People vs Operations.
-        </p>
-        <AppThemeSwitcher />
-      </section>
     </div>
   );
 }

@@ -11,6 +11,7 @@ import { MyRequestsPage } from "./pages/MyRequestsPage";
 import { RequestDetailPage } from "./pages/RequestDetailPage";
 import { SubmitRequestPage } from "./pages/SubmitRequestPage";
 import { AiWorkflowPage } from "./pages/AiWorkflowPage";
+import { SettingsPage } from "./pages/SettingsPage";
 import { WorkflowsPage } from "./pages/WorkflowsPage";
 import { isAuthenticated } from "./lib/auth";
 
@@ -33,6 +34,7 @@ export default function App() {
             <Route path="requests/:id" element={<RequestDetailPage />} />
             <Route path="inbox" element={<InboxPage />} />
             <Route path="admin" element={<AdminPage />} />
+            <Route path="settings" element={<SettingsPage />} />
           </Route>
         </Route>
         <Route path="*" element={<Navigate to="/" replace />} />

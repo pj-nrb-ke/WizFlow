@@ -1,8 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { IconChevronDown, IconLogOut, IconUser } from "./icons";
-import { AppThemeSwitcher } from "./ThemeSwitcher";
+import { IconChevronDown, IconLogOut, IconSettings, IconUser } from "./icons";
 
 export function UserMenu() {
   const { user, signOut } = useAuth();
@@ -19,6 +18,7 @@ export function UserMenu() {
   }, []);
 
   function logout() {
+    setOpen(false);
     signOut();
     navigate("/login");
   }
@@ -54,7 +54,7 @@ export function UserMenu() {
       </button>
 
       {open && (
-        <div className="wf-user-menu absolute right-0 top-full mt-2 w-56 wf-card py-2 z-50 shadow-lg">
+        <div className="wf-user-menu absolute right-0 top-full mt-2 w-52 wf-card py-1 z-50 shadow-lg">
           <div className="px-3 py-2 border-b border-slate-100 flex items-center gap-3">
             <span className="flex items-center justify-center w-10 h-10 rounded-full bg-[rgb(var(--wf-accent-muted))] text-[rgb(var(--wf-brand-700))] font-bold text-sm">
               {initials}
@@ -64,14 +64,18 @@ export function UserMenu() {
               <p className="text-xs text-slate-500 truncate">{user?.email}</p>
             </div>
           </div>
-          <div className="px-3 py-2 border-b border-slate-100">
-            <p className="text-[10px] uppercase tracking-wide text-slate-400 mb-2">Theme</p>
-            <AppThemeSwitcher compact />
-          </div>
+          <Link
+            to="/settings"
+            onClick={() => setOpen(false)}
+            className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+          >
+            <IconSettings size={16} />
+            Settings
+          </Link>
           <button
             type="button"
             onClick={logout}
-            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 text-left"
+            className="w-full flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 text-left border-t border-slate-100"
           >
             <IconLogOut size={16} />
             Log out
