@@ -36,6 +36,29 @@ export async function apiFetch<T>(
   return res.json() as Promise<T>;
 }
 
+export async function apiUpload<T>(
+  path: string,
+  file: File,
+  token?: string | null
+): Promise<T> {
+  const form = new FormData();
+  form.append("file", file);
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, { method: "POST", headers, body: form });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const err = await res.json();
+      detail = err.detail ?? detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(detail, res.status, detail);
+  }
+  return res.json() as Promise<T>;
+}
+
 export type UserProfile = {
   id: string;
   email: string;
@@ -61,7 +84,7 @@ export type WorkflowSummary = {
 
 export type WorkflowDefinition = WorkflowSummary & {
   company_id: string;
-  form_schema: Record<string, unknown>;
+  form_schema: { fields?: FormField[] };
   steps: Record<string, unknown>[];
   routing_rules: Record<string, unknown>[];
   settings: Record<string, unknown>;
@@ -69,10 +92,65 @@ export type WorkflowDefinition = WorkflowSummary & {
   updated_at: string;
 };
 
+export type FormField = {
+  key: string;
+  type: string;
+  label: string;
+  required?: boolean;
+  placeholder?: string;
+};
+
 export type SimulationResult = {
   steps_traversed: string[];
   final_status: string;
   routing_applied: string[];
+};
+
+export type RequestSummary = {
+  id: string;
+  workflow_name: string;
+  status: string;
+  current_step: string | null;
+  current_step_name: string | null;
+  submitted_at: string | null;
+};
+
+export type RequestDetail = RequestSummary & {
+  workflow_definition_id: string;
+  originator_user_id: string | null;
+  originator_name: string | null;
+  request_data: Record<string, unknown>;
+  assignees: { user_id: string; full_name: string; email?: string }[];
+  step_sequence: string[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type InboxItem = {
+  request_id: string;
+  workflow_name: string;
+  step_name: string;
+  step_id: string;
+  submitted_at: string | null;
+  originator_name: string;
+  amount_preview: string | null;
+};
+
+export type WorkflowEvent = {
+  id: string;
+  event_type: string;
+  actor_user_id: string | null;
+  actor_name: string | null;
+  payload: Record<string, unknown>;
+  created_at: string;
+};
+
+export type Notification = {
+  id: string;
+  title: string;
+  body: string;
+  read: boolean;
+  created_at: string;
 };
 
 export type Department = { id: string; name: string; code: string | null; created_at: string };

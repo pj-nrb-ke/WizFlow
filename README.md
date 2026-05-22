@@ -80,9 +80,9 @@ npm run dev
 
 ## Phase status
 
-**P0–P2 (current):** foundation, JWT auth, org admin APIs, workflow publish/simulate/events, refreshed web UI.
+**P0–P4 (current):** foundation through approval loop — submit requests, inbox, approve/reject/return, timeline, notifications.
 
-**Next — P3:** Submit requests, dynamic forms, file uploads.
+**Next — P5:** Manager UI polish, workflow preview/test/publish UX.
 
 ## Repository
 

@@ -7,8 +7,8 @@ See [WIZFLOW_HANDOVER.md](./WIZFLOW_HANDOVER.md) for full context. This file tra
 | **P0** | Foundation & contracts | 1–1.5 | ✅ Repo, Docker, OpenAPI, DB migrations, CI |
 | **P1** | Tenant, auth, org | 1.5–2 | ✅ Login, company isolation, admin setup APIs |
 | **P2** | Workflow engine (headless) | 2 | ✅ Publish workflow, simulate, events |
-| **P3** | Requests & forms | 1.5–2 | Submit petty cash with files |
-| **P4** | Approval loop | 2 | Inbox, approve/reject/return, timeline, email |
+| **P3** | Requests & forms | 1.5–2 | ✅ Submit petty cash with files |
+| **P4** | Approval loop | 2 | ✅ Inbox, approve/reject/return, timeline, email |
 | **P5** | Manager UI & publish | 1.5–2 | Preview, draft/test/publish, versioning |
 | **P6** | AI workflow creator | 2 | NL → draft → publish with guardrails |
 | **P7** | KPI & reporting | 1.5–2 | Dashboard + Excel export |

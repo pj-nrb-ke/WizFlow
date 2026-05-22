@@ -3,9 +3,10 @@ import { useAuth } from "../context/AuthContext";
 
 const nav = [
   { to: "/", label: "Dashboard" },
-  { to: "/workflows", label: "Workflows" },
-  { to: "/inbox", label: "Inbox" },
+  { to: "/submit", label: "New request" },
   { to: "/requests", label: "My Requests" },
+  { to: "/inbox", label: "Inbox" },
+  { to: "/workflows", label: "Workflows" },
   { to: "/admin", label: "Admin" },
 ];
 

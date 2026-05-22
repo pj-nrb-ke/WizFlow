@@ -7,6 +7,7 @@ from sqlalchemy.orm import Session
 from app.core.deps import CurrentUser, require_company
 from app.db.models import WorkflowDefinition, WorkflowEvent
 from app.db.session import get_db
+from app.schemas.request import RequestSubmit, WorkflowInstanceOut
 from app.schemas.workflow import (
     SimulationRequest,
     SimulationResult,
@@ -16,8 +17,10 @@ from app.schemas.workflow import (
     WorkflowDefinitionUpdate,
     WorkflowEventOut,
 )
-from app.services import workflow_engine
+from app.services import instance_engine, workflow_engine
 from app.services.events import record_event
+from app.services.instance_queries import to_out
+from app.services.notifications import notify_users
 
 router = APIRouter(prefix="/workflows", tags=["Workflows"])
 
@@ -169,6 +172,39 @@ def simulate_workflow(
     )
     db.commit()
     return result
+
+
+@router.post("/{workflow_id}/submit", response_model=WorkflowInstanceOut, status_code=status.HTTP_201_CREATED)
+def submit_request(
+    workflow_id: UUID,
+    body: RequestSubmit,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> WorkflowInstanceOut:
+    defn = _get_definition(db, workflow_id, user.company_id)
+    try:
+        inst = instance_engine.submit_request(
+            db,
+            defn=defn,
+            user_id=user.id,
+            company_id=user.company_id,
+            data=body.data,
+        )
+    except instance_engine.RequestError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
+    assignee_ids = [UUID(a["user_id"]) for a in inst.assignees if a.get("user_id")]
+    notify_users(
+        db,
+        company_id=user.company_id,
+        user_ids=assignee_ids,
+        title=f"Approval needed: {inst.workflow_name}",
+        body=f"New request submitted — please review.",
+        instance_id=inst.id,
+    )
+    db.commit()
+    db.refresh(inst)
+    return to_out(db, inst, defn)
 
 
 @router.get("/{workflow_id}/events", response_model=list[WorkflowEventOut])

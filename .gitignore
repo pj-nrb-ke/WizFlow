@@ -29,3 +29,4 @@ apps/api/.venv/
 
 # Uploads & local data
 uploads/
+apps/api/uploads/

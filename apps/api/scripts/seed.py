@@ -58,6 +58,8 @@ def _seed_workflow(db, company_id) -> None:
         )
     )
     if existing:
+        if existing.status == "draft":
+            existing.status = "published"
         return
     db.add(
         WorkflowDefinition(
@@ -67,9 +69,27 @@ def _seed_workflow(db, company_id) -> None:
             steps=PETTY_CASH["steps"],
             routing_rules=PETTY_CASH["routing_rules"],
             settings=PETTY_CASH["settings"],
-            status="draft",
+            status="published",
         )
     )
+
+
+ORIGINATOR_EMAIL = "originator@demo.wizflow.biz"
+
+
+def _seed_originator(db, company_id, role_map: dict) -> None:
+    if db.scalar(select(User).where(User.email == ORIGINATOR_EMAIL)):
+        return
+    user = User(
+        company_id=company_id,
+        email=ORIGINATOR_EMAIL,
+        password_hash=hash_password(ADMIN_PASSWORD),
+        full_name="Demo Originator",
+    )
+    db.add(user)
+    db.flush()
+    if "originator" in role_map:
+        db.add(UserRole(user_id=user.id, role_id=role_map["originator"].id))
 
 
 def seed() -> None:
@@ -91,9 +111,13 @@ def seed() -> None:
                         )
                         if not exists:
                             db.add(UserRole(user_id=admin.id, role_id=role_map[slug].id))
+            roles = db.scalars(select(Role).where(Role.company_id == company.id)).all()
+            role_map = {r.slug: r for r in roles}
+            _seed_originator(db, company.id, role_map)
             _seed_workflow(db, company.id)
             db.commit()
             print(f"Seed updated for existing company '{COMPANY_SLUG}'.")
+            print(f"  Originator: {ORIGINATOR_EMAIL} / {ADMIN_PASSWORD}")
             return
 
         company = Company(name=COMPANY_NAME, slug=COMPANY_SLUG)
@@ -118,13 +142,14 @@ def seed() -> None:
 
         db.add(UserRole(user_id=admin.id, role_id=role_by_slug[ROLE_COMPANY_ADMIN].id))
         db.add(UserRole(user_id=admin.id, role_id=role_by_slug[ROLE_MANAGER].id))
+        _seed_originator(db, company.id, role_by_slug)
         _seed_workflow(db, company.id)
         db.commit()
         print("Seed complete.")
         print(f"  Company: {COMPANY_NAME} ({COMPANY_SLUG})")
-        print(f"  Admin:   {ADMIN_EMAIL} / {ADMIN_PASSWORD}")
-        print(f"  Roles:   {', '.join(DEFAULT_ROLES)}")
-        print(f"  Workflow: {PETTY_CASH['name']} (draft)")
+        print(f"  Admin:     {ADMIN_EMAIL} / {ADMIN_PASSWORD}")
+        print(f"  Originator: {ORIGINATOR_EMAIL} / {ADMIN_PASSWORD}")
+        print(f"  Workflow: {PETTY_CASH['name']} (published)")
     finally:
         db.close()
 
