@@ -215,9 +215,22 @@
   }
 
   .wf-nav-link {
-    @apply transition-all px-3 py-1.5;
+    @apply transition-all px-3 py-1.5 inline-flex items-center gap-1.5;
     color: rgb(71 85 105);
     border-radius: var(--wf-radius);
+  }
+
+  .wf-nav-link svg {
+    opacity: 0.75;
+  }
+
+  .wf-nav-link.active svg,
+  .wf-nav-link:hover svg {
+    opacity: 1;
+  }
+
+  .wf-user-avatar svg {
+    stroke: white;
   }
 
   .wf-nav-link:hover {
