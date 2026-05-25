@@ -136,12 +136,19 @@ export type AiDraftResponse = {
   source: string;
 };
 
+export type FormFieldOption = { value: string; label: string };
+
 export type FormField = {
   key: string;
   type: string;
   label: string;
   required?: boolean;
   placeholder?: string;
+  options?: FormFieldOption[];
+  /** Static text for type `label`. */
+  content?: string;
+  /** Caption for type `button`. */
+  buttonText?: string;
 };
 
 export type SimulationResult = {

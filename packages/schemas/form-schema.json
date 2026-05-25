@@ -22,11 +22,26 @@
         "key": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
         "type": {
           "type": "string",
-          "enum": ["text", "number", "date", "dropdown", "checkbox", "radio", "file", "textarea"]
+          "enum": [
+            "text",
+            "number",
+            "date",
+            "time",
+            "dropdown",
+            "combobox",
+            "checkbox",
+            "radio",
+            "file",
+            "textarea",
+            "label",
+            "button"
+          ]
         },
         "label": { "type": "string", "minLength": 1 },
         "required": { "type": "boolean", "default": false },
         "placeholder": { "type": "string" },
+        "content": { "type": "string" },
+        "buttonText": { "type": "string" },
         "options": {
           "type": "array",
           "items": {

@@ -1,9 +1,12 @@
 import type { FormField } from "./api";
+import { isInputField } from "./formDesigner";
 
 export function getFormFields(schema?: { fields?: FormField[] } | null): FormField[] {
   const fields = schema?.fields;
   if (!Array.isArray(fields)) return [];
-  return fields.filter((f) => f && typeof f.key === "string" && f.label);
+  return fields.filter(
+    (f) => f && typeof f.key === "string" && f.label && isInputField(f)
+  );
 }
 
 export function defaultValueForField(field: FormField): string {
@@ -32,7 +35,8 @@ export function validateFormClient(
   fields: FormField[],
   form: Record<string, string>
 ): string | null {
-  for (const f of fields) {
+  const inputs = fields.filter(isInputField);
+  for (const f of inputs) {
     if (!f.required) continue;
     const v = form[f.key];
     if (v === undefined || v === null || String(v).trim() === "") {
@@ -47,7 +51,7 @@ export function formToPayload(
   form: Record<string, string>
 ): Record<string, unknown> {
   const data: Record<string, unknown> = {};
-  for (const f of fields) {
+  for (const f of fields.filter(isInputField)) {
     const v = form[f.key];
     if (v === undefined || v === "") continue;
     if (f.type === "number") data[f.key] = Number(v);

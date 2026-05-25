@@ -8,6 +8,7 @@ import {
   IconSettings,
   IconSparkles,
   IconWorkflow,
+  IconForm,
 } from "../components/icons";
 import { UserMenu } from "../components/UserMenu";
 import { useAuth } from "../context/AuthContext";
@@ -20,6 +21,7 @@ const nav = [
   { to: "/requests", label: "My Requests", Icon: IconClipboardList },
   { to: "/inbox", label: "Inbox", Icon: IconInbox },
   { to: "/workflows", label: "Workflows", Icon: IconWorkflow },
+  { to: "/form-designer", label: "Form Designer", Icon: IconForm },
   { to: "/ai", label: "AI creator", Icon: IconSparkles },
   { to: "/admin", label: "Admin", Icon: IconShield },
   { to: "/settings", label: "Settings", Icon: IconSettings },

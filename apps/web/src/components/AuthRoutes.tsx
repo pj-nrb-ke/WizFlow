@@ -12,6 +12,7 @@ import { SubmitRequestPage } from "../pages/SubmitRequestPage";
 import { AiWorkflowPage } from "../pages/AiWorkflowPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { WorkflowsPage } from "../pages/WorkflowsPage";
+import { FormDesignerPage } from "../pages/FormDesignerPage";
 import { PublicApprovePage } from "../pages/PublicApprovePage";
 
 function LoadingScreen() {
@@ -63,6 +64,7 @@ export function AppRoutes() {
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
           <Route path="workflows" element={<WorkflowsPage />} />
+          <Route path="form-designer" element={<FormDesignerPage />} />
           <Route path="ai" element={<AiWorkflowPage />} />
           <Route path="submit" element={<SubmitRequestPage />} />
           <Route path="requests" element={<MyRequestsPage />} />

@@ -1,5 +1,6 @@
 import type { FormField } from "../lib/api";
 import type { FormLayout } from "../lib/themes";
+import { FormFieldBlock } from "./FormFieldControl";
 
 type Props = {
   fields: FormField[];
@@ -9,101 +10,6 @@ type Props = {
   readOnly?: boolean;
 };
 
-function FieldInput({
-  field,
-  value,
-  onChange,
-  readOnly,
-  className = "wf-input",
-}: {
-  field: FormField;
-  value: string;
-  onChange: (v: string) => void;
-  readOnly?: boolean;
-  className?: string;
-}) {
-  if (readOnly) {
-    return <p className="text-slate-800 font-medium">{value || "—"}</p>;
-  }
-  const inputType =
-    field.type === "number"
-      ? "number"
-      : field.type === "date"
-        ? "date"
-        : field.type === "textarea"
-          ? undefined
-          : "text";
-
-  if (field.type === "textarea") {
-    return (
-      <textarea
-        required={field.required}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        className={`${className} min-h-[80px]`}
-        placeholder={field.placeholder}
-      />
-    );
-  }
-
-  return (
-    <input
-      type={inputType}
-      required={field.required}
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      className={className}
-      placeholder={field.placeholder}
-    />
-  );
-}
-
-function FieldBlock({
-  field,
-  values,
-  onChange,
-  readOnly,
-  highlight,
-}: {
-  field: FormField;
-  values: Record<string, string>;
-  onChange: (key: string, value: string) => void;
-  readOnly?: boolean;
-  highlight?: boolean;
-}) {
-  if (highlight && field.key === "amount") {
-    return (
-      <div className="wf-form-hero-amount">
-        <label className="block text-sm font-medium text-slate-600 mb-1">
-          {field.label}
-          {field.required && <span className="text-red-500"> *</span>}
-        </label>
-        <FieldInput
-          field={field}
-          value={values[field.key] ?? ""}
-          onChange={(v) => onChange(field.key, v)}
-          readOnly={readOnly}
-        />
-      </div>
-    );
-  }
-
-  return (
-    <div>
-      <label className="block text-sm font-medium text-slate-700 mb-1">
-        {field.label}
-        {field.required && <span className="text-red-500"> *</span>}
-      </label>
-      <FieldInput
-        field={field}
-        value={values[field.key] ?? ""}
-        onChange={(v) => onChange(field.key, v)}
-        readOnly={readOnly}
-      />
-    </div>
-  );
-}
-
 function groupSections(fields: FormField[]): { title: string; fields: FormField[] }[] {
   const details: FormField[] = [];
   const amounts: FormField[] = [];
@@ -111,9 +17,9 @@ function groupSections(fields: FormField[]): { title: string; fields: FormField[
   const other: FormField[] = [];
 
   for (const f of fields) {
-    if (f.key === "amount" || f.type === "number" && f.key.includes("amount")) {
+    if (f.key === "amount" || (f.type === "number" && f.key.includes("amount"))) {
       amounts.push(f);
-    } else if (f.type === "date" || f.key.includes("date")) {
+    } else if (f.type === "date" || f.type === "time" || f.key.includes("date")) {
       dates.push(f);
     } else if (
       f.type === "textarea" ||
@@ -153,17 +59,23 @@ export function WorkflowFormRenderer({
     return (
       <div className="space-y-4">
         {amountField && (
-          <FieldBlock
+          <FormFieldBlock
             field={amountField}
-            values={values}
-            onChange={handle}
+            value={values[amountField.key] ?? ""}
+            onChange={(v) => handle(amountField.key, v)}
             readOnly={readOnly}
             highlight
           />
         )}
         <div className="space-y-4">
           {rest.map((f) => (
-            <FieldBlock key={f.key} field={f} values={values} onChange={handle} readOnly={readOnly} />
+            <FormFieldBlock
+              key={f.key}
+              field={f}
+              value={values[f.key] ?? ""}
+              onChange={(v) => handle(f.key, v)}
+              readOnly={readOnly}
+            />
           ))}
         </div>
       </div>
@@ -178,7 +90,13 @@ export function WorkflowFormRenderer({
             <h3 className="wf-form-section-title">{sec.title}</h3>
             <div className="space-y-4">
               {sec.fields.map((f) => (
-                <FieldBlock key={f.key} field={f} values={values} onChange={handle} readOnly={readOnly} />
+                <FormFieldBlock
+                  key={f.key}
+                  field={f}
+                  value={values[f.key] ?? ""}
+                  onChange={(v) => handle(f.key, v)}
+                  readOnly={readOnly}
+                />
               ))}
             </div>
           </div>
@@ -191,8 +109,13 @@ export function WorkflowFormRenderer({
     return (
       <div className="grid sm:grid-cols-2 gap-4">
         {fields.map((f) => (
-          <div key={f.key} className={f.type === "textarea" ? "sm:col-span-2" : ""}>
-            <FieldBlock field={f} values={values} onChange={handle} readOnly={readOnly} />
+          <div key={f.key} className={f.type === "textarea" || f.type === "label" ? "sm:col-span-2" : ""}>
+            <FormFieldBlock
+              field={f}
+              value={values[f.key] ?? ""}
+              onChange={(v) => handle(f.key, v)}
+              readOnly={readOnly}
+            />
           </div>
         ))}
       </div>
@@ -202,7 +125,13 @@ export function WorkflowFormRenderer({
   return (
     <div className="space-y-4">
       {fields.map((f) => (
-        <FieldBlock key={f.key} field={f} values={values} onChange={handle} readOnly={readOnly} />
+        <FormFieldBlock
+          key={f.key}
+          field={f}
+          value={values[f.key] ?? ""}
+          onChange={(v) => handle(f.key, v)}
+          readOnly={readOnly}
+        />
       ))}
     </div>
   );

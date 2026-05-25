@@ -78,6 +78,15 @@ export function IconSparkles(props: IconProps) {
   );
 }
 
+export function IconForm(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <rect x="3" y="4" width="18" height="16" rx="2" />
+      <path d="M7 8h10M7 12h6M7 16h8" />
+    </Icon>
+  );
+}
+
 export function IconShield(props: IconProps) {
   return (
     <Icon {...props}>
