@@ -1,4 +1,5 @@
 import type { FormField, FormFieldOption } from "../lib/api";
+import { sanitizePositiveNumberInput } from "../lib/numberInput";
 
 type Props = {
   field: FormField;
@@ -6,6 +7,8 @@ type Props = {
   onChange?: (value: string) => void;
   readOnly?: boolean;
   className?: string;
+  /** Amount hero panel on purple background */
+  variant?: "default" | "hero";
 };
 
 function OptionsList({ options }: { options: FormFieldOption[] }) {
@@ -26,6 +29,7 @@ export function FormFieldControl({
   onChange,
   readOnly = false,
   className = "wf-input",
+  variant = "default",
 }: Props) {
   const disabled = readOnly || !onChange;
   const set = (v: string) => onChange?.(v);
@@ -57,7 +61,11 @@ export function FormFieldControl({
   }
 
   if (readOnly) {
-    return <p className="text-slate-800 font-medium">{value || "—"}</p>;
+    const roClass =
+      variant === "hero"
+        ? "text-4xl font-bold font-mono text-white"
+        : "text-slate-800 font-medium";
+    return <p className={roClass}>{value || "—"}</p>;
   }
 
   const options = field.options ?? [];
@@ -150,10 +158,34 @@ export function FormFieldControl({
     );
   }
 
-  const inputType = field.type === "number" ? "number" : "text";
+  if (field.type === "number") {
+    return (
+      <input
+        type="text"
+        inputMode="decimal"
+        autoComplete="off"
+        required={field.required}
+        value={value}
+        onChange={(e) => set(sanitizePositiveNumberInput(e.target.value))}
+        onKeyDown={(e) => {
+          if (e.key === "-" || e.key === "+" || e.key === "e" || e.key === "E") {
+            e.preventDefault();
+          }
+        }}
+        onPaste={(e) => {
+          e.preventDefault();
+          const text = e.clipboardData.getData("text");
+          set(sanitizePositiveNumberInput(text));
+        }}
+        className={`${className} wf-input-number`}
+        placeholder={field.placeholder}
+      />
+    );
+  }
+
   return (
     <input
-      type={inputType}
+      type="text"
       required={field.required}
       value={value}
       onChange={(e) => set(e.target.value)}
@@ -187,11 +219,17 @@ export function FormFieldBlock({ field, value, onChange, readOnly, highlight }: 
   if (highlight && field.key === "amount") {
     return (
       <div className="wf-form-hero-amount">
-        <label className="block text-sm font-medium text-slate-600 mb-1">
+        <label className="block text-sm font-medium mb-1">
           {field.label}
-          {field.required && <span className="text-red-500"> *</span>}
+          {field.required && <span className="text-red-300"> *</span>}
         </label>
-        <FormFieldControl field={field} value={value} onChange={onChange} readOnly={readOnly} />
+        <FormFieldControl
+          field={field}
+          value={value}
+          onChange={onChange}
+          readOnly={readOnly}
+          variant="hero"
+        />
       </div>
     );
   }

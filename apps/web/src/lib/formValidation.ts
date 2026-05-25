@@ -1,5 +1,6 @@
 import type { FormField } from "./api";
 import { isInputField } from "./formDesigner";
+import { parsePositiveNumber, validatePositiveNumberField } from "./numberInput";
 
 export function getFormFields(schema?: { fields?: FormField[] } | null): FormField[] {
   const fields = schema?.fields;
@@ -37,8 +38,15 @@ export function validateFormClient(
 ): string | null {
   const inputs = fields.filter(isInputField);
   for (const f of inputs) {
-    if (!f.required) continue;
     const v = form[f.key];
+    if (f.type === "number") {
+      const trimmed = v === undefined || v === null ? "" : String(v).trim();
+      if (trimmed) {
+        const numErr = validatePositiveNumberField(f.label, trimmed);
+        if (numErr) return numErr;
+      }
+    }
+    if (!f.required) continue;
     if (v === undefined || v === null || String(v).trim() === "") {
       return `Please enter ${f.label}.`;
     }
@@ -54,7 +62,10 @@ export function formToPayload(
   for (const f of fields.filter(isInputField)) {
     const v = form[f.key];
     if (v === undefined || v === "") continue;
-    if (f.type === "number") data[f.key] = Number(v);
+    if (f.type === "number") {
+      const n = parsePositiveNumber(String(v));
+      if (n !== null) data[f.key] = n;
+    }
     else data[f.key] = v;
   }
   return data;

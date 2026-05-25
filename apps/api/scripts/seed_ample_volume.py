@@ -27,6 +27,7 @@ from app.db.models import (
 from app.db.session import SessionLocal
 from app.services import instance_engine
 from app.services.assignees import user_can_act, user_can_see_inbox
+from app.services.initiators import user_can_initiate
 from scripts.seed_custom_workflow_demo import MEGA_WORKFLOW_NAME, seed_custom_workflow_demo
 from scripts.seed_rich import _clear_transactions, _notify_inbox, sample_data
 
@@ -180,6 +181,7 @@ def seed_ample_volume(*, force: bool | None = None) -> None:
         )
         mega = next((w for w in published if w.name == MEGA_WORKFLOW_NAME), None)
         petty_wf = next((w for w in published if w.name == "Petty Cash Approval"), None)
+        # petty_wf used below for admin inbox + per-form seeding
         wf_pool = [w for w in published if w.name not in (MEGA_WORKFLOW_NAME,)][:8]
 
         if not mega:
@@ -209,6 +211,24 @@ def seed_ample_volume(*, force: bool | None = None) -> None:
 
         stats = {"approved": 0, "in_progress": 0, "rejected": 0, "returned": 0, "inbox_mega": 0}
 
+        def _submitters_for(defn: WorkflowDefinition) -> list:
+            pool = originator_users + ([admin] if admin else [])
+            return [u for u in pool if user_can_initiate(db, u.id, defn)]
+
+        # --- At least 2 submissions per published form (varied amounts) ---
+        for defn in published:
+            candidates = _submitters_for(defn)
+            if not candidates:
+                continue
+            for _ in range(2):
+                u = random.choice(candidates)
+                data = sample_data(defn)
+                if defn.name == MEGA_WORKFLOW_NAME:
+                    data = _mega_sample(defn)
+                elif petty_wf and defn.id == petty_wf.id:
+                    data["amount"] = random.randint(5100, 75000)
+                _submit(db, defn, u.id, company.id, data)
+
         # --- My requests: exactly 18 per originator (mixed statuses) ---
         random.shuffle(wf_pool)
         for o_user in originator_users:
@@ -231,6 +251,32 @@ def seed_ample_volume(*, force: bool | None = None) -> None:
                     instance_engine.return_request(db, inst, admin.id, "Demo return")
                     stats["returned"] += 1
 
+        # --- Admin "My requests" (admin can submit any standard workflow) ---
+        if admin:
+            admin_pool = [d for d in published if user_can_initiate(db, admin.id, d)]
+            random.shuffle(admin_pool)
+            for i in range(TARGET_REQUESTS_PER_ORIGINATOR):
+                if not admin_pool:
+                    break
+                defn = admin_pool[i % len(admin_pool)]
+                data = sample_data(defn)
+                if defn.name == MEGA_WORKFLOW_NAME:
+                    data = _mega_sample(defn)
+                elif petty_wf and defn.id == petty_wf.id:
+                    data["amount"] = random.randint(900, 4200)
+                roll = random.random()
+                if roll < 0.4:
+                    inst = _submit(db, defn, admin.id, company.id, data)
+                    _approve_until_done(db, inst, defn, admin.id)
+                    stats["approved"] += 1
+                elif roll < 0.7:
+                    _submit(db, defn, admin.id, company.id, data)
+                    stats["in_progress"] += 1
+                else:
+                    inst = _submit(db, defn, admin.id, company.id, data)
+                    instance_engine.reject_request(db, inst, admin.id, "Demo reject")
+                    stats["rejected"] += 1
+
         # --- 8-step showcase: mega parked at steps 3, 5, 7 (submitter: ops.user) ---
         if mega:
             for step_idx, num in [(2, 3), (4, 5), (6, 7)]:
@@ -250,17 +296,14 @@ def seed_ample_volume(*, force: bool | None = None) -> None:
                     _park_mega_at_step(db, inst, mega, step_idx, approver_by_num)
                     stats["inbox_mega"] += 1
 
-        # --- Admin inbox: finance step (company_admin only, not shared with manager approvers) ---
+        # --- Admin inbox: finance step (random amounts > 5000) ---
         if admin and petty_wf:
             need = max(0, TARGET_INBOX_PER_USER - _count_inbox(db, company.id, admin.id))
             for _ in range(need):
-                _submit(
-                    db,
-                    petty_wf,
-                    inbox_submitter.id,
-                    company.id,
-                    {"amount": 8000, "purpose": "Admin inbox demo", "department": "FIN"},
-                )
+                data = sample_data(petty_wf)
+                data["amount"] = random.randint(5100, 89000)
+                data["purpose"] = f"Finance review #{random.randint(1000, 9999)}"
+                _submit(db, petty_wf, inbox_submitter.id, company.id, data)
                 stats["in_progress"] += 1
 
         # --- Notifications: 20 per key user (drop inbox emails from submit/approve) ---
@@ -281,7 +324,7 @@ def seed_ample_volume(*, force: bool | None = None) -> None:
         db.commit()
 
         print("Ample volume seed complete.")
-        for email in ORIGINATORS + (ADMIN_EMAIL,) + APPROVERS[:3]:
+        for email in (ADMIN_EMAIL,) + ORIGINATORS + APPROVERS[:3]:
             u = db.scalar(select(User).where(User.email == email))
             if not u:
                 continue

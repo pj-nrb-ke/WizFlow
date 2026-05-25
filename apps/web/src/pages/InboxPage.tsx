@@ -77,6 +77,8 @@ export function InboxPage() {
 
   async function act(action: "approve" | "reject" | "return") {
     if (!selectedId) return;
+    const actedRef = detail?.reference_number;
+    const actedName = detail?.workflow_name;
     setError("");
     try {
       await apiFetch(
@@ -84,11 +86,18 @@ export function InboxPage() {
         { method: "POST", body: JSON.stringify({ comment }) },
         getToken()
       );
-      setMsg(`Request ${action}d successfully.`);
+      setMsg(
+        `Request ${action}d successfully${actedRef ? ` (${actedRef})` : actedName ? ` (${actedName})` : ""}.`
+      );
       setComment("");
-      setDetail(null);
-      setSelectedId(null);
-      await loadInbox();
+      const remaining = await apiFetch<InboxItem[]>("/api/v1/inbox", {}, getToken());
+      setItems(remaining);
+      if (remaining.length > 0) {
+        await openItem(remaining[0].request_id);
+      } else {
+        setDetail(null);
+        setSelectedId(null);
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.detail ?? e.message : "Action failed");
     }
@@ -192,6 +201,12 @@ export function InboxPage() {
                 )}
               </div>
             </ThemeScope>
+          ) : items.length === 0 && msg ? (
+            <div className="wf-card p-8 text-center space-y-2">
+              <p className="text-lg font-medium text-slate-800">Inbox cleared</p>
+              <p className="text-sm text-slate-600">{msg}</p>
+              <p className="text-sm text-slate-500">No more items need your approval right now.</p>
+            </div>
           ) : (
             <p className="text-slate-500 text-sm">Select a request to review.</p>
           )}

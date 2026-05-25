@@ -300,7 +300,20 @@ def sample_data(defn: WorkflowDefinition, *, low_amount: bool = False) -> dict:
         key = field.get("key", "")
         ftype = field.get("type", "text")
         if key == "amount":
-            data[key] = random.randint(500, 3500) if low_amount else random.randint(2000, 45000)
+            if low_amount:
+                data[key] = random.randint(120, 4800)
+            else:
+                data[key] = random.randint(800, 98500)
+        elif key in ("project_name", "contract_title"):
+            data[key] = f"{random.choice(['Alpha', 'Beta', 'Gamma', 'Delta'])} {random.randint(10, 99)}"
+        elif key == "business_case":
+            data[key] = random.choice(
+                [
+                    "Expand regional capacity for Q3.",
+                    "Replace legacy tooling before audit.",
+                    "Reduce operating cost via automation.",
+                ]
+            )
         elif key == "hours":
             data[key] = random.randint(2, 12)
         elif "date" in key or ftype == "date":
