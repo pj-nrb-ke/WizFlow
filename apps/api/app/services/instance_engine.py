@@ -5,12 +5,18 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from uuid import UUID
 
-from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import Role, User, UserRole, WorkflowDefinition, WorkflowInstance
+from app.db.models import WorkflowDefinition, WorkflowInstance
 from app.services import workflow_engine
+from app.services.assignees import (
+    apply_step_assignment,
+    claim_task,
+    resolve_step_assignment,
+    user_can_act,
+)
 from app.services.events import record_event
+from app.services.request_serial import allocate_reference_number
 from app.services.ui_settings import attach_ui_snapshot, strip_ui_keys
 
 
@@ -46,28 +52,29 @@ def validate_form_data(defn: WorkflowDefinition, data: dict) -> None:
 
 
 def resolve_assignees_for_step(
-    db: Session, company_id: UUID, step: dict
+    db: Session, company_id: UUID, step: dict, family_id: UUID | None = None
 ) -> list[dict]:
-    assignee = step.get("assignee") or {}
-    atype = assignee.get("type")
-    value = assignee.get("value")
-    if atype != "role" or not value:
-        return []
+    assignment = resolve_step_assignment(
+        db, company_id=company_id, step=step, family_id=family_id
+    )
+    return assignment.assignees
 
-    users = db.scalars(
-        select(User)
-        .join(UserRole, UserRole.user_id == User.id)
-        .join(Role, Role.id == UserRole.role_id)
-        .where(
-            User.company_id == company_id,
-            User.is_active.is_(True),
-            Role.company_id == company_id,
-            Role.slug == value,
-        )
-        .distinct()
-    ).all()
 
-    return [{"user_id": str(u.id), "full_name": u.full_name, "email": u.email} for u in users]
+def _apply_step_to_instance(
+    db: Session,
+    instance: WorkflowInstance,
+    defn: WorkflowDefinition,
+    step: dict,
+) -> None:
+    assignment = resolve_step_assignment(
+        db,
+        company_id=instance.company_id,
+        step=step,
+        family_id=defn.family_id,
+    )
+    if not assignment.assignees:
+        raise RequestError(f"No users found for approvers on step '{step.get('id')}'")
+    apply_step_assignment(instance, assignment)
 
 
 def submit_request(
@@ -92,10 +99,6 @@ def submit_request(
     if not step:
         raise RequestError(f"Step '{first_step_id}' not found")
 
-    assignees = resolve_assignees_for_step(db, company_id, step)
-    if not assignees:
-        raise RequestError(f"No users found for approver role on step '{first_step_id}'")
-
     now = datetime.now(timezone.utc)
     instance = WorkflowInstance(
         company_id=company_id,
@@ -104,13 +107,17 @@ def submit_request(
         status="in_progress",
         current_step_id=first_step_id,
         request_data=stored_data,
-        assignees=assignees,
+        assignees=[],
         step_sequence=step_sequence,
         workflow_name=defn.name,
         submitted_at=now,
     )
     db.add(instance)
     db.flush()
+    instance.reference_number = allocate_reference_number(
+        db, company_id=company_id, defn=defn, when=now
+    )
+    _apply_step_to_instance(db, instance, defn, step)
 
     record_event(
         db,
@@ -131,11 +138,11 @@ def submit_request(
     return instance
 
 
-def user_can_act(instance: WorkflowInstance, user_id: UUID) -> bool:
-    if instance.status != "in_progress":
-        return False
-    uid = str(user_id)
-    return any(a.get("user_id") == uid for a in (instance.assignees or []))
+def try_claim_task(db: Session, instance: WorkflowInstance, user_id: UUID) -> None:
+    try:
+        claim_task(db, instance, user_id)
+    except ValueError as e:
+        raise RequestError(str(e)) from e
 
 
 def _advance_or_complete(
@@ -167,6 +174,8 @@ def _advance_or_complete(
         instance.status = "approved" if event_type == "step.approved" else instance.status
         instance.current_step_id = None
         instance.assignees = []
+        instance.assignment_mode = None
+        instance.claimed_by_user_id = None
         record_event(
             db,
             company_id=instance.company_id,
@@ -182,12 +191,8 @@ def _advance_or_complete(
     if not step:
         raise RequestError(f"Next step '{next_step_id}' not found")
 
-    assignees = resolve_assignees_for_step(db, instance.company_id, step)
-    if not assignees:
-        raise RequestError(f"No approvers for step '{next_step_id}'")
-
     instance.current_step_id = next_step_id
-    instance.assignees = assignees
+    _apply_step_to_instance(db, instance, defn, step)
     instance.status = "in_progress"
     record_event(
         db,
@@ -231,6 +236,8 @@ def reject_request(
     instance.status = "rejected"
     instance.current_step_id = None
     instance.assignees = []
+    instance.assignment_mode = None
+    instance.claimed_by_user_id = None
     record_event(
         db,
         company_id=instance.company_id,
@@ -261,6 +268,8 @@ def return_request(
     instance.status = "returned"
     instance.current_step_id = None
     instance.assignees = []
+    instance.assignment_mode = None
+    instance.claimed_by_user_id = None
     return instance
 
 
@@ -283,12 +292,11 @@ def resubmit_returned(
     if not step:
         raise RequestError("Invalid step sequence")
 
-    assignees = resolve_assignees_for_step(db, instance.company_id, step)
     instance.request_data = attach_ui_snapshot(data, defn.settings)
     instance.step_sequence = step_sequence
     instance.status = "in_progress"
     instance.current_step_id = first_step_id
-    instance.assignees = assignees
+    _apply_step_to_instance(db, instance, defn, step)
     instance.submitted_at = datetime.now(timezone.utc)
 
     record_event(

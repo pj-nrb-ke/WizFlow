@@ -52,7 +52,7 @@ PETTY_CASH = {
     "routing_rules": [
         {"when": {"field": "amount", "op": "gt", "value": 5000}, "skip_to": "step_finance"}
     ],
-    "settings": {"sla_hours": 48, "allow_delegate": False},
+    "settings": {"sla_hours": 48, "allow_delegate": False, "serial_prefix": "PC"},
 }
 
 PURCHASE_REQUEST = {
@@ -82,10 +82,96 @@ PURCHASE_REQUEST = {
     "routing_rules": [
         {"when": {"field": "amount", "op": "gt", "value": 10000}, "skip_to": "step_finance"}
     ],
-    "settings": {"sla_hours": 72, "allow_delegate": False},
+    "settings": {"sla_hours": 72, "allow_delegate": False, "serial_prefix": "PR"},
 }
 
+FEE_NOTE_NAME = "Fee Note Approval"
+ACC1_EMAIL = "acc1@demo.wizflow.biz"
+ACC2_EMAIL = "acc2@demo.wizflow.biz"
+
 DEMO_WORKFLOWS = (PETTY_CASH, PURCHASE_REQUEST)
+
+
+def _ensure_accountants(db, company_id, role_map: dict) -> list:
+    """Two accountant users for named-user / claim demos."""
+    ids: list = []
+    for email, name in ((ACC1_EMAIL, "Demo Accountant 1"), (ACC2_EMAIL, "Demo Accountant 2")):
+        u = db.scalar(select(User).where(User.email == email))
+        if not u:
+            u = User(
+                company_id=company_id,
+                email=email,
+                password_hash=hash_password(ADMIN_PASSWORD),
+                full_name=name,
+            )
+            db.add(u)
+            db.flush()
+        if "approver" in role_map:
+            exists = db.scalar(
+                select(UserRole).where(
+                    UserRole.user_id == u.id,
+                    UserRole.role_id == role_map["approver"].id,
+                )
+            )
+            if not exists:
+                db.add(UserRole(user_id=u.id, role_id=role_map["approver"].id))
+        ids.append(str(u.id))
+    return ids
+
+
+def _seed_fee_note_workflow(db, company_id, accountant_ids: list[str]) -> None:
+    if db.scalar(
+        select(WorkflowDefinition).where(
+            WorkflowDefinition.company_id == company_id,
+            WorkflowDefinition.name == FEE_NOTE_NAME,
+            WorkflowDefinition.status == "published",
+        )
+    ):
+        return
+    fid = uuid.uuid4()
+    spec = {
+        "name": FEE_NOTE_NAME,
+        "form_schema": {
+            "fields": [
+                {"key": "client_name", "type": "text", "label": "Client", "required": True},
+                {"key": "amount", "type": "number", "label": "Fee amount", "required": True},
+                {"key": "notes", "type": "text", "label": "Notes", "required": False},
+            ]
+        },
+        "steps": [
+            {
+                "id": "step_admin",
+                "name": "Admin Approval",
+                "type": "approval",
+                "assignee": {"type": "role", "value": "company_admin"},
+            },
+            {
+                "id": "step_accountant",
+                "name": "Accountant Approval",
+                "type": "approval",
+                "assignee": {
+                    "type": "users",
+                    "user_ids": accountant_ids,
+                    "mode": "claim",
+                },
+            },
+        ],
+        "routing_rules": [],
+        "settings": {"sla_hours": 48, "serial_prefix": "FN"},
+    }
+    defn = WorkflowDefinition(
+        id=fid,
+        company_id=company_id,
+        family_id=fid,
+        name=spec["name"],
+        form_schema=spec["form_schema"],
+        steps=spec["steps"],
+        routing_rules=spec["routing_rules"],
+        settings=spec["settings"],
+        status="published",
+        version=1,
+    )
+    db.add(defn)
 
 
 def _add_published_workflow(db, company_id, spec: dict) -> None:
@@ -114,9 +200,12 @@ def _add_published_workflow(db, company_id, spec: dict) -> None:
     db.add(defn)
 
 
-def _seed_workflows(db, company_id) -> None:
+def _seed_workflows(db, company_id, role_map: dict | None = None) -> None:
     for spec in DEMO_WORKFLOWS:
         _add_published_workflow(db, company_id, spec)
+    if role_map:
+        acc_ids = _ensure_accountants(db, company_id, role_map)
+        _seed_fee_note_workflow(db, company_id, acc_ids)
     # Ensure legacy petty cash row is published
     legacy = db.scalar(
         select(WorkflowDefinition).where(
@@ -170,7 +259,7 @@ def seed() -> None:
             roles = db.scalars(select(Role).where(Role.company_id == company.id)).all()
             role_map = {r.slug: r for r in roles}
             _seed_originator(db, company.id, role_map)
-            _seed_workflows(db, company.id)
+            _seed_workflows(db, company.id, role_map)
             admin = db.scalar(select(User).where(User.email == ADMIN_EMAIL))
             originator = db.scalar(select(User).where(User.email == ORIGINATOR_EMAIL))
             if admin and originator:
@@ -204,7 +293,7 @@ def seed() -> None:
         db.add(UserRole(user_id=admin.id, role_id=role_by_slug[ROLE_MANAGER].id))
         _seed_originator(db, company.id, role_by_slug)
         db.flush()
-        _seed_workflows(db, company.id)
+        _seed_workflows(db, company.id, role_by_slug)
         originator = db.scalar(select(User).where(User.email == ORIGINATOR_EMAIL))
         if originator:
             seed_rich_demo(db, company, admin, originator, role_by_slug)

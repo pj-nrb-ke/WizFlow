@@ -1,14 +1,16 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, require_company
-from app.db.models import Attachment, User, WorkflowDefinition, WorkflowInstance
+from app.db.models import Attachment, Notification, User, WorkflowDefinition, WorkflowInstance
 from app.db.session import get_db
 from app.schemas.request import ApprovalAction, AttachmentOut, InboxItem, WorkflowInstanceOut
 from app.services import instance_engine
+from app.services.approval_notify import notify_approvers_for_step
+from app.services.assignees import needs_claim, user_can_see_inbox
 from app.services.events import record_event
 from app.services.files import save_upload
 from app.services.instance_engine import _step_name
@@ -23,7 +25,6 @@ def get_inbox(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> list[InboxItem]:
-    uid = str(user.id)
     rows = db.scalars(
         select(WorkflowInstance)
         .where(
@@ -34,7 +35,7 @@ def get_inbox(
     )
     items: list[InboxItem] = []
     for inst in rows:
-        if not any(a.get("user_id") == uid for a in (inst.assignees or [])):
+        if not user_can_see_inbox(inst, user.id):
             continue
         defn = db.get(WorkflowDefinition, inst.workflow_definition_id)
         step_name = _step_name(defn, inst.current_step_id) if defn else inst.current_step_id or ""
@@ -43,18 +44,53 @@ def get_inbox(
             o = db.get(User, inst.originator_user_id)
             originator_name = o.full_name if o else ""
         amount = inst.request_data.get("amount")
+        ref = inst.reference_number
+        if not ref and defn:
+            from app.services.request_serial import backfill_reference_for_instance
+
+            ref = backfill_reference_for_instance(db, inst, defn)
         items.append(
             InboxItem(
                 request_id=inst.id,
+                reference_number=ref,
                 workflow_name=inst.workflow_name,
                 step_name=step_name or "",
                 step_id=inst.current_step_id or "",
                 submitted_at=inst.submitted_at,
                 originator_name=originator_name,
                 amount_preview=str(amount) if amount is not None else None,
+                needs_claim=needs_claim(inst, user.id),
             )
         )
+    db.commit()
     return items
+
+
+@router.post("/requests/{request_id}/claim", response_model=WorkflowInstanceOut)
+def claim_request(
+    request_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> WorkflowInstanceOut:
+    inst = get_instance(db, request_id, user.company_id)
+    defn = db.get(WorkflowDefinition, inst.workflow_definition_id)
+    if not defn:
+        raise HTTPException(status_code=404, detail="Workflow definition missing")
+    try:
+        instance_engine.try_claim_task(db, inst, user.id)
+    except instance_engine.RequestError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    record_event(
+        db,
+        company_id=inst.company_id,
+        event_type="step.claimed",
+        actor_user_id=user.id,
+        instance_id=inst.id,
+        payload={"step_id": inst.current_step_id},
+    )
+    db.commit()
+    db.refresh(inst)
+    return to_out(db, inst, defn, user.id)
 
 
 def _act(
@@ -80,15 +116,12 @@ def _act(
     except instance_engine.RequestError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-    if action == "approve" and inst.status == "in_progress" and inst.assignees:
-        assignee_ids = [UUID(a["user_id"]) for a in inst.assignees if a.get("user_id")]
-        notify_users(
+    if action == "approve" and inst.status == "in_progress" and inst.current_step_id:
+        notify_approvers_for_step(
             db,
-            company_id=inst.company_id,
-            user_ids=assignee_ids,
-            title=f"Approval needed: {inst.workflow_name}",
-            body=f"A request is waiting for your approval.",
-            instance_id=inst.id,
+            instance=inst,
+            defn=defn,
+            step_id=inst.current_step_id,
         )
     elif action in ("reject", "return") and inst.originator_user_id:
         notify_users(
@@ -111,7 +144,7 @@ def _act(
 
     db.commit()
     db.refresh(inst)
-    return to_out(db, inst, defn)
+    return to_out(db, inst, defn, user.id)
 
 
 @router.post("/requests/{request_id}/approve", response_model=WorkflowInstanceOut)

@@ -79,9 +79,16 @@ def build_preview(defn: WorkflowDefinition) -> dict:
                 "name": step.get("name"),
                 "assignee_type": assignee.get("type"),
                 "assignee_value": assignee.get("value"),
+                "assignee_mode": assignee.get("mode"),
+                "assignee_user_ids": assignee.get("user_ids"),
             }
         )
-        if not assignee.get("value"):
+        atype = assignee.get("type")
+        if atype == "role" and not assignee.get("value"):
+            gaps.append(f"Step '{step.get('name')}' has no role assignee.")
+        elif atype == "users" and not (assignee.get("user_ids") or []):
+            gaps.append(f"Step '{step.get('name')}' has no named users.")
+        elif not atype:
             gaps.append(f"Step '{step.get('name')}' has no assignee.")
 
     if not fields:

@@ -1,0 +1,12 @@
+# Append to /etc/caddy/Caddyfile — do not remove WizCRM blocks.
+
+api.wizflow.biz {
+    reverse_proxy 127.0.0.1:8010
+}
+
+app.wizflow.biz {
+    root * /var/www/wizflow-web
+    encode gzip
+    file_server
+    try_files {path} /index.html
+}

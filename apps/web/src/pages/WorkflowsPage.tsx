@@ -288,12 +288,25 @@ export function WorkflowsPage() {
                   </p>
                 </div>
                 <ol className="list-decimal list-inside text-sm text-slate-700 space-y-1 mb-4">
-                  {selected.steps.map((s) => (
-                    <li key={String(s.id)}>
-                      {String(s.name)} → assignee{" "}
-                      {String((s.assignee as { value?: string })?.value)}
-                    </li>
-                  ))}
+                  {selected.steps.map((s) => {
+                    const a = (s.assignee || {}) as {
+                      type?: string;
+                      value?: string;
+                      mode?: string;
+                      user_ids?: string[];
+                    };
+                    const label =
+                      a.type === "users"
+                        ? `users (${(a.user_ids || []).length}) · ${a.mode || "claim"}`
+                        : a.type === "role"
+                          ? `role: ${a.value}${a.mode ? ` · ${a.mode}` : ""}`
+                          : "—";
+                    return (
+                      <li key={String(s.id)}>
+                        {String(s.name)} → {label}
+                      </li>
+                    );
+                  })}
                 </ol>
                 <div className="flex flex-wrap gap-2">
                   {selected.status === "draft" && (

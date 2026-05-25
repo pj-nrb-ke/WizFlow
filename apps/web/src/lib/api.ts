@@ -152,6 +152,7 @@ export type SimulationResult = {
 
 export type RequestSummary = {
   id: string;
+  reference_number: string | null;
   workflow_name: string;
   status: string;
   current_step: string | null;
@@ -165,6 +166,9 @@ export type RequestDetail = RequestSummary & {
   originator_name: string | null;
   request_data: Record<string, unknown>;
   assignees: { user_id: string; full_name: string; email?: string }[];
+  assignment_mode?: string | null;
+  needs_claim?: boolean;
+  can_act?: boolean;
   step_sequence: string[];
   ui_theme?: string;
   form_layout?: string;
@@ -174,17 +178,33 @@ export type RequestDetail = RequestSummary & {
 
 export type InboxItem = {
   request_id: string;
+  reference_number: string | null;
   workflow_name: string;
   step_name: string;
   step_id: string;
   submitted_at: string | null;
   originator_name: string;
   amount_preview: string | null;
+  needs_claim?: boolean;
+};
+
+export type NotificationCount = { unread: number; inbox: number };
+
+export type PublicApprovalView = {
+  reference_number: string | null;
+  workflow_name: string;
+  step_name: string;
+  originator_name: string;
+  submitted_at: string | null;
+  request_preview: Record<string, unknown>;
+  can_approve: boolean;
+  can_reject: boolean;
 };
 
 export type WorkflowEvent = {
   id: string;
   event_type: string;
+  event_label?: string | null;
   actor_user_id: string | null;
   actor_name: string | null;
   payload: Record<string, unknown>;

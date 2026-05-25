@@ -2,7 +2,7 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import admin, ai, auth, health, inbox, notifications, requests, workflows
+from app.routers import admin, ai, auth, health, inbox, notifications, public_approval, reports, requests, workflows
 
 app = FastAPI(
     title=settings.app_name,
@@ -28,6 +28,8 @@ v1.include_router(ai.router)
 v1.include_router(requests.router)
 v1.include_router(inbox.router)
 v1.include_router(notifications.router)
+v1.include_router(public_approval.router)
+v1.include_router(reports.router)
 app.include_router(v1)
 
 

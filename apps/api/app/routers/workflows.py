@@ -25,7 +25,7 @@ from app.schemas.workflow import (
 from app.services import instance_engine, workflow_engine
 from app.services.events import record_event
 from app.services.instance_queries import to_out
-from app.services.notifications import notify_users
+from app.services.approval_notify import notify_approvers_for_step
 from app.services import versioning
 
 router = APIRouter(prefix="/workflows", tags=["Workflows"])
@@ -296,18 +296,18 @@ def submit_request(
     except instance_engine.RequestError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
-    assignee_ids = [UUID(a["user_id"]) for a in inst.assignees if a.get("user_id")]
-    notify_users(
-        db,
-        company_id=user.company_id,
-        user_ids=assignee_ids,
-        title=f"Approval needed: {inst.workflow_name}",
-        body=f"New request submitted — please review.",
-        instance_id=inst.id,
-    )
+    if inst.current_step_id:
+        notify_approvers_for_step(
+            db,
+            instance=inst,
+            defn=defn,
+            step_id=inst.current_step_id,
+            title=f"Approval needed: {inst.workflow_name}",
+            body="New request submitted — please review.",
+        )
     db.commit()
     db.refresh(inst)
-    return to_out(db, inst, defn)
+    return to_out(db, inst, defn, user.id)
 
 
 @router.get("/{workflow_id}/events", response_model=list[WorkflowEventOut])

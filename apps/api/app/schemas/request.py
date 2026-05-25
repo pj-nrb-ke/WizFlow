@@ -28,6 +28,7 @@ class AttachmentOut(BaseModel):
 
 class WorkflowInstanceSummary(BaseModel):
     id: UUID
+    reference_number: str | None = None
     workflow_name: str
     status: str
     current_step: str | None = None
@@ -43,6 +44,9 @@ class WorkflowInstanceOut(WorkflowInstanceSummary):
     originator_name: str | None = None
     request_data: dict
     assignees: list[dict]
+    assignment_mode: str | None = None
+    needs_claim: bool = False
+    can_act: bool = False
     step_sequence: list[str]
     ui_theme: str = "corporate"
     form_layout: str = "stacked"
@@ -52,23 +56,59 @@ class WorkflowInstanceOut(WorkflowInstanceSummary):
 
 class InboxItem(BaseModel):
     request_id: UUID
+    reference_number: str | None = None
     workflow_name: str
     step_name: str
     step_id: str
     submitted_at: datetime | None
     originator_name: str
     amount_preview: str | None = None
+    needs_claim: bool = False
+
+
+class NotificationCountOut(BaseModel):
+    unread: int
+    inbox: int
+
+
+class PublicApprovalView(BaseModel):
+    reference_number: str | None = None
+    workflow_name: str
+    step_name: str
+    originator_name: str
+    submitted_at: datetime | None
+    request_preview: dict
+    can_approve: bool = True
+    can_reject: bool = True
+
+
+class PublicApprovalDecide(BaseModel):
+    action: str
+    comment: str | None = None
 
 
 class WorkflowEventOut(BaseModel):
     id: UUID
     event_type: str
+    event_label: str | None = None
     actor_user_id: UUID | None
     actor_name: str | None = None
     payload: dict
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class MisActionRow(BaseModel):
+    reference_number: str | None
+    workflow_name: str
+    request_status: str
+    event_type: str
+    event_label: str
+    action_at: datetime
+    actor_name: str | None
+    step_id: str | None = None
+    comment: str | None = None
 
 
 class NotificationOut(BaseModel):

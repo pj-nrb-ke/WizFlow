@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ApiError, apiFetch, RequestSummary } from "../lib/api";
+import { formatDateTimeShort } from "../lib/datetime";
 import { getToken } from "../lib/auth";
 
 const statusColor: Record<string, string> = {
@@ -41,7 +42,15 @@ export function MyRequestsPage() {
             >
               <div className="flex justify-between items-start">
                 <div>
+                  {r.reference_number && (
+                    <p className="font-mono text-xs font-semibold text-[rgb(var(--wf-brand-700))]">
+                      {r.reference_number}
+                    </p>
+                  )}
                   <p className="font-medium text-slate-800">{r.workflow_name}</p>
+                  {r.submitted_at && (
+                    <p className="text-[10px] text-slate-400">{formatDateTimeShort(r.submitted_at)}</p>
+                  )}
                   <p className="text-xs text-slate-500 mt-1">
                     {r.current_step_name
                       ? `Pending: ${r.current_step_name}`

@@ -11,6 +11,8 @@ Thumbs.db
 .env.*
 !.env.example
 apps/api/.github-token.local
+config/secrets/brevo.local.txt
+secrets/brevo.local.txt
 
 # Python
 __pycache__/
@@ -31,3 +33,7 @@ apps/api/.venv/
 # Uploads & local data
 uploads/
 apps/api/uploads/
+
+# Deploy sync artifacts
+wizflow-*.tgz
+docs/_test_run_output.json

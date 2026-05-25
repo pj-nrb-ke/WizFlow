@@ -1,8 +1,9 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.db.models import WorkflowEvent
+from app.db.models import WorkflowEvent, WorkflowInstance
 
 
 def record_event(
@@ -17,13 +18,19 @@ def record_event(
 ) -> WorkflowEvent:
     if not instance_id and not workflow_definition_id:
         raise ValueError("Either instance_id or workflow_definition_id required")
+    merged = dict(payload or {})
+    merged.setdefault("recorded_at", datetime.now(timezone.utc).isoformat())
+    if instance_id:
+        inst = db.get(WorkflowInstance, instance_id)
+        if inst and inst.reference_number:
+            merged.setdefault("reference_number", inst.reference_number)
     event = WorkflowEvent(
         company_id=company_id,
         instance_id=instance_id,
         workflow_definition_id=workflow_definition_id,
         event_type=event_type,
         actor_user_id=actor_user_id,
-        payload=payload or {},
+        payload=merged,
     )
     db.add(event)
     return event

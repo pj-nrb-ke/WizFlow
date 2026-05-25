@@ -21,7 +21,9 @@ export function AppThemeSwitcher() {
                 className="w-3 h-3 rounded-full shrink-0 ring-2 ring-offset-2"
                 style={{
                   backgroundColor: THEME_META[id].swatch,
-                  ringColor: selected ? THEME_META[id].swatch : "transparent",
+                  boxShadow: selected
+                    ? `0 0 0 2px ${THEME_META[id].swatch}`
+                    : undefined,
                 }}
                 aria-hidden
               />

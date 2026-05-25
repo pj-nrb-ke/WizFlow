@@ -12,6 +12,7 @@ import { SubmitRequestPage } from "../pages/SubmitRequestPage";
 import { AiWorkflowPage } from "../pages/AiWorkflowPage";
 import { SettingsPage } from "../pages/SettingsPage";
 import { WorkflowsPage } from "../pages/WorkflowsPage";
+import { PublicApprovePage } from "../pages/PublicApprovePage";
 
 function LoadingScreen() {
   return (
@@ -57,6 +58,7 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginRoute />} />
+      <Route path="/approve/:token" element={<PublicApprovePage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />

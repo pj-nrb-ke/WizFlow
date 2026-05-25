@@ -1,7 +1,9 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ThemeScope } from "../context/ThemeContext";
+import { RequestMetaBar } from "../components/RequestMetaBar";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
+import { formatDateTimeShort } from "../lib/datetime";
 import { ApiError, apiFetch, FormField, InboxItem, RequestDetail } from "../lib/api";
 import { getToken } from "../lib/auth";
 import {
@@ -36,11 +38,34 @@ export function InboxPage() {
     loadInbox().catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed"));
   }, []);
 
+  async function claimTask(requestId: string) {
+    setError("");
+    const d = await apiFetch<RequestDetail>(
+      `/api/v1/requests/${requestId}/claim`,
+      { method: "POST" },
+      getToken()
+    );
+    setDetail(d);
+    await loadInbox();
+  }
+
   async function openItem(requestId: string) {
     setSelectedId(requestId);
     setMsg("");
     setError("");
-    const d = await apiFetch<RequestDetail>(`/api/v1/requests/${requestId}`, {}, getToken());
+    let d = await apiFetch<RequestDetail>(`/api/v1/requests/${requestId}`, {}, getToken());
+    if (d.needs_claim) {
+      try {
+        d = await apiFetch<RequestDetail>(
+          `/api/v1/requests/${requestId}/claim`,
+          { method: "POST" },
+          getToken()
+        );
+        await loadInbox();
+      } catch (e) {
+        setError(e instanceof ApiError ? e.detail ?? e.message : "Could not claim task");
+      }
+    }
     setDetail(d);
     const defn = await apiFetch<{ form_schema?: { fields?: FormField[] } }>(
       `/api/v1/workflows/${d.workflow_definition_id}`,
@@ -91,12 +116,25 @@ export function InboxPage() {
                   selectedId === item.request_id ? "bg-[rgb(var(--wf-accent-muted))]" : ""
                 }`}
               >
+                {item.reference_number && (
+                  <p className="font-mono text-xs font-semibold text-[rgb(var(--wf-brand-700))]">
+                    {item.reference_number}
+                  </p>
+                )}
                 <p className="font-medium">{item.workflow_name}</p>
                 <p className="text-xs text-slate-500">
                   {item.originator_name} · {item.step_name}
                 </p>
+                {item.submitted_at && (
+                  <p className="text-[10px] text-slate-400">{formatDateTimeShort(item.submitted_at)}</p>
+                )}
                 {item.amount_preview && (
                   <p className="text-xs text-slate-400">Amount: {item.amount_preview}</p>
+                )}
+                {item.needs_claim && (
+                  <span className="inline-block mt-1 text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 rounded">
+                    Claim to assign
+                  </span>
                 )}
               </button>
             ))
@@ -107,7 +145,12 @@ export function InboxPage() {
           {detail ? (
             <ThemeScope theme={uiTheme}>
               <div className="wf-card p-4 space-y-4">
-                <h2 className="font-semibold">{detail.workflow_name}</h2>
+                <RequestMetaBar
+                  referenceNumber={detail.reference_number}
+                  workflowName={detail.workflow_name}
+                  submittedAt={detail.submitted_at}
+                  createdAt={detail.created_at}
+                />
                 {fields.length > 0 ? (
                   <WorkflowFormRenderer
                     fields={fields}
@@ -135,25 +178,37 @@ export function InboxPage() {
                   className="wf-input"
                   rows={2}
                 />
+                {detail.needs_claim && (
+                  <button
+                    type="button"
+                    onClick={() => selectedId && claimTask(selectedId)}
+                    className="px-4 py-2 bg-amber-500 text-white text-sm rounded-lg"
+                  >
+                    Claim this task
+                  </button>
+                )}
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
+                    disabled={detail.needs_claim}
                     onClick={() => act("approve")}
-                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg"
+                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg disabled:opacity-50"
                   >
                     Approve
                   </button>
                   <button
                     type="button"
+                    disabled={detail.needs_claim}
                     onClick={() => act("return")}
-                    className="px-4 py-2 bg-amber-500 text-white text-sm rounded-lg"
+                    className="px-4 py-2 bg-amber-500 text-white text-sm rounded-lg disabled:opacity-50"
                   >
                     Return
                   </button>
                   <button
                     type="button"
+                    disabled={detail.needs_claim}
                     onClick={() => act("reject")}
-                    className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg"
+                    className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg disabled:opacity-50"
                   >
                     Reject
                   </button>

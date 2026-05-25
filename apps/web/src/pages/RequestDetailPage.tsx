@@ -1,7 +1,9 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ThemeScope } from "../context/ThemeContext";
+import { RequestMetaBar } from "../components/RequestMetaBar";
 import { StatusBadge } from "../components/StatusBadge";
+import { eventLabel } from "../lib/eventLabels";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
 import { ApiError, apiFetch, FormField, RequestDetail, WorkflowEvent } from "../lib/api";
 import { getToken } from "../lib/auth";
@@ -90,6 +92,12 @@ export function RequestDetailPage() {
         <Link to="/requests" className="text-sm wf-link mb-4 inline-block">
           ← My requests
         </Link>
+        <RequestMetaBar
+          referenceNumber={request.reference_number}
+          workflowName={request.workflow_name}
+          submittedAt={request.submitted_at}
+          createdAt={request.created_at}
+        />
         <div className="flex flex-wrap items-center gap-3 mb-1">
           <h1 className="wf-page-title">{request.workflow_name}</h1>
           <StatusBadge status={request.status} />
@@ -145,7 +153,9 @@ export function RequestDetailPage() {
             <ul className="space-y-3 text-sm">
               {events.map((ev) => (
                 <li key={ev.id} className="border-l-2 wf-timeline-border pl-3">
-                  <p className="font-medium text-slate-800">{ev.event_type}</p>
+                  <p className="font-medium text-slate-800">
+                    {eventLabel(ev.event_type, ev.event_label)}
+                  </p>
                   <p className="text-xs text-slate-500">
                     {ev.actor_name ?? "System"} · {new Date(ev.created_at).toLocaleString()}
                   </p>

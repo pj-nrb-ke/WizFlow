@@ -1,12 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { apiFetch, NotificationCount } from "../lib/api";
+import { getToken } from "../lib/auth";
 import { IconChevronDown, IconLogOut, IconSettings, IconUser } from "./icons";
 
 export function UserMenu() {
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [counts, setCounts] = useState<NotificationCount>({ unread: 0, inbox: 0 });
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -17,11 +20,26 @@ export function UserMenu() {
     return () => document.removeEventListener("mousedown", onDoc);
   }, []);
 
+  useEffect(() => {
+    const token = getToken();
+    if (!token) return;
+    function refresh() {
+      apiFetch<NotificationCount>("/api/v1/notifications/unread-count", {}, token)
+        .then(setCounts)
+        .catch(() => {});
+    }
+    refresh();
+    const id = window.setInterval(refresh, 45000);
+    return () => window.clearInterval(id);
+  }, [user?.id]);
+
   function logout() {
     setOpen(false);
     signOut();
     navigate("/login", { replace: true });
   }
+
+  const badge = counts.unread + counts.inbox;
 
   const initials =
     user?.full_name
@@ -41,8 +59,16 @@ export function UserMenu() {
         aria-haspopup="true"
         aria-label="User menu"
       >
-        <span className="wf-user-avatar flex items-center justify-center w-9 h-9 rounded-full bg-[rgb(var(--wf-brand-600))] text-white shrink-0">
+        <span className="relative wf-user-avatar flex items-center justify-center w-9 h-9 rounded-full bg-[rgb(var(--wf-brand-600))] text-white shrink-0">
           <IconUser size={20} strokeWidth={2} className="text-white" />
+          {badge > 0 && (
+            <span
+              className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none"
+              aria-label={`${badge} notifications`}
+            >
+              {badge > 99 ? "99+" : badge}
+            </span>
+          )}
         </span>
         <span className="hidden sm:flex flex-col items-start text-left max-w-[120px]">
           <span className="text-xs font-semibold text-slate-800 truncate w-full">
@@ -62,8 +88,25 @@ export function UserMenu() {
             <div className="min-w-0">
               <p className="text-sm font-semibold text-slate-800 truncate">{user?.full_name}</p>
               <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+              {badge > 0 && (
+                <p className="text-xs text-red-600 mt-0.5">
+                  {counts.inbox > 0 && `${counts.inbox} inbox`}
+                  {counts.inbox > 0 && counts.unread > 0 && " · "}
+                  {counts.unread > 0 && `${counts.unread} unread`}
+                </p>
+              )}
             </div>
           </div>
+          {counts.inbox > 0 && (
+            <Link
+              to="/inbox"
+              onClick={() => setOpen(false)}
+              className="flex items-center justify-between px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+            >
+              Inbox
+              <span className="text-xs bg-red-100 text-red-700 px-1.5 rounded-full">{counts.inbox}</span>
+            </Link>
+          )}
           <Link
             to="/settings"
             onClick={() => setOpen(false)}

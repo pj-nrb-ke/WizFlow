@@ -124,11 +124,16 @@ class WorkflowInstance(Base):
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
     workflow_name: Mapped[str] = mapped_column(String(200), nullable=False, default="")
+    reference_number: Mapped[str | None] = mapped_column(String(40), nullable=True, index=True)
     status: Mapped[str] = mapped_column(String(30), default="draft", index=True)
     current_step_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
     step_sequence: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
     request_data: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     assignees: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    assignment_mode: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    claimed_by_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
     submitted_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(
@@ -182,6 +187,54 @@ class Attachment(Base):
     content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
     size_bytes: Mapped[int] = mapped_column(BigInteger, default=0)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class RequestSerialSequence(Base):
+    __tablename__ = "request_serial_sequences"
+    __table_args__ = (
+        UniqueConstraint("company_id", "family_id", "year", name="uq_serial_company_family_year"),
+    )
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
+    )
+    family_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    year: Mapped[int] = mapped_column(Integer, nullable=False)
+    next_value: Mapped[int] = mapped_column(Integer, default=1)
+
+
+class ApprovalToken(Base):
+    __tablename__ = "approval_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
+    )
+    instance_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workflow_instances.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False
+    )
+    step_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    token_hash: Mapped[str] = mapped_column(String(64), nullable=False, unique=True)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class AssignmentRoundRobinState(Base):
+    __tablename__ = "assignment_round_robin_state"
+    __table_args__ = (UniqueConstraint("company_id", "family_id", "step_id", name="uq_rr_company_family_step"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False
+    )
+    family_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    step_id: Mapped[str] = mapped_column(String(100), nullable=False)
+    next_index: Mapped[int] = mapped_column(Integer, default=0)
 
 
 class Notification(Base):

@@ -14,6 +14,8 @@ from app.schemas.request import (
     WorkflowInstanceSummary,
 )
 from app.services import instance_engine
+from app.services.approval_notify import notify_approvers_for_step
+from app.services.event_labels import label_for_event
 from app.services.instance_queries import get_instance, to_out, to_summary
 
 router = APIRouter(prefix="/requests", tags=["Requests"])
@@ -32,7 +34,12 @@ def list_my_requests(
         )
         .order_by(WorkflowInstance.created_at.desc())
     )
-    return [to_summary(r) for r in rows]
+    out: list = []
+    for r in rows:
+        defn = db.get(WorkflowDefinition, r.workflow_definition_id)
+        out.append(to_summary(r, defn, db=db))
+    db.commit()
+    return out
 
 
 @router.get("/{request_id}", response_model=WorkflowInstanceOut)
@@ -43,7 +50,7 @@ def get_request(
 ) -> WorkflowInstanceOut:
     inst = get_instance(db, request_id, user.company_id)
     defn = db.get(WorkflowDefinition, inst.workflow_definition_id)
-    return to_out(db, inst, defn)
+    return to_out(db, inst, defn, user.id)
 
 
 @router.patch("/{request_id}", response_model=WorkflowInstanceOut)
@@ -61,9 +68,11 @@ def update_returned_request(
         instance_engine.resubmit_returned(db, inst, defn, user.id, body.data)
     except instance_engine.RequestError as e:
         raise HTTPException(status_code=400, detail=str(e))
+    if inst.current_step_id:
+        notify_approvers_for_step(db, instance=inst, defn=defn, step_id=inst.current_step_id)
     db.commit()
     db.refresh(inst)
-    return to_out(db, inst, defn)
+    return to_out(db, inst, defn, user.id)
 
 
 @router.get("/{request_id}/events", response_model=list[WorkflowEventOut])
@@ -91,6 +100,7 @@ def get_request_events(
             WorkflowEventOut(
                 id=ev.id,
                 event_type=ev.event_type,
+                event_label=label_for_event(ev.event_type),
                 actor_user_id=ev.actor_user_id,
                 actor_name=actor_name,
                 payload=ev.payload,

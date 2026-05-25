@@ -4,10 +4,32 @@ from __future__ import annotations
 
 from app.db.models import WorkflowDefinition
 from app.schemas.workflow import SimulationResult
+from app.services.assignees import ASSIGNMENT_MODES
 
 
 class WorkflowValidationError(ValueError):
     pass
+
+
+def _validate_assignee(step: dict) -> None:
+    assignee = step.get("assignee") or {}
+    atype = assignee.get("type")
+    if not atype:
+        raise WorkflowValidationError(f"Step '{step.get('id')}' needs assignee type")
+    if atype == "role":
+        if not assignee.get("value"):
+            raise WorkflowValidationError(f"Step '{step.get('id')}' needs assignee role value")
+    elif atype == "users":
+        ids = assignee.get("user_ids") or []
+        if not ids:
+            raise WorkflowValidationError(f"Step '{step.get('id')}' needs at least one user_id")
+        mode = assignee.get("mode") or "claim"
+        if mode not in ASSIGNMENT_MODES:
+            raise WorkflowValidationError(
+                f"Step '{step.get('id')}' mode must be one of: {', '.join(sorted(ASSIGNMENT_MODES))}"
+            )
+    else:
+        raise WorkflowValidationError(f"Step '{step.get('id')}' assignee type must be 'role' or 'users'")
 
 
 def validate_definition(defn: WorkflowDefinition) -> None:
@@ -20,9 +42,7 @@ def validate_definition(defn: WorkflowDefinition) -> None:
             raise WorkflowValidationError("Each step must be an object")
         if not step.get("id") or not step.get("name"):
             raise WorkflowValidationError("Each step requires id and name")
-        assignee = step.get("assignee") or {}
-        if not assignee.get("type") or not assignee.get("value"):
-            raise WorkflowValidationError(f"Step '{step.get('id')}' needs assignee type and value")
+        _validate_assignee(step)
 
 
 def _eval_condition(when: dict, data: dict) -> bool:
