@@ -237,6 +237,34 @@ class AssignmentRoundRobinState(Base):
     next_index: Mapped[int] = mapped_column(Integer, default=0)
 
 
+class UserGroup(Base):
+    __tablename__ = "user_groups"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint("company_id", "name", name="uq_user_groups_company_name"),)
+    members: Mapped[list["UserGroupMember"]] = relationship(back_populates="group")
+
+
+class UserGroupMember(Base):
+    __tablename__ = "user_group_members"
+
+    group_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("user_groups.id", ondelete="CASCADE"), primary_key=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), primary_key=True
+    )
+
+    group: Mapped[UserGroup] = relationship(back_populates="members")
+    user: Mapped[User] = relationship()
+
+
 class Notification(Base):
     __tablename__ = "notifications"
 

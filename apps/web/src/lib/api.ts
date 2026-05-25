@@ -176,6 +176,8 @@ export type RequestDetail = RequestSummary & {
   assignment_mode?: string | null;
   needs_claim?: boolean;
   can_act?: boolean;
+  can_approve?: boolean;
+  is_originator?: boolean;
   step_sequence: string[];
   ui_theme?: string;
   form_layout?: string;
@@ -196,6 +198,30 @@ export type InboxItem = {
 };
 
 export type NotificationCount = { unread: number; inbox: number };
+
+export type OrgUser = { id: string; email: string; full_name: string };
+
+export type UserGroupMember = { user_id: string; full_name: string; email: string };
+
+export type UserGroup = {
+  id: string;
+  name: string;
+  member_count: number;
+  members: UserGroupMember[];
+  created_at: string;
+};
+
+export type OrgDirectory = { users: OrgUser[]; groups: UserGroup[] };
+
+export type ApproverChainItem = { type: "user" | "group"; id: string; label?: string };
+
+export type InitiatorConfig = {
+  everyone: boolean;
+  user_ids: string[];
+  group_ids: string[];
+};
+
+export type NameCheck = { name: string; available: boolean };
 
 export type PublicApprovalView = {
   reference_number: string | null;

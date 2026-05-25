@@ -9,7 +9,7 @@ from app.db.models import Attachment, Notification, User, WorkflowDefinition, Wo
 from app.db.session import get_db
 from app.schemas.request import ApprovalAction, AttachmentOut, InboxItem, WorkflowInstanceOut
 from app.services import instance_engine
-from app.services.approval_notify import notify_approvers_for_step
+from app.services.approval_notify import notify_approvers_for_step, notify_originator_decision
 from app.services.assignees import needs_claim, user_can_see_inbox
 from app.services.events import record_event
 from app.services.files import save_upload
@@ -115,6 +115,16 @@ def _act(
             raise HTTPException(status_code=400, detail="Unknown action")
     except instance_engine.RequestError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+    if action in ("approve", "reject"):
+        notify_originator_decision(
+            db,
+            instance=inst,
+            defn=defn,
+            action=action,
+            actor_user_id=user.id,
+            comment=comment,
+        )
 
     if action == "approve" and inst.status == "in_progress" and inst.current_step_id:
         notify_approvers_for_step(

@@ -47,7 +47,7 @@ $COMPOSE up -d --build
 echo "==> DB migrate + seed"
 sleep 5
 $COMPOSE exec -T api alembic upgrade head
-$COMPOSE exec -T api python -m scripts.seed_prod
+$COMPOSE exec -T api python -m scripts.seed
 
 echo "==> Web build"
 cd "$APP_ROOT/apps/web"

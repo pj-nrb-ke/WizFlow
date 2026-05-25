@@ -56,7 +56,11 @@ export function SubmitRequestPage() {
   );
 
   useEffect(() => {
-    apiFetch<WorkflowDefinition[]>("/api/v1/workflows?status=published", {}, getToken())
+    apiFetch<WorkflowDefinition[]>(
+      "/api/v1/workflows?status=published&initiator_only=true",
+      {},
+      getToken()
+    )
       .then(async (list) => {
         setWorkflows(list);
         if (list.length) {
@@ -125,7 +129,8 @@ export function SubmitRequestPage() {
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
       {workflows.length === 0 ? (
         <p className="text-slate-600">
-          No published workflows. Publish one under{" "}
+          No forms available for you to start. You may not be listed as an initiator, or workflows need
+          to be published under{" "}
           <Link to="/workflows" className="wf-link">
             Workflows
           </Link>

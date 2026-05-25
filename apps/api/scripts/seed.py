@@ -267,6 +267,12 @@ def seed() -> None:
             db.commit()
             print(f"Seed updated for existing company '{COMPANY_SLUG}'.")
             print(f"  Originator: {ORIGINATOR_EMAIL} / {ADMIN_PASSWORD}")
+            db.commit()
+            from scripts.seed_custom_workflow_demo import seed_custom_workflow_demo
+            from scripts.seed_ample_volume import seed_ample_volume
+
+            seed_custom_workflow_demo()
+            seed_ample_volume(force=True)
             return
 
         company = Company(name=COMPANY_NAME, slug=COMPANY_SLUG)
@@ -303,6 +309,11 @@ def seed() -> None:
         print(f"  Admin:     {ADMIN_EMAIL} / {ADMIN_PASSWORD}")
         print(f"  Originator: {ORIGINATOR_EMAIL} / {ADMIN_PASSWORD}")
         print(f"  Workflows: {', '.join(w['name'] for w in DEMO_WORKFLOWS)} (published)")
+        from scripts.seed_custom_workflow_demo import seed_custom_workflow_demo
+        from scripts.seed_ample_volume import seed_ample_volume
+
+        seed_custom_workflow_demo()
+        seed_ample_volume(force=True)
     finally:
         db.close()
 

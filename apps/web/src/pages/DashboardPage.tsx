@@ -51,6 +51,7 @@ export function DashboardPage() {
     { to: "/submit", title: "Submit request", desc: "Start petty cash, purchase, leave…", icon: "＋" },
     { to: "/inbox", title: "Approval inbox", desc: "Review items waiting on you", icon: "✉" },
     { to: "/workflows", title: "Workflows", desc: "Publish, test, themes", icon: "⚙" },
+    { to: "/custom-workflow", title: "Custom workflow", desc: "Approvers, initiators, forms", icon: "⇄" },
     { to: "/ai", title: "AI creator", desc: "Draft a process in plain English", icon: "✦" },
     { to: "/settings", title: "Settings", desc: "Theme and account preferences", icon: "⚙" },
   ];
@@ -119,6 +120,9 @@ export function DashboardPage() {
                         ? new Date(r.submitted_at).toLocaleDateString()
                         : "Draft"}
                       {r.current_step_name ? ` · ${r.current_step_name}` : ""}
+                      {(r.status === "approved" || r.status === "rejected") && (
+                        <span className="text-slate-600"> · Status updated</span>
+                      )}
                     </p>
                   </div>
                   <StatusBadge status={r.status} />

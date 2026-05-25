@@ -22,6 +22,7 @@ const nav = [
   { to: "/inbox", label: "Inbox", Icon: IconInbox },
   { to: "/workflows", label: "Workflows", Icon: IconWorkflow },
   { to: "/form-designer", label: "Form Designer", Icon: IconForm },
+  { to: "/custom-workflow", label: "Custom workflow", Icon: IconWorkflow },
   { to: "/ai", label: "AI creator", Icon: IconSparkles },
   { to: "/admin", label: "Admin", Icon: IconShield },
   { to: "/settings", label: "Settings", Icon: IconSettings },

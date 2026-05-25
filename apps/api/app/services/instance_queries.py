@@ -61,6 +61,8 @@ def to_out(
     ui = ui_from_instance(defn.settings, inst.request_data)
     can_act = user_can_act(inst, viewer_id) if viewer_id else False
     claim_needed = needs_claim(inst, viewer_id) if viewer_id else False
+    is_originator = viewer_id is not None and inst.originator_user_id == viewer_id
+    can_approve = can_act and not is_originator
     return WorkflowInstanceOut(
         **summary.model_dump(),
         workflow_definition_id=inst.workflow_definition_id,
@@ -71,6 +73,8 @@ def to_out(
         assignment_mode=inst.assignment_mode,
         needs_claim=claim_needed,
         can_act=can_act,
+        can_approve=can_approve,
+        is_originator=is_originator,
         step_sequence=inst.step_sequence or [],
         ui_theme=ui["ui_theme"],
         form_layout=ui["form_layout"],

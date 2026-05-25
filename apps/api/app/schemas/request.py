@@ -47,6 +47,8 @@ class WorkflowInstanceOut(WorkflowInstanceSummary):
     assignment_mode: str | None = None
     needs_claim: bool = False
     can_act: bool = False
+    can_approve: bool = False
+    is_originator: bool = False
     step_sequence: list[str]
     ui_theme: str = "corporate"
     form_layout: str = "stacked"

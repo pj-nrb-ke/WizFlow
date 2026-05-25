@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ThemeScope } from "../context/ThemeContext";
+import { ApprovalActions } from "../components/ApprovalActions";
 import { RequestMetaBar } from "../components/RequestMetaBar";
 import { StatusBadge } from "../components/StatusBadge";
 import { eventLabel } from "../lib/eventLabels";
@@ -86,6 +87,21 @@ export function RequestDetailPage() {
   const isOriginator = user?.id === request.originator_user_id;
   const visibleData = filterRequestData(request.request_data);
 
+  async function approvalAction(action: "approve" | "reject") {
+    if (!id) return;
+    setError("");
+    try {
+      await apiFetch(
+        `/api/v1/requests/${id}/${action}`,
+        { method: "POST", body: JSON.stringify({ comment: "" }) },
+        getToken()
+      );
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Action failed");
+    }
+  }
+
   return (
     <ThemeScope theme={ui.ui_theme} layout={ui.form_layout}>
       <div>
@@ -131,6 +147,14 @@ export function RequestDetailPage() {
                   </div>
                 ))}
               </dl>
+            )}
+            {request.status === "in_progress" && request.can_approve && (
+              <ApprovalActions
+                needsClaim={!!request.needs_claim}
+                canApprove={!!request.can_approve}
+                onApprove={() => approvalAction("approve")}
+                onReject={() => approvalAction("reject")}
+              />
             )}
             {request.status === "returned" && isOriginator && (
               <form onSubmit={resubmit} className="mt-4 space-y-4 border-t pt-4">

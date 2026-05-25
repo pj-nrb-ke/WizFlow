@@ -2,10 +2,10 @@ from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 
 from app.core.deps import CurrentUser, require_company
-from app.db.models import WorkflowDefinition, WorkflowEvent
+from app.db.models import User, UserGroup, UserGroupMember, WorkflowDefinition, WorkflowEvent
 from app.db.session import get_db
 from app.schemas.request import RequestSubmit, WorkflowInstanceOut
 from app.schemas.workflow import (
@@ -22,8 +22,23 @@ from app.schemas.workflow import (
     WorkflowPreview,
     WorkflowVersionOut,
 )
+from app.schemas.user_group import (
+    CustomWorkflowCreate,
+    NameCheckOut,
+    OrgDirectoryOut,
+    OrgUserOut,
+    UserGroupOut,
+    UserGroupMemberOut,
+)
 from app.services import instance_engine, workflow_engine
+from app.services.custom_workflow import (
+    CustomWorkflowError,
+    build_custom_settings,
+    build_steps_from_chain,
+    workflow_name_taken,
+)
 from app.services.events import record_event
+from app.services.initiators import effective_form_schema, user_can_initiate
 from app.services.instance_queries import to_out
 from app.services.approval_notify import notify_approvers_for_step
 from app.services import versioning
@@ -45,16 +60,139 @@ def _get_definition(db: Session, workflow_id: UUID, company_id: UUID) -> Workflo
     return defn
 
 
+@router.get("/check-name", response_model=NameCheckOut)
+def check_workflow_name(
+    name: str = Query(..., min_length=1),
+    exclude_id: UUID | None = None,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> NameCheckOut:
+    taken = workflow_name_taken(db, user.company_id, name, exclude_id=exclude_id)
+    return NameCheckOut(name=name.strip(), available=not taken)
+
+
+@router.get("/org-directory", response_model=OrgDirectoryOut)
+def org_directory(
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> OrgDirectoryOut:
+    if not any(r in MANAGER_ROLES for r in user.roles):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
+    users = db.scalars(
+        select(User)
+        .where(User.company_id == user.company_id, User.is_active.is_(True))
+        .order_by(User.full_name)
+    )
+    groups = db.scalars(
+        select(UserGroup)
+        .where(UserGroup.company_id == user.company_id)
+        .options(joinedload(UserGroup.members).joinedload(UserGroupMember.user))
+        .order_by(UserGroup.name)
+    ).unique()
+    user_out = [OrgUserOut(id=u.id, email=u.email, full_name=u.full_name) for u in users]
+    group_out = []
+    for g in groups:
+        members = [
+            UserGroupMemberOut(user_id=m.user.id, full_name=m.user.full_name, email=m.user.email)
+            for m in g.members
+            if m.user
+        ]
+        group_out.append(
+            UserGroupOut(id=g.id, name=g.name, member_count=len(members), members=members, created_at=g.created_at)
+        )
+    return OrgDirectoryOut(users=user_out, groups=group_out)
+
+
+@router.get("/form-options", response_model=list[WorkflowDefinitionListOut])
+def list_form_options(
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> list[WorkflowDefinition]:
+    """Published workflows that have a form (for attaching to a custom approval workflow)."""
+    rows = list(
+        db.scalars(
+            select(WorkflowDefinition)
+            .where(
+                WorkflowDefinition.company_id == user.company_id,
+                WorkflowDefinition.status == "published",
+            )
+            .order_by(WorkflowDefinition.name)
+        )
+    )
+    return [w for w in rows if (w.form_schema or {}).get("fields")]
+
+
+@router.post("/custom", response_model=WorkflowDefinitionOut, status_code=status.HTTP_201_CREATED)
+def create_custom_workflow(
+    body: CustomWorkflowCreate,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> WorkflowDefinition:
+    if not any(r in MANAGER_ROLES for r in user.roles):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
+
+    name = body.name.strip()
+    if workflow_name_taken(db, user.company_id, name):
+        raise HTTPException(status_code=409, detail="A workflow with this name already exists")
+
+    form_wf = _get_definition(db, body.attached_form_workflow_id, user.company_id)
+    if form_wf.status != "published":
+        raise HTTPException(status_code=400, detail="Attached form must be a published workflow")
+    if not (form_wf.form_schema or {}).get("fields"):
+        raise HTTPException(status_code=400, detail="Attached workflow has no form fields")
+
+    import uuid as _uuid
+
+    chain = [{"type": item.type, "id": str(item.id)} for item in body.approver_chain]
+    try:
+        steps = build_steps_from_chain(db, user.company_id, chain)
+    except CustomWorkflowError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    initiator = {
+        "everyone": body.initiator.everyone,
+        "user_ids": [str(u) for u in body.initiator.user_ids],
+        "group_ids": [str(g) for g in body.initiator.group_ids],
+    }
+    settings = build_custom_settings(
+        attached_form_workflow_id=str(body.attached_form_workflow_id),
+        initiator=initiator,
+        approver_chain=chain,
+    )
+
+    defn = WorkflowDefinition(
+        company_id=user.company_id,
+        family_id=_uuid.uuid4(),
+        name=name,
+        form_schema=effective_form_schema(form_wf, form_wf),
+        steps=steps,
+        routing_rules=[],
+        settings=settings,
+        status="draft",
+        version=1,
+    )
+    db.add(defn)
+    db.flush()
+    defn.family_id = defn.id
+    db.commit()
+    db.refresh(defn)
+    return defn
+
+
 @router.get("", response_model=list[WorkflowDefinitionListOut])
 def list_workflows(
     status_filter: str | None = Query(None, alias="status"),
+    initiator_only: bool = Query(False, alias="initiator_only"),
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> list[WorkflowDefinition]:
     q = select(WorkflowDefinition).where(WorkflowDefinition.company_id == user.company_id)
     if status_filter:
         q = q.where(WorkflowDefinition.status == status_filter)
-    return list(db.scalars(q.order_by(WorkflowDefinition.updated_at.desc())))
+    rows = list(db.scalars(q.order_by(WorkflowDefinition.updated_at.desc())))
+    if initiator_only:
+        rows = [w for w in rows if user_can_initiate(db, user.id, w)]
+    return rows
 
 
 @router.post("", response_model=WorkflowDefinitionOut, status_code=status.HTTP_201_CREATED)

@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { Link } from "react-router-dom";
 import { ThemeScope } from "../context/ThemeContext";
+import { ApprovalActions } from "../components/ApprovalActions";
 import { RequestMetaBar } from "../components/RequestMetaBar";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
 import { formatDateTimeShort } from "../lib/datetime";
@@ -178,44 +178,18 @@ export function InboxPage() {
                   className="wf-input"
                   rows={2}
                 />
-                {detail.needs_claim && (
-                  <button
-                    type="button"
-                    onClick={() => selectedId && claimTask(selectedId)}
-                    className="px-4 py-2 bg-amber-500 text-white text-sm rounded-lg"
-                  >
-                    Claim this task
-                  </button>
+                {(detail.can_approve || detail.needs_claim) && (
+                  <ApprovalActions
+                    needsClaim={!!detail.needs_claim}
+                    canApprove={!!detail.can_approve}
+                    onClaim={() => selectedId && claimTask(selectedId)}
+                    onApprove={() => act("approve")}
+                    onReject={() => act("reject")}
+                    showReturn={!detail.is_originator}
+                    onReturn={() => act("return")}
+                    requestId={detail.id}
+                  />
                 )}
-                <div className="flex flex-wrap gap-2">
-                  <button
-                    type="button"
-                    disabled={detail.needs_claim}
-                    onClick={() => act("approve")}
-                    className="px-4 py-2 bg-green-600 text-white text-sm rounded-lg disabled:opacity-50"
-                  >
-                    Approve
-                  </button>
-                  <button
-                    type="button"
-                    disabled={detail.needs_claim}
-                    onClick={() => act("return")}
-                    className="px-4 py-2 bg-amber-500 text-white text-sm rounded-lg disabled:opacity-50"
-                  >
-                    Return
-                  </button>
-                  <button
-                    type="button"
-                    disabled={detail.needs_claim}
-                    onClick={() => act("reject")}
-                    className="px-4 py-2 bg-red-600 text-white text-sm rounded-lg disabled:opacity-50"
-                  >
-                    Reject
-                  </button>
-                  <Link to={`/requests/${detail.id}`} className="px-4 py-2 wf-btn-secondary text-sm">
-                    Full timeline
-                  </Link>
-                </div>
               </div>
             </ThemeScope>
           ) : (

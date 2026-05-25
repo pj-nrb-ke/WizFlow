@@ -16,6 +16,7 @@ from app.services.assignees import (
     user_can_act,
 )
 from app.services.events import record_event
+from app.services.initiators import user_can_initiate
 from app.services.request_serial import allocate_reference_number
 from app.services.ui_settings import attach_ui_snapshot, strip_ui_keys
 
@@ -87,6 +88,8 @@ def submit_request(
 ) -> WorkflowInstance:
     if defn.status != "published":
         raise RequestError("Workflow must be published before submitting requests")
+    if not user_can_initiate(db, user_id, defn):
+        raise RequestError("You are not allowed to start requests for this workflow")
 
     validate_form_data(defn, data)
     stored_data = attach_ui_snapshot(data, defn.settings)

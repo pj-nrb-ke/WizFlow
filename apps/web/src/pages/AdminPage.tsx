@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useState } from "react";
-import { ApiError, apiFetch, Department, UserRow } from "../lib/api";
+import { ApiError, apiFetch, Department, UserGroup, UserRow } from "../lib/api";
 import { getToken } from "../lib/auth";
 import { useAuth } from "../context/AuthContext";
 
@@ -8,6 +8,9 @@ export function AdminPage() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [users, setUsers] = useState<UserRow[]>([]);
   const [deptName, setDeptName] = useState("");
+  const [groups, setGroups] = useState<UserGroup[]>([]);
+  const [groupName, setGroupName] = useState("");
+  const [groupUserIds, setGroupUserIds] = useState<string[]>([]);
   const [error, setError] = useState("");
 
   const isAdmin = user?.roles.includes("company_admin");
@@ -18,10 +21,12 @@ export function AdminPage() {
     Promise.all([
       apiFetch<Department[]>("/api/v1/admin/departments", {}, token),
       apiFetch<UserRow[]>("/api/v1/admin/users", {}, token),
+      apiFetch<UserGroup[]>("/api/v1/admin/user-groups", {}, token).catch(() => []),
     ])
-      .then(([d, u]) => {
+      .then(([d, u, g]) => {
         setDepartments(d);
         setUsers(u);
+        setGroups(g);
       })
       .catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed to load"));
   }, [isAdmin]);
@@ -74,6 +79,74 @@ export function AdminPage() {
             {departments.map((d) => (
               <li key={d.id} className="text-slate-700">
                 {d.name}
+              </li>
+            ))}
+          </ul>
+        </section>
+
+        <section className="bg-white rounded-lg border border-slate-200 p-4 md:col-span-2">
+          <h2 className="font-semibold mb-3">User groups</h2>
+          <p className="text-xs text-slate-500 mb-3">
+            Groups are used in custom workflows for initiators and approvers.
+          </p>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!groupName.trim()) return;
+              try {
+                const created = await apiFetch<UserGroup>(
+                  "/api/v1/admin/user-groups",
+                  {
+                    method: "POST",
+                    body: JSON.stringify({
+                      name: groupName.trim(),
+                      user_ids: groupUserIds,
+                    }),
+                  },
+                  getToken()
+                );
+                setGroups((prev) => [...prev, created].sort((a, b) => a.name.localeCompare(b.name)));
+                setGroupName("");
+                setGroupUserIds([]);
+              } catch (err) {
+                setError(err instanceof ApiError ? err.detail ?? err.message : "Failed to create group");
+              }
+            }}
+            className="space-y-3 mb-4"
+          >
+            <input
+              value={groupName}
+              onChange={(e) => setGroupName(e.target.value)}
+              placeholder="Group name"
+              className="wf-input max-w-xs"
+            />
+            <div className="flex flex-wrap gap-2 max-h-24 overflow-y-auto">
+              {users.map((u) => (
+                <label key={u.id} className="text-xs flex items-center gap-1 border rounded px-2 py-1">
+                  <input
+                    type="checkbox"
+                    checked={groupUserIds.includes(u.id)}
+                    onChange={() =>
+                      setGroupUserIds((prev) =>
+                        prev.includes(u.id) ? prev.filter((x) => x !== u.id) : [...prev, u.id]
+                      )
+                    }
+                  />
+                  {u.full_name}
+                </label>
+              ))}
+            </div>
+            <button type="submit" className="wf-btn-primary text-sm">
+              Create group
+            </button>
+          </form>
+          <ul className="text-sm space-y-2">
+            {groups.map((g) => (
+              <li key={g.id} className="border-b border-slate-100 pb-2">
+                <p className="font-medium">{g.name}</p>
+                <p className="text-xs text-slate-500">
+                  {g.members.map((m) => m.full_name).join(", ") || "No members"}
+                </p>
               </li>
             ))}
           </ul>

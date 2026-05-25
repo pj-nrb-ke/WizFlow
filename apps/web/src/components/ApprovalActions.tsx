@@ -1,0 +1,72 @@
+import { Link } from "react-router-dom";
+
+type Props = {
+  needsClaim: boolean;
+  canApprove: boolean;
+  onClaim?: () => void;
+  onApprove: () => void;
+  onReject: () => void;
+  showReturn?: boolean;
+  onReturn?: () => void;
+  requestId?: string;
+};
+
+/** Approve / Reject bar for approvers (hidden from initiator). */
+export function ApprovalActions({
+  needsClaim,
+  canApprove,
+  onClaim,
+  onApprove,
+  onReject,
+  showReturn = false,
+  onReturn,
+  requestId,
+}: Props) {
+  return (
+    <div className="border-t border-slate-200 pt-4 mt-4 space-y-3">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">Approval decision</p>
+      {needsClaim && onClaim && (
+        <button
+          type="button"
+          onClick={onClaim}
+          className="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg"
+        >
+          Claim this task
+        </button>
+      )}
+      <div className="flex flex-wrap gap-3">
+        <button
+          type="button"
+          disabled={!canApprove || needsClaim}
+          onClick={onApprove}
+          className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50 uppercase tracking-wide"
+        >
+          Approve
+        </button>
+        <button
+          type="button"
+          disabled={!canApprove || needsClaim}
+          onClick={onReject}
+          className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50 uppercase tracking-wide"
+        >
+          Reject
+        </button>
+        {showReturn && onReturn && (
+          <button
+            type="button"
+            disabled={!canApprove || needsClaim}
+            onClick={onReturn}
+            className="px-4 py-2 bg-amber-500 text-white text-sm rounded-lg disabled:opacity-50"
+          >
+            Return
+          </button>
+        )}
+        {requestId && (
+          <Link to={`/requests/${requestId}`} className="px-4 py-2 wf-btn-secondary text-sm self-center">
+            Full timeline
+          </Link>
+        )}
+      </div>
+    </div>
+  );
+}

@@ -200,3 +200,77 @@ def send_approval_email(
     if errors:
         logger.error("All email methods failed for %s: %s", to_email, "; ".join(errors))
     return False
+
+
+def send_request_status_email(
+    *,
+    to_email: str,
+    to_name: str,
+    subject: str,
+    workflow_name: str,
+    status_label: str,
+    actor_name: str,
+    comment: str | None,
+    view_url: str,
+) -> bool:
+    """Email initiator when their request is approved or rejected."""
+    cfg = _mail_settings()
+    if not cfg["host"] and not cfg["api_key"]:
+        logger.info(
+            "Status email (dev): to=%s status=%s workflow=%s",
+            to_email,
+            status_label,
+            workflow_name,
+        )
+        return False
+
+    comment_line = f'\nComment: "{comment}"' if comment else ""
+    text_body = f"""Hello {to_name},
+
+Your WizFlow request was updated.
+
+Workflow: {workflow_name}
+Status: {status_label}
+Updated by: {actor_name}{comment_line}
+
+View your request:
+{view_url}
+
+— WizFlow
+"""
+    html_body = f"""<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;color:#1e293b">
+<p>Hello {to_name},</p>
+<p>Your request <strong>{workflow_name}</strong> was <strong>{status_label}</strong> by {actor_name}.</p>
+{"<p><em>" + comment + "</em></p>" if comment else ""}
+<p><a href="{view_url}" style="background:#4f46e5;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block">View request</a></p>
+</body></html>"""
+
+    errors: list[str] = []
+    if cfg["api_key"]:
+        try:
+            _send_via_api(
+                cfg,
+                to_email=to_email,
+                to_name=to_name,
+                subject=subject,
+                text_body=text_body,
+                html_body=html_body,
+            )
+            return True
+        except Exception as e:
+            errors.append(str(e))
+    if cfg["host"]:
+        try:
+            _send_via_smtp(
+                cfg,
+                to_email=to_email,
+                subject=subject,
+                text_body=text_body,
+                html_body=html_body,
+            )
+            return True
+        except Exception as e:
+            errors.append(str(e))
+    if errors:
+        logger.warning("Status email failed for %s: %s", to_email, errors)
+    return False

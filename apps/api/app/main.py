@@ -2,7 +2,19 @@ from fastapi import APIRouter, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import admin, ai, auth, health, inbox, notifications, public_approval, reports, requests, workflows
+from app.routers import (
+    admin,
+    ai,
+    auth,
+    health,
+    inbox,
+    notifications,
+    public_approval,
+    reports,
+    requests,
+    user_groups,
+    workflows,
+)
 
 app = FastAPI(
     title=settings.app_name,
@@ -23,6 +35,7 @@ v1 = APIRouter(prefix="/api/v1")
 v1.include_router(health.router)
 v1.include_router(auth.router)
 v1.include_router(admin.router)
+v1.include_router(user_groups.router)
 v1.include_router(workflows.router)
 v1.include_router(ai.router)
 v1.include_router(requests.router)
