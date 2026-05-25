@@ -6,6 +6,7 @@ import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
 import { formatDateTimeShort } from "../lib/datetime";
 import { ApiError, apiFetch, FormField, InboxItem, RequestDetail } from "../lib/api";
 import { getToken } from "../lib/auth";
+import { getFormFields } from "../lib/formValidation";
 import {
   APP_THEMES,
   filterRequestData,
@@ -72,7 +73,13 @@ export function InboxPage() {
       {},
       getToken()
     ).catch(() => ({ form_schema: { fields: [] } }));
-    setFields(defn.form_schema?.fields || []);
+    setFields(getFormFields(defn.form_schema));
+  }
+
+  function actionSuccessLabel(action: "approve" | "reject" | "return"): string {
+    if (action === "approve") return "approved";
+    if (action === "reject") return "rejected";
+    return "returned";
   }
 
   async function act(action: "approve" | "reject" | "return") {
@@ -87,15 +94,15 @@ export function InboxPage() {
         getToken()
       );
       setMsg(
-        `Request ${action}d successfully${actedRef ? ` (${actedRef})` : actedName ? ` (${actedName})` : ""}.`
+        `Request ${actionSuccessLabel(action)} successfully${actedRef ? ` (${actedRef})` : actedName ? ` (${actedName})` : ""}.`
       );
       setComment("");
       const remaining = await apiFetch<InboxItem[]>("/api/v1/inbox", {}, getToken());
       setItems(remaining);
+      setDetail(null);
       if (remaining.length > 0) {
         await openItem(remaining[0].request_id);
       } else {
-        setDetail(null);
         setSelectedId(null);
       }
     } catch (e) {
@@ -111,8 +118,8 @@ export function InboxPage() {
       {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
       {msg && <p className="text-sm text-green-700 mb-2">{msg}</p>}
 
-      <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 wf-card divide-y">
+      <div className="grid lg:grid-cols-3 gap-6 min-w-0">
+        <div className="lg:col-span-1 wf-card divide-y min-w-0 max-h-[70vh] overflow-y-auto">
           {items.length === 0 ? (
             <p className="p-4 text-sm text-slate-500">No pending approvals.</p>
           ) : (
@@ -150,7 +157,7 @@ export function InboxPage() {
           )}
         </div>
 
-        <div className="lg:col-span-2">
+        <div className="lg:col-span-2 min-w-0">
           {detail ? (
             <ThemeScope theme={uiTheme}>
               <div className="wf-card p-4 space-y-4">
@@ -206,6 +213,11 @@ export function InboxPage() {
               <p className="text-lg font-medium text-slate-800">Inbox cleared</p>
               <p className="text-sm text-slate-600">{msg}</p>
               <p className="text-sm text-slate-500">No more items need your approval right now.</p>
+            </div>
+          ) : items.length === 0 ? (
+            <div className="wf-card p-8 text-center space-y-2">
+              <p className="text-lg font-medium text-slate-800">All caught up</p>
+              <p className="text-sm text-slate-500">No pending approvals in your inbox.</p>
             </div>
           ) : (
             <p className="text-slate-500 text-sm">Select a request to review.</p>

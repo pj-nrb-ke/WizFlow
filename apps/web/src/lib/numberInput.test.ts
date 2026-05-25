@@ -26,5 +26,13 @@ describe("validatePositiveNumberField", () => {
   it("rejects invalid numeric input", () => {
     expect(validatePositiveNumberField("Amount", "123-123")).toMatch(/positive/i);
     expect(validatePositiveNumberField("Amount", "100")).toBeNull();
+    expect(validatePositiveNumberField("Amount", "")).toBeNull();
+    expect(validatePositiveNumberField("Amount", ".")).toMatch(/positive/i);
+  });
+});
+
+describe("sanitizePositiveNumberInput edge cases", () => {
+  it("collapses multiple dots to one decimal point", () => {
+    expect(sanitizePositiveNumberInput("1.2.3")).toBe("1.23");
   });
 });

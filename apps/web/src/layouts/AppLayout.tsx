@@ -39,16 +39,17 @@ export function AppLayout() {
           <Link to="/" className="wf-header-brand shrink-0">
             WizFlow
           </Link>
-          <nav className="wf-nav justify-center flex-1" aria-label="Main">
+          <nav className="wf-nav justify-center flex-1 min-w-0" aria-label="Main">
             {nav.map(({ to, label, Icon, ...rest }) => (
               <NavLink
                 key={to}
                 to={to}
                 end={"end" in rest ? rest.end : false}
+                aria-label={label}
                 className={({ isActive }) => `wf-nav-link${isActive ? " active" : ""}`}
               >
                 <Icon size={16} />
-                <span>{label}</span>
+                <span className="hidden xl:inline">{label}</span>
               </NavLink>
             ))}
           </nav>

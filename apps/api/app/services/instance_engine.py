@@ -41,6 +41,50 @@ def compute_step_sequence(defn: WorkflowDefinition, request_data: dict) -> list[
     return result.steps_traversed
 
 
+def _coerce_non_negative_number(value: object) -> int | float | None:
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        n = value
+    elif isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return None
+        try:
+            n = float(s) if "." in s else int(s)
+            if isinstance(n, float) and n.is_integer():
+                n = int(n)
+        except ValueError:
+            return None
+    else:
+        return None
+    if n < 0:
+        return None
+    return n
+
+
+def normalize_form_numbers(defn: WorkflowDefinition, data: dict) -> dict:
+    """Return a copy with number fields coerced for routing and storage."""
+    out = dict(data)
+    clean = strip_ui_keys(out)
+    fields = (defn.form_schema or {}).get("fields") or []
+    for field in fields:
+        if not isinstance(field, dict) or field.get("type") != "number":
+            continue
+        key = field.get("key")
+        if not key or key not in clean:
+            continue
+        raw = clean.get(key)
+        if raw is None or raw == "":
+            continue
+        coerced = _coerce_non_negative_number(raw)
+        if coerced is None:
+            label = field.get("label", key)
+            raise RequestError(f"'{label}' must be a non-negative number")
+        out[key] = coerced
+    return out
+
+
 def validate_form_data(defn: WorkflowDefinition, data: dict) -> None:
     clean = strip_ui_keys(data)
     fields = (defn.form_schema or {}).get("fields") or []
@@ -50,6 +94,11 @@ def validate_form_data(defn: WorkflowDefinition, data: dict) -> None:
         key = field.get("key")
         if field.get("required") and key and (clean.get(key) is None or clean.get(key) == ""):
             raise RequestError(f"Field '{field.get('label', key)}' is required")
+        if field.get("type") == "number" and key and clean.get(key) not in (None, ""):
+            if _coerce_non_negative_number(clean.get(key)) is None:
+                raise RequestError(
+                    f"'{field.get('label', key)}' must be a non-negative number"
+                )
 
 
 def resolve_assignees_for_step(
@@ -92,8 +141,9 @@ def submit_request(
         raise RequestError("You are not allowed to start requests for this workflow")
 
     validate_form_data(defn, data)
-    stored_data = attach_ui_snapshot(data, defn.settings)
-    step_sequence = compute_step_sequence(defn, strip_ui_keys(data))
+    normalized = normalize_form_numbers(defn, data)
+    stored_data = attach_ui_snapshot(normalized, defn.settings)
+    step_sequence = compute_step_sequence(defn, strip_ui_keys(normalized))
     if not step_sequence:
         raise RequestError("No approval steps resolved for this request")
 
@@ -289,13 +339,14 @@ def resubmit_returned(
         raise RequestError("Only the originator can resubmit this request")
 
     validate_form_data(defn, data)
-    step_sequence = compute_step_sequence(defn, strip_ui_keys(data))
+    normalized = normalize_form_numbers(defn, data)
+    step_sequence = compute_step_sequence(defn, strip_ui_keys(normalized))
     first_step_id = step_sequence[0]
     step = _step_map(defn).get(first_step_id)
     if not step:
         raise RequestError("Invalid step sequence")
 
-    instance.request_data = attach_ui_snapshot(data, defn.settings)
+    instance.request_data = attach_ui_snapshot(normalized, defn.settings)
     instance.step_sequence = step_sequence
     instance.status = "in_progress"
     instance.current_step_id = first_step_id

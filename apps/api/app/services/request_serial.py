@@ -57,11 +57,13 @@ def allocate_reference_number(
     family_id = defn.family_id
 
     seq = db.scalar(
-        select(RequestSerialSequence).where(
+        select(RequestSerialSequence)
+        .where(
             RequestSerialSequence.company_id == company_id,
             RequestSerialSequence.family_id == family_id,
             RequestSerialSequence.year == year,
         )
+        .with_for_update()
     )
     if not seq:
         seq = RequestSerialSequence(
@@ -74,8 +76,19 @@ def allocate_reference_number(
         db.flush()
 
     num = seq.next_value
-    seq.next_value = num + 1
-    return f"{prefix}-{year}-{num:05d}"
+    while True:
+        ref = f"{prefix}-{year}-{num:05d}"
+        taken = db.scalar(
+            select(WorkflowInstance.id).where(
+                WorkflowInstance.company_id == company_id,
+                WorkflowInstance.reference_number == ref,
+            )
+        )
+        if not taken:
+            seq.next_value = max(seq.next_value, num + 1)
+            return ref
+        num += 1
+        seq.next_value = max(seq.next_value, num + 1)
 
 
 def backfill_reference_for_instance(

@@ -63,7 +63,7 @@ export function FormFieldControl({
   if (readOnly) {
     const roClass =
       variant === "hero"
-        ? "text-4xl font-bold font-mono text-white"
+        ? "wf-readonly-value"
         : "text-slate-800 font-medium";
     return <p className={roClass}>{value || "—"}</p>;
   }

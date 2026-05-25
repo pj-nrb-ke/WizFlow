@@ -45,6 +45,24 @@ def validate_definition(defn: WorkflowDefinition) -> None:
         _validate_assignee(step)
 
 
+def _as_number(value: object) -> int | float | None:
+    """Coerce routing operands; reject bool and non-numeric strings."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)):
+        return value
+    if isinstance(value, str):
+        s = value.strip()
+        if not s:
+            return None
+        try:
+            n: int | float = float(s) if "." in s else int(s)
+            return int(n) if isinstance(n, float) and n.is_integer() else n
+        except ValueError:
+            return None
+    return None
+
+
 def _eval_condition(when: dict, data: dict) -> bool:
     field = when.get("field")
     op = when.get("op")
@@ -56,14 +74,18 @@ def _eval_condition(when: dict, data: dict) -> bool:
         return actual == expected
     if op == "ne":
         return actual != expected
-    if op == "gt":
-        return actual is not None and expected is not None and actual > expected
-    if op == "gte":
-        return actual is not None and expected is not None and actual >= expected
-    if op == "lt":
-        return actual is not None and expected is not None and actual < expected
-    if op == "lte":
-        return actual is not None and expected is not None and actual <= expected
+    if op in ("gt", "gte", "lt", "lte"):
+        a = _as_number(actual)
+        e = _as_number(expected)
+        if a is None or e is None:
+            return False
+        if op == "gt":
+            return a > e
+        if op == "gte":
+            return a >= e
+        if op == "lt":
+            return a < e
+        return a <= e
     if op == "in":
         return actual in (expected if isinstance(expected, list) else [expected])
     return False

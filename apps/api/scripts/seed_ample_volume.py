@@ -153,6 +153,15 @@ def _approve_until_done(db, inst, defn, actor_id):
             _notify_inbox(db, inst)
 
 
+def _actor_for_terminal_action(inst, preferred_id: uuid.UUID) -> uuid.UUID:
+    """Use preferred user when assigned; else first assignee (custom workflows)."""
+    if user_can_act(inst, preferred_id):
+        return preferred_id
+    if inst.assignees:
+        return uuid.UUID(inst.assignees[0]["user_id"])
+    return preferred_id
+
+
 def seed_ample_volume(*, force: bool | None = None) -> None:
     if force is None:
         force = os.environ.get("SEED_FORCE", "").strip().lower() in ("1", "true", "yes")
@@ -244,11 +253,13 @@ def seed_ample_volume(*, force: bool | None = None) -> None:
                     stats["in_progress"] += 1
                 elif roll < 0.75:
                     inst = _submit(db, defn, o_user.id, company.id)
-                    instance_engine.reject_request(db, inst, admin.id, "Demo reject")
+                    actor = _actor_for_terminal_action(inst, admin.id)
+                    instance_engine.reject_request(db, inst, actor, "Demo reject")
                     stats["rejected"] += 1
                 else:
                     inst = _submit(db, defn, o_user.id, company.id)
-                    instance_engine.return_request(db, inst, admin.id, "Demo return")
+                    actor = _actor_for_terminal_action(inst, admin.id)
+                    instance_engine.return_request(db, inst, actor, "Demo return")
                     stats["returned"] += 1
 
         # --- Admin "My requests" (admin can submit any standard workflow) ---
@@ -274,7 +285,8 @@ def seed_ample_volume(*, force: bool | None = None) -> None:
                     stats["in_progress"] += 1
                 else:
                     inst = _submit(db, defn, admin.id, company.id, data)
-                    instance_engine.reject_request(db, inst, admin.id, "Demo reject")
+                    actor = _actor_for_terminal_action(inst, admin.id)
+                    instance_engine.reject_request(db, inst, actor, "Demo reject")
                     stats["rejected"] += 1
 
         # --- 8-step showcase: mega parked at steps 3, 5, 7 (submitter: ops.user) ---

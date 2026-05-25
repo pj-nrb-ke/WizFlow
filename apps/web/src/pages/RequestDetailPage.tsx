@@ -8,6 +8,11 @@ import { eventLabel } from "../lib/eventLabels";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
 import { ApiError, apiFetch, FormField, RequestDetail, WorkflowEvent } from "../lib/api";
 import { getToken } from "../lib/auth";
+import {
+  formToPayload,
+  getFormFields,
+  validateFormClient,
+} from "../lib/formValidation";
 import { useAuth } from "../context/AuthContext";
 import {
   APP_THEMES,
@@ -50,7 +55,7 @@ export function RequestDetailPage() {
     ]);
     setRequest(req);
     setEvents(ev);
-    setFields(defn.form_schema?.fields || []);
+    setFields(getFormFields(defn.form_schema));
     const visible = filterRequestData(req.request_data);
     const data: Record<string, string> = {};
     for (const [k, v] of Object.entries(visible)) {
@@ -66,10 +71,13 @@ export function RequestDetailPage() {
   async function resubmit(e: FormEvent) {
     e.preventDefault();
     if (!id) return;
-    const data: Record<string, unknown> = {};
-    for (const [k, v] of Object.entries(resubmitData)) {
-      data[k] = k === "amount" || k.includes("hours") ? Number(v) : v;
+    setError("");
+    const clientErr = validateFormClient(fields, resubmitData);
+    if (clientErr) {
+      setError(clientErr);
+      return;
     }
+    const data = formToPayload(fields, resubmitData);
     try {
       await apiFetch(
         `/api/v1/requests/${id}`,

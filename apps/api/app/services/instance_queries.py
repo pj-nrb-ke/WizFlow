@@ -34,6 +34,7 @@ def to_summary(
     ref = inst.reference_number
     if not ref and db and defn:
         ref = backfill_reference_for_instance(db, inst, defn)
+    amount = (inst.request_data or {}).get("amount")
     return WorkflowInstanceSummary(
         id=inst.id,
         reference_number=ref,
@@ -42,6 +43,7 @@ def to_summary(
         current_step=inst.current_step_id,
         current_step_name=step_name,
         submitted_at=inst.submitted_at,
+        amount_preview=str(amount) if amount is not None else None,
     )
 
 

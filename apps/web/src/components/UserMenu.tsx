@@ -54,7 +54,7 @@ export function UserMenu() {
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="wf-user-trigger flex items-center gap-2 rounded-full pl-1 pr-2 py-1 border border-transparent hover:border-[rgb(var(--wf-card-border))] hover:bg-[rgb(var(--wf-accent-muted))] transition-colors"
+        className="wf-header-user wf-user-trigger flex items-center gap-2 rounded-full pl-1 pr-2 py-1 border border-transparent hover:border-[rgb(var(--wf-card-border))] hover:bg-[rgb(var(--wf-accent-muted))] transition-colors"
         aria-expanded={open}
         aria-haspopup="true"
         aria-label="User menu"

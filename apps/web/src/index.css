@@ -12,6 +12,8 @@
   --wf-font-mono: ui-monospace, monospace;
   --wf-brand-50: 238 246 255;
   --wf-brand-100: 219 234 254;
+  --wf-brand-200: 191 219 254;
+  --wf-brand-400: 96 165 250;
   --wf-brand-500: 37 99 235;
   --wf-brand-600: 29 78 216;
   --wf-brand-700: 30 64 175;
@@ -40,6 +42,8 @@
   --wf-font-mono: "JetBrains Mono", monospace;
   --wf-brand-50: 248 250 252;
   --wf-brand-100: 226 232 240;
+  --wf-brand-200: 203 213 225;
+  --wf-brand-400: 100 116 139;
   --wf-brand-500: 71 85 105;
   --wf-brand-600: 30 41 59;
   --wf-brand-700: 15 23 42;
@@ -68,6 +72,8 @@
   --wf-font-mono: "JetBrains Mono", monospace;
   --wf-brand-50: 240 253 250;
   --wf-brand-100: 153 246 228;
+  --wf-brand-200: 94 234 212;
+  --wf-brand-400: 45 212 191;
   --wf-brand-500: 13 148 136;
   --wf-brand-600: 15 118 110;
   --wf-brand-700: 17 94 89;
@@ -96,6 +102,8 @@
   --wf-font-mono: ui-monospace, monospace;
   --wf-brand-50: 255 247 237;
   --wf-brand-100: 255 237 213;
+  --wf-brand-200: 254 215 170;
+  --wf-brand-400: 251 146 60;
   --wf-brand-500: 234 88 12;
   --wf-brand-600: 194 65 12;
   --wf-brand-700: 154 52 18;
@@ -124,6 +132,8 @@
   --wf-font-mono: "JetBrains Mono", monospace;
   --wf-brand-50: 238 242 255;
   --wf-brand-100: 199 210 254;
+  --wf-brand-200: 165 180 252;
+  --wf-brand-400: 129 140 248;
   --wf-brand-500: 67 56 202;
   --wf-brand-600: 79 70 229;
   --wf-brand-700: 67 56 202;
@@ -192,6 +202,7 @@
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
+    min-width: 0;
   }
 
   .wf-header-brand {
@@ -209,15 +220,34 @@
 
   .wf-nav {
     display: flex;
-    flex-wrap: wrap;
+    flex-wrap: nowrap;
     gap: 0.35rem;
     font-size: 0.875rem;
+    min-width: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .wf-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  @media (min-width: 1280px) {
+    .wf-nav {
+      flex-wrap: wrap;
+      overflow-x: visible;
+    }
   }
 
   .wf-nav-link {
-    @apply transition-all px-3 py-1.5 inline-flex items-center gap-1.5;
+    @apply transition-all px-3 py-1.5 inline-flex items-center gap-1.5 shrink-0;
     color: rgb(71 85 105);
     border-radius: var(--wf-radius);
+  }
+
+  .wf-nav-link:focus-visible {
+    outline: 2px solid rgb(var(--wf-brand-500));
+    outline-offset: 2px;
   }
 
   .wf-nav-link svg {
@@ -321,6 +351,10 @@
     font-family: var(--wf-font-body);
     @apply font-semibold transition-all hover:brightness-110 disabled:opacity-50;
   }
+  .wf-btn-primary:focus-visible {
+    outline: 2px solid rgb(var(--wf-brand-500));
+    outline-offset: 2px;
+  }
 
   [data-theme="people"] .wf-btn-primary {
     border-radius: 9999px;
@@ -341,6 +375,10 @@
     border-radius: var(--wf-radius);
     @apply text-slate-700 hover:bg-slate-50;
   }
+  .wf-btn-secondary:focus-visible {
+    outline: 2px solid rgb(var(--wf-brand-500));
+    outline-offset: 2px;
+  }
 
   .wf-input {
     border: 1px solid rgb(var(--wf-card-border));
@@ -350,6 +388,10 @@
   }
   .wf-input:focus {
     box-shadow: 0 0 0 3px rgb(var(--wf-brand-500) / 0.25);
+  }
+  .wf-input:focus-visible {
+    outline: 2px solid rgb(var(--wf-brand-500));
+    outline-offset: 0;
   }
 
   [data-theme="finance"] .wf-input {
@@ -390,21 +432,42 @@
     color: white;
     border: none;
     border-radius: var(--wf-radius-lg);
-    @apply p-6 mb-6;
+    @apply p-6 mb-6 min-w-0;
   }
   .wf-form-hero-amount label {
     color: rgb(255 255 255 / 0.85);
   }
   .wf-form-hero-amount input {
-    @apply text-4xl font-bold border-0 bg-transparent w-full focus:ring-0 p-0;
+    @apply text-4xl font-bold border-0 bg-transparent w-full focus:ring-0 p-0 min-w-0;
     color: white;
     font-family: var(--wf-font-mono);
-    overflow: hidden;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .wf-form-hero-amount input::-webkit-scrollbar {
+    display: none;
+  }
+  .wf-form-hero-amount input:focus-visible {
+    outline: 2px solid rgb(255 255 255 / 0.75);
+    outline-offset: 2px;
+    border-radius: 0.25rem;
+  }
+  .wf-form-hero-amount .wf-readonly-value {
+    @apply text-4xl font-bold min-w-0 break-all;
+    color: white;
+    font-family: var(--wf-font-mono);
   }
 
   .wf-input-number {
     -moz-appearance: textfield;
     appearance: textfield;
+    overflow-x: auto;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .wf-input-number::-webkit-scrollbar {
+    display: none;
   }
   .wf-input-number::-webkit-outer-spin-button,
   .wf-input-number::-webkit-inner-spin-button {
@@ -652,6 +715,17 @@
 }
 
 [data-theme="executive"] .wf-header .text-slate-500,
+[data-theme="executive"] .wf-header .text-slate-400,
 [data-theme="executive"] .wf-header-user {
   color: rgb(148 163 184);
+}
+[data-theme="executive"] .wf-header .text-slate-800,
+[data-theme="executive"] .wf-header-user .text-slate-800 {
+  color: rgb(248 250 252);
+}
+[data-theme="executive"] .wf-header-user .text-slate-500 {
+  color: rgb(148 163 184);
+}
+[data-theme="executive"] .wf-user-trigger:hover {
+  background-color: rgb(51 65 85);
 }

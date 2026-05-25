@@ -34,6 +34,7 @@ class WorkflowInstanceSummary(BaseModel):
     current_step: str | None = None
     current_step_name: str | None = None
     submitted_at: datetime | None = None
+    amount_preview: str | None = None
 
     model_config = {"from_attributes": True}
 
