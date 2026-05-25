@@ -51,9 +51,7 @@ $COMPOSE exec -T api python -m scripts.seed_prod
 
 echo "==> Web build"
 cd "$APP_ROOT/apps/web"
-if [ ! -d node_modules ]; then
-  npm ci
-fi
+npm ci
 VITE_API_URL=$API_URL npm run build
 
 echo "==> Publish static web"
