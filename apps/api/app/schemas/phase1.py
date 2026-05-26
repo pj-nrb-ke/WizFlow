@@ -16,11 +16,15 @@ class HealthCheckOut(BaseModel):
 class NotificationPreferences(BaseModel):
     email: bool = True
     in_app: bool = True
+    push: bool = True
+    whatsapp: bool = False
 
 
 class NotificationPreferencesUpdate(BaseModel):
     email: bool | None = None
     in_app: bool | None = None
+    push: bool | None = None
+    whatsapp: bool | None = None
 
 
 class CompanyBranding(BaseModel):

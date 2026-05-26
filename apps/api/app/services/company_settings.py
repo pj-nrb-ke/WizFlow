@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-DEFAULT_NOTIFICATION_PREFERENCES = {"email": True, "in_app": True}
+DEFAULT_NOTIFICATION_PREFERENCES = {"email": True, "in_app": True, "push": True, "whatsapp": False}
 
 
 def branding_from_settings(settings: dict | None) -> dict:
@@ -33,4 +33,6 @@ def user_notification_preferences(user) -> dict:
     return {
         "email": bool(prefs.get("email", True)),
         "in_app": bool(prefs.get("in_app", True)),
+        "push": bool(prefs.get("push", True)),
+        "whatsapp": bool(prefs.get("whatsapp", False)),
     }

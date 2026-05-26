@@ -1,6 +1,9 @@
-import { Redirect, Tabs } from "expo-router";
+import { useEffect } from "react";
+import { Redirect, Tabs, useRouter } from "expo-router";
 import { Text } from "react-native";
 import { useAuth } from "../../src/auth/AuthContext";
+import { useBackgroundSync } from "../../src/hooks/useBackgroundSync";
+import { setupPushNavigation } from "../../src/notifications/handlers";
 import { colors } from "../../src/theme/colors";
 
 function TabIcon({ label }: { label: string }) {
@@ -8,8 +11,17 @@ function TabIcon({ label }: { label: string }) {
 }
 
 export default function TabsLayout() {
-  const { user } = useAuth();
+  const { user, token } = useAuth();
+  const router = useRouter();
+  const { pendingTotal } = useBackgroundSync(token);
+
+  useEffect(() => {
+    setupPushNavigation(router);
+  }, [router]);
+
   if (!user) return <Redirect href="/login" />;
+
+  const syncBadge = pendingTotal > 0 ? pendingTotal : undefined;
 
   return (
     <Tabs
@@ -35,7 +47,11 @@ export default function TabsLayout() {
       />
       <Tabs.Screen
         name="submit"
-        options={{ title: "Submit", tabBarIcon: () => <TabIcon label="＋" /> }}
+        options={{
+          title: "Submit",
+          tabBarIcon: () => <TabIcon label="＋" />,
+          tabBarBadge: syncBadge,
+        }}
       />
       <Tabs.Screen
         name="notifications"

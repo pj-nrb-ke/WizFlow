@@ -20,6 +20,8 @@ class Settings(BaseSettings):
     app_url: str = "http://localhost:5200"
     ai_api_key: str = ""
     ai_model: str = "gpt-4o-mini"
+    expo_push_enabled: bool = True
+    expo_push_access_token: str = ""
 
 
 settings = Settings()

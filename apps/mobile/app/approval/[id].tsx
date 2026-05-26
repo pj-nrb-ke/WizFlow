@@ -20,6 +20,7 @@ import {
   type RequestDetail,
   type WorkflowEvent,
 } from "../../src/api/client";
+import { enqueueUpload } from "../../src/lib/uploadQueue";
 import { StatusBadge } from "../../src/components/StatusBadge";
 import { colors } from "../../src/theme/colors";
 
@@ -159,18 +160,16 @@ export default function ApprovalScreen() {
             const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
             if (result.canceled) return;
             const asset = result.assets[0];
+            const path = `/api/v1/requests/${id}/attachments`;
+            const filename = asset.fileName || "supporting.jpg";
+            const mime = asset.mimeType || "image/jpeg";
             try {
-              await apiUpload(
-                `/api/v1/requests/${id}/attachments`,
-                asset.uri,
-                asset.fileName || "supporting.jpg",
-                asset.mimeType || "image/jpeg",
-                token
-              );
+              await apiUpload(path, asset.uri, filename, mime, token);
               void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
               Alert.alert("Uploaded", "Supporting photo attached.");
-            } catch (e) {
-              Alert.alert("Upload failed", e instanceof Error ? e.message : "Error");
+            } catch {
+              await enqueueUpload(path, asset.uri, filename, mime);
+              Alert.alert("Queued", "Photo will upload when connection is restored.");
             }
           }}>
             <Text style={styles.attachBtnText}>Add supporting photo</Text>

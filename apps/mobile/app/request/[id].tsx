@@ -26,6 +26,7 @@ import {
   getFormFields,
   validateForm,
 } from "../../src/lib/formUtils";
+import { buildRequestShareMessage } from "../../src/lib/share";
 import { colors } from "../../src/theme/colors";
 
 export default function RequestDetailScreen() {
@@ -123,10 +124,10 @@ export default function RequestDetailScreen() {
       <Pressable
         style={styles.shareBtn}
         onPress={async () => {
-          const deep = `wizflow://request/${detail.id}`;
-          const text = `WizFlow request ${detail.reference_number || detail.id}\n${deep}`;
           try {
-            await Share.share({ message: text });
+            await Share.share({
+              message: buildRequestShareMessage(detail.id, detail.reference_number),
+            });
           } catch {
             /* ignore */
           }

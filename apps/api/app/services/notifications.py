@@ -24,6 +24,8 @@ def notify_users(
     body: str,
     instance_id: UUID | None = None,
     send_email: bool = True,
+    send_push: bool = True,
+    push_actionable: bool | None = None,
 ) -> None:
     for uid in user_ids:
         db.add(
@@ -39,6 +41,21 @@ def notify_users(
             user = db.get(User, uid)
             if user and user.email:
                 send_email_notification(user.email, title, body)
+
+    if send_push and user_ids:
+        from app.services.push_delivery import send_push_to_users
+
+        actionable = push_actionable
+        if actionable is None:
+            actionable = bool(instance_id and "approval" in title.lower())
+        send_push_to_users(
+            db,
+            user_ids=user_ids,
+            title=title,
+            body=body,
+            instance_id=instance_id,
+            actionable=actionable,
+        )
 
 
 def send_email_notification(to_email: str, subject: str, body: str) -> None:

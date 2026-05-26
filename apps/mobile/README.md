@@ -1,6 +1,6 @@
 # WizFlow Mobile (Expo)
 
-React Native app for **Mobile Phase M1** — approver inbox, approvals, notifications, push token registration.
+Native mobile app for WizFlow — **M1–M5 complete** (approvals, submit, OCR, offline sync, voice, manager KPI, templates, store release kit).
 
 ## Setup
 
@@ -11,25 +11,48 @@ npm install
 npx expo start
 ```
 
-Set `EXPO_PUBLIC_API_URL` to your API (e.g. `http://192.168.x.x:8010` on a physical device, or `https://api.wizflow.biz` for production).
+| Variable | Example |
+|----------|---------|
+| `EXPO_PUBLIC_API_URL` | `https://api.wizflow.biz` or LAN `http://192.168.x.x:8010` |
+| `EXPO_PUBLIC_WEB_URL` | `https://app.wizflow.biz` |
 
 ## Demo login
 
 - `admin@demo.wizflow.biz` / `changeme`
+- `originator@demo.wizflow.biz` / `changeme`
 
-## EAS builds
+## Features (M1–M5)
+
+| Phase | Highlights |
+|-------|------------|
+| **M1** | Login, home, inbox, approval, notifications, push token + API delivery |
+| **M2** | My requests, submit, OCR, offline queue, biometrics |
+| **M3** | Inbox filters, manager KPI/anomalies, deep links, settings, tablet inbox |
+| **M4** | AI narrative, voice nav/dictation, typed OCR, upload retry + tab badge, push actions |
+| **M5** | Templates clone, workflows list, share (web + deep link), WhatsApp pref hook |
+
+## EAS builds & stores
+
+See **[store/RELEASE.md](./store/RELEASE.md)** for `eas init`, build, and submit steps.  
+Listing copy: **[store/listing.md](./store/listing.md)** · Privacy: **[store/privacy-policy.md](./store/privacy-policy.md)**
 
 ```bash
-npm install -g eas-cli
 eas build --profile preview --platform android
+eas build --profile production --platform all
 ```
 
-Configure `extra.eas.projectId` in `app.json` after `eas init`.
+Replace `extra.eas.projectId` in `app.json` after `eas init`.
 
-## M1–M3 scope
+## Push notifications
 
-- **M1:** Login, home, inbox, approval actions, notifications, push token registration
-- **M2:** My requests (tabs), request detail, returned resubmit, new request + OCR camera, offline submit queue, biometric unlock, approval attachments
-- **M3:** Inbox workflow/overdue filters, manager KPI + anomalies on home, settings (notification prefs), deep links (`wizflow://approval/{id}`, `wizflow://public-approve/{token}`), tablet split inbox
+1. User enables **Push** in Settings → token registered at `POST /api/v1/users/push-token`.
+2. API sends Expo push on in-app notifications when `EXPO_PUSH_ENABLED=true`.
+3. Approval notifications include **Approve / Reject** action buttons (where OS supports).
 
-**API:** `GET /api/v1/requests/{id}/attachments` for attachment lists.
+Optional API env: `EXPO_PUSH_ACCESS_TOKEN` for Expo push API auth.
+
+## Deep links
+
+- `wizflow://approval/{requestId}`
+- `wizflow://request/{requestId}`
+- `wizflow://public-approve/{token}`

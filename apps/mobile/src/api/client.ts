@@ -46,6 +46,8 @@ export type TokenResponse = {
 export type NotificationPreferences = {
   email: boolean;
   in_app: boolean;
+  push?: boolean;
+  whatsapp?: boolean;
 };
 
 export type UserProfile = {

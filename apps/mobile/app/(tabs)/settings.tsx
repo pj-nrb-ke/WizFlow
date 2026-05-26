@@ -10,11 +10,14 @@ import {
 } from "../../src/lib/biometrics";
 import { colors } from "../../src/theme/colors";
 import { canAccessAnalytics } from "../../src/lib/roles";
+import { registerPushToken } from "../../src/notifications/push";
 
 export default function SettingsScreen() {
   const { user, token, logout } = useAuth();
   const [email, setEmail] = useState(true);
   const [inApp, setInApp] = useState(true);
+  const [push, setPush] = useState(true);
+  const [whatsapp, setWhatsapp] = useState(false);
   const [biometric, setBiometric] = useState(false);
   const [bioAvailable, setBioAvailable] = useState(false);
   const showManager = canAccessAnalytics(user?.roles);
@@ -29,6 +32,8 @@ export default function SettingsScreen() {
         if (p) {
           setEmail(p.email);
           setInApp(p.in_app);
+          setPush(p.push !== false);
+          setWhatsapp(!!p.whatsapp);
         }
       })
       .catch(() => {});
@@ -86,6 +91,30 @@ export default function SettingsScreen() {
           onValueChange={(v) => {
             setInApp(v);
             void savePrefs({ in_app: v });
+          }}
+        />
+      </View>
+      <View style={styles.row}>
+        <Text style={styles.rowLabel}>Push notifications</Text>
+        <Switch
+          value={push}
+          onValueChange={(v) => {
+            setPush(v);
+            void savePrefs({ push: v });
+            if (v && token) void registerPushToken(token);
+          }}
+        />
+      </View>
+      <View style={styles.row}>
+        <View style={{ flex: 1, paddingRight: 12 }}>
+          <Text style={styles.rowLabel}>WhatsApp alerts</Text>
+          <Text style={styles.rowHint}>Preference saved; channel activates when enabled for your company.</Text>
+        </View>
+        <Switch
+          value={whatsapp}
+          onValueChange={(v) => {
+            setWhatsapp(v);
+            void savePrefs({ whatsapp: v });
           }}
         />
       </View>
@@ -168,6 +197,7 @@ const styles = StyleSheet.create({
   linkLabel: { fontSize: 15, color: colors.text, fontWeight: "600" },
   linkRight: { fontSize: 18, color: colors.muted, fontWeight: "700" },
   rowLabel: { fontSize: 15, color: colors.text },
+  rowHint: { fontSize: 12, color: colors.muted, marginTop: 4, lineHeight: 16 },
   signOut: { marginTop: 32, alignItems: "center", padding: 14 },
   signOutText: { color: colors.danger, fontSize: 16, fontWeight: "600" },
 });

@@ -26,6 +26,10 @@ def update_notification_preferences(
         prefs["email"] = body.email
     if body.in_app is not None:
         prefs["in_app"] = body.in_app
+    if body.push is not None:
+        prefs["push"] = body.push
+    if body.whatsapp is not None:
+        prefs["whatsapp"] = body.whatsapp
     if db_user:
         db_user.notification_preferences = prefs
         db.commit()

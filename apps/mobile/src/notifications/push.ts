@@ -1,4 +1,5 @@
 import { Platform } from "react-native";
+import Constants from "expo-constants";
 import * as Notifications from "expo-notifications";
 import { apiFetch } from "../api/client";
 import { getAccessToken } from "../auth/storage";
@@ -33,7 +34,11 @@ async function ensureActionCategory(): Promise<void> {
       const token = await getAccessToken();
       if (!token) return;
       try {
-        await apiFetch(`/api/v1/requests/${id}/${action}`, { method: "POST", body: JSON.stringify({ comment: null }) }, token);
+        await apiFetch(
+          `/api/v1/requests/${id}/${action}`,
+          { method: "POST", body: JSON.stringify({ comment: null }) },
+          token
+        );
       } catch {
         /* best-effort */
       }
@@ -41,6 +46,13 @@ async function ensureActionCategory(): Promise<void> {
   } catch {
     /* optional */
   }
+}
+
+function expoProjectId(): string | undefined {
+  const extra = Constants.expoConfig?.extra as { eas?: { projectId?: string } } | undefined;
+  const id = extra?.eas?.projectId;
+  if (!id || id.includes("placeholder")) return undefined;
+  return id;
 }
 
 export async function registerPushToken(accessToken: string): Promise<void> {
@@ -54,7 +66,10 @@ export async function registerPushToken(accessToken: string): Promise<void> {
     }
     if (final !== "granted") return;
 
-    const tokenData = await Notifications.getExpoPushTokenAsync();
+    const projectId = expoProjectId();
+    const tokenData = projectId
+      ? await Notifications.getExpoPushTokenAsync({ projectId })
+      : await Notifications.getExpoPushTokenAsync();
     const token = tokenData.data;
     await apiFetch(
       "/api/v1/users/push-token",

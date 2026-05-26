@@ -591,22 +591,22 @@ Form designer, custom 8-step workflow builder, AI workflow wizard, template mark
 | M1 Approver essentials | ✅ | `apps/mobile` Expo app; see M1 deliverables below |
 | M2 Originator & capture | ✅ | Submit, my requests, OCR, offline queue, biometrics |
 | M3 Manager & polish | ✅ | Inbox filters, KPI snapshot, deep links, settings, tablet inbox |
-| M4 Intelligent mobile | 🔶 In progress | AI narrative, voice navigation/dictation, typed OCR, background sync, push action prep |
-| M5 Optional parity | 🔶 In progress | Templates browse/clone (manager), workflow list read-only, request share |
+| M4 Intelligent mobile | ✅ | Voice, AI narrative, typed OCR, upload retry + badge, push actions + API delivery |
+| M5 Optional parity | ✅ | Templates, workflows read-only, share links, WhatsApp pref hook |
 
 ### Mobile Phase M1 — delivered (foundation)
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
 | M1.1 | Expo app scaffold | ✅ | `apps/mobile` — Expo Router, TypeScript |
-| M1.2 | Android + iOS builds | 🔶 | `eas.json` profiles; run `eas init` + build for store binaries |
+| M1.2 | Android + iOS builds | ✅ | `eas.json` + `store/RELEASE.md`; run `eas init` for your EAS project ID |
 | M1.3 | Login & session | ✅ | SecureStore tokens, `/auth/login` + `/auth/me` |
 | M1.4 | Home dashboard | ✅ | Pending inbox + unread counts, recent items |
 | M1.5 | Inbox list | ✅ | `/inbox` + client search |
 | M1.6 | Approval detail | ✅ | Request detail, timeline, approve/reject/return |
 | M1.7 | Claim & act | ✅ | Auto-claim on open when `needs_claim` |
 | M1.8 | In-app notifications | ✅ | List, mark read, tap → approval |
-| M1.9 | Push notifications | 🔶 | Token register `POST /users/push-token` (migration 010); EAS project for delivery |
+| M1.9 | Push notifications | ✅ | Token register + API Expo push delivery; EAS project ID for device tokens in prod |
 | M1.10 | Enterprise UI | ✅ | Indigo brand shell, cards, haptics on actions |
 
 **API (migration `010_device_push_tokens`)**
@@ -639,6 +639,29 @@ EXPO_PUBLIC_API_URL=http://localhost:8010  # or LAN IP on device
 | 2026-05-26 | **M1 shipped:** `apps/mobile` Expo app (login, home, inbox, approval, notifications); push token API migration 010. |
 | 2026-05-26 | **M2 + M3 shipped:** My requests, submit + OCR, offline queue, settings, manager KPI, inbox filters, email approve deep link, tablet split inbox. |
 | 2026-05-26 | **M4 + M5 started:** AI narrative panel, voice navigation + dictation, typed OCR selection, background offline sync polling, templates browse/clone, workflows read-only, request share + deep link. |
+| 2026-05-26 | **M4 + M5 complete:** Expo push from API, upload retry queue + tab badge, store release kit, push/WhatsApp prefs, share URLs. |
+
+### Mobile Phase M4 — delivered
+
+| # | Feature | Status |
+|---|---------|--------|
+| M4.1 | Push action buttons | ✅ |
+| M4.2 | AI narrative snippet | ✅ |
+| M4.3 | Voice — show inbox | ✅ |
+| M4.4 | Voice-assisted approval | ✅ |
+| M4.5 | Voice-to-form | ✅ |
+| M4.6 | Document types (OCR) | ✅ |
+| M4.7 | Background sync + badge | ✅ |
+| M4.8 | Store release kit | ✅ |
+
+### Mobile Phase M5 — delivered
+
+| # | Feature | Status |
+|---|---------|--------|
+| M5.1 | Templates browse | ✅ |
+| M5.2 | Workflow list (read-only) | ✅ |
+| M5.3 | Share/export | ✅ |
+| M5.4 | WhatsApp notification hook | ✅ |
 
 ### Mobile Phase M2 — delivered
 

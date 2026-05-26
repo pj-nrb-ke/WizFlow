@@ -20,12 +20,13 @@ import {
   validateForm,
 } from "../../src/lib/formUtils";
 import { clearDraft, draftFromFields, enqueueSubmit, loadDraft, saveDraft } from "../../src/lib/offlineQueue";
-import { useOfflineSync } from "../../src/hooks/useOfflineSync";
+import { useBackgroundSync } from "../../src/hooks/useBackgroundSync";
+import { pickDocumentType } from "../../src/components/DocTypePicker";
 import { colors } from "../../src/theme/colors";
 
 export default function SubmitScreen() {
   const { token } = useAuth();
-  const { online, pending } = useOfflineSync(token);
+  const { online, pendingSubmits, pendingUploads, pendingTotal } = useBackgroundSync(token);
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [fields, setFields] = useState<ReturnType<typeof getFormFields>>([]);
@@ -127,15 +128,7 @@ export default function SubmitScreen() {
     if (result.canceled || !token) return;
     const asset = result.assets[0];
     try {
-      let docType: "auto" | "receipt" | "invoice" | "cheque" = "auto";
-      await new Promise<void>((resolve) => {
-        Alert.alert("Document type", "Choose a type for better OCR accuracy.", [
-          { text: "Auto", onPress: () => { docType = "auto"; resolve(); } },
-          { text: "Receipt", onPress: () => { docType = "receipt"; resolve(); } },
-          { text: "Invoice", onPress: () => { docType = "invoice"; resolve(); } },
-          { text: "Cheque", onPress: () => { docType = "cheque"; resolve(); } },
-        ]);
-      });
+      const docType = await pickDocumentType();
       const data = await extractDocument(
         asset.uri,
         asset.fileName || "photo.jpg",
@@ -195,8 +188,12 @@ export default function SubmitScreen() {
 
   return (
     <ScrollView style={styles.root} contentContainerStyle={styles.content}>
-      {!online && (
-        <Text style={styles.offline}>Offline — {pending} queued submission(s)</Text>
+      {(!online || pendingTotal > 0) && (
+        <Text style={styles.offline}>
+          {!online ? "Offline" : "Syncing"}
+          {pendingSubmits > 0 ? ` · ${pendingSubmits} submit(s)` : ""}
+          {pendingUploads > 0 ? ` · ${pendingUploads} upload(s)` : ""}
+        </Text>
       )}
       {workflows.length === 0 ? (
         <Text style={styles.muted}>No workflows available for you to start.</Text>

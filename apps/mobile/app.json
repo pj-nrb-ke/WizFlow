@@ -2,7 +2,7 @@
   "expo": {
     "name": "WizFlow",
     "slug": "wizflow",
-    "version": "0.1.0",
+    "version": "1.0.0",
     "orientation": "portrait",
     "scheme": "wizflow",
     "userInterfaceStyle": "light",
@@ -13,15 +13,34 @@
     },
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "biz.wizflow.app"
+      "bundleIdentifier": "biz.wizflow.app",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Capture receipts, invoices, and supporting documents for workflow requests.",
+        "NSMicrophoneUsageDescription": "Voice commands and dictation for approvals and form filling.",
+        "NSSpeechRecognitionUsageDescription": "Navigate the app and fill forms using your voice."
+      }
     },
     "android": {
-      "package": "biz.wizflow.app"
+      "package": "biz.wizflow.app",
+      "permissions": [
+        "CAMERA",
+        "RECORD_AUDIO",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE"
+      ],
+      "adaptiveIcon": {
+        "backgroundColor": "#4f46e5"
+      }
     },
     "plugins": [
       "expo-router",
       "expo-secure-store",
-      "expo-notifications",
+      [
+        "expo-notifications",
+        {
+          "color": "#4f46e5"
+        }
+      ],
       "expo-speech-recognition"
     ],
     "experiments": {
