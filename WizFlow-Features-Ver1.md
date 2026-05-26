@@ -166,46 +166,93 @@ It should be positioned as:
 ## Phase 1 — Implementation Progress
 
 **Started:** 2026-05-26  
-**Current sprint:** Phase 1 Sprint 1 (foundation UX + productivity APIs)
+**Last updated:** 2026-05-26  
+**Phase 1 overall status:** **NOT COMPLETE** — Sprint 1 foundation shipped; pending items documented below for a later revisit.
+
+### Executive summary
+
+| Metric | Count |
+|--------|-------|
+| Phase 1 features (total) | 25 |
+| Fully delivered (Sprint 1) | 20 |
+| **Pending — revisit later** | **5** |
+| Delivered with known gaps (see below) | several |
+
+**Sprint 1** is **complete** and deployed-ready. **Phase 1** as written in the feature table above will be **finished in a future sprint** after revisiting the pending list.
 
 ### Status legend
 
 | Symbol | Meaning |
 |--------|---------|
-| ✅ | Done |
-| 🚧 | In progress |
-| 📋 | Planned (Sprint 1) |
-| ⏳ | Later sprint |
+| ✅ | Delivered (Sprint 1 or earlier) |
+| 🔶 | Partially delivered — gaps listed under [Partial deliveries](#partial-deliveries-revisit-for-polish) |
+| ⏸️ | **Pending — revisit later** (not started or only stubbed) |
 
-### Sprint 1 scope (completed — foundation)
+---
+
+## ⏸️ Pending Phase 1 features (revisit later)
+
+These five items are **explicitly out of scope for Sprint 1**. Do not treat Phase 1 as complete until they are implemented (or formally descoped).
+
+| # | Feature | Why pending | Target when revisiting |
+|---|---------|-------------|------------------------|
+| 2 | **Manager-Friendly AI Workflow Wizard** | Current `/ai` drafts workflows but does not run a guided Q&A (missing questions → form + chain + routing + notifications + basic KPI hooks). | Phase 1 Sprint 2 |
+| 3 | **Plain-English Workflow Fine-Tuning** | No command-style edits (“Add Finance above 50,000”, “Send rejected back to originator”). | Phase 1 Sprint 2 |
+| 14 | **Business-Friendly Form Controls** | Missing dedicated controls: currency amount, attachment+category, employee/vendor/department/branch selectors, yes/no, calculated field, section header (beyond basic designer palette). | Phase 1 Sprint 2 |
+| 15 | **Smart Dropdown Sources** | Dropdowns are fixed options only; no master-data, API, or SQL-backed sources with manager-friendly UI. | Phase 1 Sprint 2 (depends on #16) |
+| 16 | **Master Data Library** | No central admin library for cost centers, vendors, projects, expense types, categories, approval limits, etc. | Phase 1 Sprint 2 |
+
+**Dependency note:** Implement **#16 Master Data Library** before or together with **#15 Smart Dropdown Sources**.
+
+---
+
+## 🔶 Partial deliveries (revisit for polish)
+
+Sprint 1 marked these ✅ but the **full spec** in the Phase 1 table above is not yet met. Revisit when polishing Phase 1.
+
+| # | Feature | What exists now | Still missing vs full spec |
+|---|---------|----------------|------------------------------|
+| 1 | Guided Company Setup Wizard | `/setup` + `GET /admin/setup-status` | Inline creation of company profile, all users, reporting managers, roles in one wizard (today: guided links + progress) |
+| 7 | Enhanced My Requests | Tabs, search, CSV, overdue | **Draft** requests (save draft / drafts tab) |
+| 9 | Better Approval Inbox UX | Workflow, search, overdue, CSV | Filters: department, priority, date range, amount, originator |
+| 11 | Notification Preferences | In-app + email toggles | WhatsApp, push (documented as “later” in spec) |
+| 19 | Quick Search | `q` on reference / workflow name | Search by approver, department, amount, date on all lists |
+| 20 | Simple User Help Panels | `HelpTip` on inbox, workflows, templates | Help on form designer, submit, reports, custom workflow |
+| 22 | Basic Audit Export | Per-request **CSV** | **PDF** export option |
+| 23 | Excel Export Enhancements | CSV for My Requests + Inbox | True **Excel** (.xlsx), Workflow List export, Actions Report export |
+| 25 | Workspace Branding | Logo URL + brand color in Settings | Logo shown in app header/shell everywhere; full theme override |
+
+---
+
+## ✅ Sprint 1 — delivered (foundation)
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 1 | Guided Company Setup Wizard | ✅ | `/setup` wizard + `GET /admin/setup-status` |
-| 2 | Manager-Friendly AI Workflow Wizard | ⏳ | Sprint 2 — extend `/ai` with Q&A flow |
-| 3 | Plain-English Workflow Fine-Tuning | ⏳ | Sprint 2 |
+| 1 | Guided Company Setup Wizard | 🔶 | `/setup` wizard + `GET /admin/setup-status` |
+| 2 | Manager-Friendly AI Workflow Wizard | ⏸️ | Pending — revisit later |
+| 3 | Plain-English Workflow Fine-Tuning | ⏸️ | Pending — revisit later |
 | 4 | Workflow Health Checker | ✅ | `GET /workflows/{id}/health-check` + publish modal |
 | 5 | Simplified Workflow Publishing Flow | ✅ | Draft → Preview → Simulate → Publish steps |
 | 6 | Improved Originator Status Tracking | ✅ | `RequestStatusPanel` on request detail |
-| 7 | Enhanced My Requests Page | ✅ | Tabs, search, CSV export, overdue badges |
+| 7 | Enhanced My Requests Page | 🔶 | Tabs, search, CSV export, overdue badges |
 | 8 | Mobile-Friendly Approval Screen | ✅ | Responsive inbox + `PublicApprovePage` |
-| 9 | Better Approval Inbox UX | ✅ | Workflow filter, search, overdue toggle, CSV export |
+| 9 | Better Approval Inbox UX | 🔶 | Workflow filter, search, overdue toggle, CSV export |
 | 10 | Smart Notification Center | ✅ | `/notifications` page + nav badge |
-| 11 | Notification Preferences | ✅ | PATCH preferences + Settings toggles |
+| 11 | Notification Preferences | 🔶 | PATCH preferences + Settings (email + in-app) |
 | 12 | Prebuilt Office Workflow Templates | ✅ | 11 templates in `workflow_templates.py` |
 | 13 | Template Marketplace Foundation | ✅ | `/templates` + `POST .../clone` |
-| 14 | Business-Friendly Form Controls | ⏳ | Sprint 2 |
-| 15 | Smart Dropdown Sources | ⏳ | Sprint 2 |
-| 16 | Master Data Library | ⏳ | Sprint 2 |
-| 17 | Field-Level Permissions | ⏳ | Sprint 2 |
+| 14 | Business-Friendly Form Controls | ⏸️ | Pending — revisit later |
+| 15 | Smart Dropdown Sources | ⏸️ | Pending — revisit later |
+| 16 | Master Data Library | ⏸️ | Pending — revisit later |
+| 17 | Field-Level Permissions | ⏸️ | Pending — revisit later |
 | 18 | Returned Request Correction Flow | ✅ | “Action required” banner + resubmit highlight |
-| 19 | Quick Search Across Requests | ✅ | `q` on requests + inbox APIs |
-| 20 | Simple User Help Panels | ✅ | `HelpTip` on inbox, workflows, templates |
+| 19 | Quick Search Across Requests | 🔶 | `q` on requests + inbox APIs |
+| 20 | Simple User Help Panels | 🔶 | `HelpTip` on key pages |
 | 21 | Demo Mode / Sample Company | ✅ | Existing seed (maintain) |
-| 22 | Basic Audit Export | ✅ | `GET /requests/{id}/audit-export` (CSV) |
-| 23 | Excel Export Enhancements | ✅ | `requests/export.csv`, `inbox/export.csv` |
+| 22 | Basic Audit Export | 🔶 | `GET /requests/{id}/audit-export` (CSV) |
+| 23 | Excel Export Enhancements | 🔶 | `requests/export.csv`, `inbox/export.csv` |
 | 24 | Admin Control Panel Cleanup | ✅ | Tabbed admin + links to setup/templates |
-| 25 | Workspace Branding | ✅ | Company `settings` JSONB + Settings UI |
+| 25 | Workspace Branding | 🔶 | Company `settings` JSONB + Settings UI |
 
 ### Sprint 1 — technical deliverables
 
@@ -226,10 +273,17 @@ http://localhost:5200  — admin@demo.wizflow.biz / changeme
 /setup · /templates · /notifications · /requests · /inbox
 ```
 
-### Changelog (Sprint 1)
+### Changelog
 
 | Date | Update |
 |------|--------|
 | 2026-05-26 | Progress tracker added; Sprint 1 kicked off with parallel sub-agents (API, UI/UX, templates). |
-| 2026-05-26 | Sprint 1 foundation shipped: 20/25 Phase 1 items ✅; migration 008; all `test_phase1_api` + web build pass. |
+| 2026-05-26 | Sprint 1 foundation shipped: migration 008; `test_phase1_api` + web build pass. |
+| 2026-05-26 | Clarified: **Phase 1 NOT complete** — 5 features ⏸️ pending; partial deliveries 🔶 documented for later polish. |
+
+---
+
+## Phase 2 & Phase 3
+
+**Not started.** All features in the Phase 2 and Phase 3 tables above remain **📋 planned** for future work after Phase 1 is closed out.
 
