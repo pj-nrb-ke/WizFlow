@@ -12,6 +12,7 @@ import {
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import { useAuth } from "../../src/auth/AuthContext";
 import {
   apiFetch,
@@ -32,6 +33,14 @@ export default function ApprovalScreen() {
   const [loading, setLoading] = useState(true);
   const [acting, setActing] = useState(false);
   const [error, setError] = useState("");
+  const [dictating, setDictating] = useState(false);
+
+  useSpeechRecognitionEvent("start", () => setDictating(true));
+  useSpeechRecognitionEvent("end", () => setDictating(false));
+  useSpeechRecognitionEvent("result", (event) => {
+    const t = event.results?.[0]?.transcript || "";
+    if (t) setComment((prev) => (prev ? `${prev} ${t}` : t));
+  });
 
   const load = useCallback(async () => {
     if (!token || !id) return;
@@ -167,13 +176,30 @@ export default function ApprovalScreen() {
             <Text style={styles.attachBtnText}>Add supporting photo</Text>
           </Pressable>
           <Text style={styles.section}>Your decision</Text>
-          <TextInput
-            style={styles.comment}
-            placeholder="Comment (optional)"
-            value={comment}
-            onChangeText={setComment}
-            multiline
-          />
+          <View style={styles.commentRow}>
+            <TextInput
+              style={styles.comment}
+              placeholder="Comment (optional)"
+              value={comment}
+              onChangeText={setComment}
+              multiline
+            />
+            <Pressable
+              style={[styles.mic, dictating && styles.micActive]}
+              onPress={async () => {
+                try {
+                  if (dictating) return ExpoSpeechRecognitionModule.stop();
+                  const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+                  if (!perm.granted) return;
+                  ExpoSpeechRecognitionModule.start({ lang: "en-US", interimResults: true, continuous: false });
+                } catch {
+                  /* optional */
+                }
+              }}
+            >
+              <Text style={styles.micText}>{dictating ? "■" : "🎙"}</Text>
+            </Pressable>
+          </View>
           <View style={styles.actions}>
             <Pressable
               style={[styles.btn, styles.approve]}
@@ -252,6 +278,7 @@ const styles = StyleSheet.create({
   eventLabel: { fontSize: 14, fontWeight: "600", color: colors.text },
   muted: { fontSize: 13, color: colors.muted, marginTop: 2 },
   comment: {
+    flex: 1,
     backgroundColor: colors.card,
     borderWidth: 1,
     borderColor: colors.border,
@@ -261,6 +288,18 @@ const styles = StyleSheet.create({
     fontSize: 15,
     textAlignVertical: "top",
   },
+  commentRow: { flexDirection: "row", gap: 10, alignItems: "stretch" },
+  mic: {
+    width: 44,
+    borderRadius: 10,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  micActive: { borderColor: colors.primary },
+  micText: { fontSize: 18, color: colors.primary, fontWeight: "700" },
   actions: { gap: 10, marginTop: 12 },
   btn: { borderRadius: 10, padding: 14, alignItems: "center" },
   approve: { backgroundColor: colors.success },

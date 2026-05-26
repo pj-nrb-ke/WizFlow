@@ -3,6 +3,7 @@ import {
   ActivityIndicator,
   Alert,
   Pressable,
+  Share,
   ScrollView,
   StyleSheet,
   Text,
@@ -119,6 +120,21 @@ export default function RequestDetailScreen() {
         <StatusBadge status={detail.status} />
       </View>
 
+      <Pressable
+        style={styles.shareBtn}
+        onPress={async () => {
+          const deep = `wizflow://request/${detail.id}`;
+          const text = `WizFlow request ${detail.reference_number || detail.id}\n${deep}`;
+          try {
+            await Share.share({ message: text });
+          } catch {
+            /* ignore */
+          }
+        }}
+      >
+        <Text style={styles.shareText}>Share</Text>
+      </Pressable>
+
       {returned ? (
         <View style={styles.banner}>
           <Text style={styles.bannerText}>Action required — update highlighted fields and resubmit.</Text>
@@ -186,6 +202,18 @@ const styles = StyleSheet.create({
   },
   ref: { fontSize: 12, fontWeight: "700", color: colors.primary },
   wf: { fontSize: 18, fontWeight: "700", marginTop: 4, color: colors.text },
+  shareBtn: {
+    marginTop: -2,
+    marginBottom: 12,
+    alignSelf: "flex-start",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 10,
+    backgroundColor: colors.card,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  shareText: { color: colors.primary, fontWeight: "700" },
   banner: { backgroundColor: "#ffedd5", padding: 12, borderRadius: 10, marginBottom: 12 },
   bannerText: { color: colors.warning, fontWeight: "600" },
   card: {

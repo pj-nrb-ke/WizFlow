@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Alert, Pressable, ScrollView, StyleSheet, Switch, Text, View } from "react-native";
+import { Link } from "expo-router";
 import { useAuth } from "../../src/auth/AuthContext";
 import { apiFetch, type NotificationPreferences } from "../../src/api/client";
 import {
@@ -8,6 +9,7 @@ import {
   setBiometricEnabled,
 } from "../../src/lib/biometrics";
 import { colors } from "../../src/theme/colors";
+import { canAccessAnalytics } from "../../src/lib/roles";
 
 export default function SettingsScreen() {
   const { user, token, logout } = useAuth();
@@ -15,6 +17,7 @@ export default function SettingsScreen() {
   const [inApp, setInApp] = useState(true);
   const [biometric, setBiometric] = useState(false);
   const [bioAvailable, setBioAvailable] = useState(false);
+  const showManager = canAccessAnalytics(user?.roles);
 
   useEffect(() => {
     canUseBiometric().then(setBioAvailable);
@@ -46,6 +49,24 @@ export default function SettingsScreen() {
         <Text style={styles.email}>{user?.email}</Text>
         <Text style={styles.company}>{user?.company_name}</Text>
       </View>
+
+      {showManager ? (
+        <>
+          <Text style={styles.section}>Manager tools</Text>
+          <Link href="/templates" asChild>
+            <Pressable style={styles.linkRow}>
+              <Text style={styles.linkLabel}>Browse templates</Text>
+              <Text style={styles.linkRight}>›</Text>
+            </Pressable>
+          </Link>
+          <Link href="/workflows" asChild>
+            <Pressable style={styles.linkRow}>
+              <Text style={styles.linkLabel}>Workflows (read-only)</Text>
+              <Text style={styles.linkRight}>›</Text>
+            </Pressable>
+          </Link>
+        </>
+      ) : null}
 
       <Text style={styles.section}>Notifications</Text>
       <View style={styles.row}>
@@ -133,6 +154,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.border,
   },
+  linkRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    backgroundColor: colors.card,
+    padding: 14,
+    borderRadius: 10,
+    marginBottom: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  linkLabel: { fontSize: 15, color: colors.text, fontWeight: "600" },
+  linkRight: { fontSize: 18, color: colors.muted, fontWeight: "700" },
   rowLabel: { fontSize: 15, color: colors.text },
   signOut: { marginTop: 32, alignItems: "center", padding: 14 },
   signOutText: { color: colors.danger, fontSize: 16, fontWeight: "600" },

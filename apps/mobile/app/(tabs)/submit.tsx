@@ -9,6 +9,7 @@ import {
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import { useAuth } from "../../src/auth/AuthContext";
 import { apiFetch, extractDocument, type WorkflowDefinition } from "../../src/api/client";
 import { FormRenderer } from "../../src/components/FormRenderer";
@@ -33,8 +34,17 @@ export default function SubmitScreen() {
   const [submitting, setSubmitting] = useState(false);
   const [ocrHint, setOcrHint] = useState("");
   const [draftHint, setDraftHint] = useState("");
+  const [dictating, setDictating] = useState(false);
+  const [speech, setSpeech] = useState("");
 
   const selected = workflows.find((w) => w.id === selectedId);
+
+  useSpeechRecognitionEvent("start", () => setDictating(true));
+  useSpeechRecognitionEvent("end", () => setDictating(false));
+  useSpeechRecognitionEvent("result", (event) => {
+    const t = event.results?.[0]?.transcript || "";
+    if (t) setSpeech(t);
+  });
 
   const loadWorkflows = useCallback(async () => {
     if (!token) return;
@@ -73,6 +83,40 @@ export default function SubmitScreen() {
     }
   }
 
+  async function startVoiceFill() {
+    try {
+      const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
+      if (!perm.granted) return;
+      setSpeech("");
+      ExpoSpeechRecognitionModule.start({ lang: "en-US", interimResults: true, continuous: false });
+    } catch {
+      /* optional */
+    }
+  }
+
+  function applyVoice(text: string) {
+    const t = text.toLowerCase();
+    if (!t) return;
+    const patch = { ...form };
+
+    const amount = t.match(/\bamount\s+([0-9]+(?:\.[0-9]+)?)\b/);
+    const purpose = t.match(/\bpurpose\s+(.+?)$/);
+
+    for (const f of fields) {
+      const key = f.key.toLowerCase();
+      const label = (f.label || "").toLowerCase();
+      if (amount && (key.includes("amount") || label.includes("amount") || label.includes("total"))) {
+        patch[f.key] = amount[1];
+      }
+      if (purpose && (key.includes("purpose") || label.includes("purpose") || label.includes("reason") || label.includes("description"))) {
+        patch[f.key] = purpose[1].trim();
+      }
+    }
+
+    setForm(patch);
+    if (selected) void saveDraft(draftFromFields(selected.id, selected.name, fields, patch));
+  }
+
   async function pickDocument() {
     const perm = await ImagePicker.requestCameraPermissionsAsync();
     if (!perm.granted) {
@@ -83,11 +127,21 @@ export default function SubmitScreen() {
     if (result.canceled || !token) return;
     const asset = result.assets[0];
     try {
+      let docType: "auto" | "receipt" | "invoice" | "cheque" = "auto";
+      await new Promise<void>((resolve) => {
+        Alert.alert("Document type", "Choose a type for better OCR accuracy.", [
+          { text: "Auto", onPress: () => { docType = "auto"; resolve(); } },
+          { text: "Receipt", onPress: () => { docType = "receipt"; resolve(); } },
+          { text: "Invoice", onPress: () => { docType = "invoice"; resolve(); } },
+          { text: "Cheque", onPress: () => { docType = "cheque"; resolve(); } },
+        ]);
+      });
       const data = await extractDocument(
         asset.uri,
         asset.fileName || "photo.jpg",
         asset.mimeType || "image/jpeg",
-        token
+        token,
+        docType
       );
       const patch = { ...form };
       for (const field of data.fields) {
@@ -168,6 +222,20 @@ export default function SubmitScreen() {
             <Text style={styles.secondaryText}>Scan receipt / invoice (camera)</Text>
           </Pressable>
           {ocrHint ? <Text style={styles.hint}>{ocrHint}</Text> : null}
+          <Pressable
+            style={styles.secondaryBtn}
+            onPress={() => {
+              if (dictating) {
+                ExpoSpeechRecognitionModule.stop();
+                applyVoice(speech);
+              } else {
+                void startVoiceFill();
+              }
+            }}
+          >
+            <Text style={styles.secondaryText}>{dictating ? "Stop voice" : "Voice to form (amount/purpose)"}</Text>
+          </Pressable>
+          {speech ? <Text style={styles.hint}>Heard: {speech}</Text> : null}
           <Pressable style={styles.btn} onPress={onSubmit} disabled={submitting}>
             {submitting ? (
               <ActivityIndicator color="#fff" />

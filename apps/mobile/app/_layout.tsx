@@ -21,6 +21,8 @@ export default function RootLayout() {
         <Stack.Screen name="approval/[id]" options={{ title: "Approval" }} />
         <Stack.Screen name="request/[id]" options={{ title: "My request" }} />
         <Stack.Screen name="public-approve/[token]" options={{ title: "Email approval" }} />
+        <Stack.Screen name="templates" options={{ title: "Templates" }} />
+        <Stack.Screen name="workflows" options={{ title: "Workflows" }} />
       </Stack>
     </AuthProvider>
   );

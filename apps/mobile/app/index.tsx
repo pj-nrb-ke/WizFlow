@@ -17,6 +17,10 @@ function routeFromUrl(url: string | null): string | null {
     const id = path.split("/")[1];
     return id ? `/approval/${id}` : null;
   }
+  if (path.startsWith("request/")) {
+    const id = path.split("/")[1];
+    return id ? `/request/${id}` : null;
+  }
   return null;
 }
 

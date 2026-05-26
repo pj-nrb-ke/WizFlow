@@ -123,6 +123,7 @@ export type RequestSummary = {
 export type WorkflowDefinition = {
   id: string;
   name: string;
+  version?: number;
   status: string;
   form_schema: { fields?: import("../lib/formUtils").FormField[] };
   settings?: Record<string, unknown>;
@@ -149,6 +150,18 @@ export type AnomalyFinding = {
   severity: string;
   message: string;
   reference_number: string | null;
+};
+
+export type NarrativeOut = {
+  narrative: string;
+  generated_at: string;
+};
+
+export type WorkflowTemplateSummary = {
+  id: string;
+  name: string;
+  category: string;
+  description: string;
 };
 
 export type PublicApprovalView = {
@@ -190,7 +203,8 @@ export async function extractDocument(
   uri: string,
   filename: string,
   mime: string,
-  token: string
+  token: string,
+  docType: "auto" | "receipt" | "invoice" | "cheque" = "auto"
 ): Promise<{
   fields: { key: string; value: string; confidence: number }[];
   message: string;
@@ -198,7 +212,7 @@ export async function extractDocument(
 }> {
   const formData = new FormData();
   formData.append("file", { uri, name: filename, type: mime } as unknown as Blob);
-  formData.append("doc_type", "auto");
+  formData.append("doc_type", docType);
   const res = await fetch(`${API_BASE}/api/v1/documents/extract`, {
     method: "POST",
     headers: { Authorization: `Bearer ${token}` },

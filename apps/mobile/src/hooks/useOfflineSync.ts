@@ -14,24 +14,47 @@ export function useOfflineSync(token: string | null, onSynced?: () => void) {
 
   useEffect(() => {
     if (!token || !online) return;
-    (async () => {
-      const q = await loadQueue();
-      setPending(q.length);
-      for (const item of q) {
-        try {
-          await apiFetch(`/api/v1/workflows/${item.workflowId}/submit`, {
-            method: "POST",
-            body: JSON.stringify({ data: item.data }),
-          }, token);
-          await dequeueSubmit(item.id);
-        } catch {
-          break;
+
+    let cancelled = false;
+    let running = false;
+
+    async function drain() {
+      if (running) return;
+      running = true;
+      try {
+        const q = await loadQueue();
+        if (cancelled) return;
+        setPending(q.length);
+        for (const item of q) {
+          try {
+            await apiFetch(
+              `/api/v1/workflows/${item.workflowId}/submit`,
+              {
+                method: "POST",
+                body: JSON.stringify({ data: item.data }),
+              },
+              token
+            );
+            await dequeueSubmit(item.id);
+          } catch {
+            break;
+          }
         }
+        const left = await loadQueue();
+        if (cancelled) return;
+        setPending(left.length);
+        if (q.length > left.length) onSynced?.();
+      } finally {
+        running = false;
       }
-      const left = await loadQueue();
-      setPending(left.length);
-      if (q.length > left.length) onSynced?.();
-    })();
+    }
+
+    void drain();
+    const t = setInterval(() => void drain(), 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(t);
+    };
   }, [token, online, onSynced]);
 
   return { online, pending };

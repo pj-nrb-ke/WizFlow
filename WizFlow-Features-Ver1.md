@@ -591,8 +591,8 @@ Form designer, custom 8-step workflow builder, AI workflow wizard, template mark
 | M1 Approver essentials | ✅ | `apps/mobile` Expo app; see M1 deliverables below |
 | M2 Originator & capture | ✅ | Submit, my requests, OCR, offline queue, biometrics |
 | M3 Manager & polish | ✅ | Inbox filters, KPI snapshot, deep links, settings, tablet inbox |
-| M4 Intelligent mobile | 📋 Planned | |
-| M5 Optional parity | 📋 Planned | |
+| M4 Intelligent mobile | 🔶 In progress | AI narrative, voice navigation/dictation, typed OCR, background sync, push action prep |
+| M5 Optional parity | 🔶 In progress | Templates browse/clone (manager), workflow list read-only, request share |
 
 ### Mobile Phase M1 — delivered (foundation)
 
@@ -638,6 +638,7 @@ EXPO_PUBLIC_API_URL=http://localhost:8010  # or LAN IP on device
 | 2026-05-26 | Mobile gap analysis and phased roadmap (M1–M5) added; web PWA documented as interim. |
 | 2026-05-26 | **M1 shipped:** `apps/mobile` Expo app (login, home, inbox, approval, notifications); push token API migration 010. |
 | 2026-05-26 | **M2 + M3 shipped:** My requests, submit + OCR, offline queue, settings, manager KPI, inbox filters, email approve deep link, tablet split inbox. |
+| 2026-05-26 | **M4 + M5 started:** AI narrative panel, voice navigation + dictation, typed OCR selection, background offline sync polling, templates browse/clone, workflows read-only, request share + deep link. |
 
 ### Mobile Phase M2 — delivered
 
