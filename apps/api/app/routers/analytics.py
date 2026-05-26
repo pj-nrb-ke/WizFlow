@@ -1,6 +1,6 @@
 """Enterprise KPI and analytics endpoints."""
 
-from datetime import datetime
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, require_roles
 from app.db.session import get_db
+from app.schemas.integrations import AnomaliesOut, AnomalyFinding, NarrativeOut
 from app.schemas.analytics import (
     BottlenecksOut,
     DepartmentPerformanceOut,
@@ -18,6 +19,7 @@ from app.schemas.analytics import (
     UserPerformanceOut,
     WorkflowPerformanceOut,
 )
+from app.services import ai_insights, anomaly
 from app.services import analytics as analytics_service
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
@@ -125,3 +127,27 @@ def get_departments(
     db: Session = Depends(get_db),
 ) -> DepartmentPerformanceOut:
     return analytics_service.department_performance(db, _ctx(user, from_date, to_date, workflow_id))
+
+
+@router.get("/anomalies", response_model=AnomaliesOut)
+def get_anomalies(
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> AnomaliesOut:
+    findings = anomaly.detect_anomalies(db, user.company_id)
+    return AnomaliesOut(
+        findings=[AnomalyFinding(**f) for f in findings],
+        generated_at=datetime.now(timezone.utc),
+    )
+
+
+@router.get("/narrative", response_model=NarrativeOut)
+def get_narrative(
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    workflow_id: UUID | None = None,
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> NarrativeOut:
+    text = ai_insights.executive_narrative(db, _ctx(user, from_date, to_date, workflow_id))
+    return NarrativeOut(narrative=text, generated_at=datetime.now(timezone.utc))

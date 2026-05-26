@@ -33,4 +33,20 @@ def record_event(
         payload=merged,
     )
     db.add(event)
+    try:
+        from app.services.webhooks import dispatch_for_event
+
+        dispatch_for_event(
+            db,
+            company_id=company_id,
+            event_type=event_type,
+            payload={
+                "instance_id": str(instance_id) if instance_id else None,
+                "workflow_definition_id": str(workflow_definition_id) if workflow_definition_id else None,
+                "event_type": event_type,
+                **merged,
+            },
+        )
+    except Exception:
+        pass
     return event

@@ -2,7 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ThemeScope } from "../context/ThemeContext";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
-import { ApiError, apiFetch, apiUpload, FormField, WorkflowDefinition } from "../lib/api";
+import { API_BASE, ApiError, apiFetch, apiUpload, FormField, WorkflowDefinition } from "../lib/api";
 import { getToken } from "../lib/auth";
 import {
   buildInitialForm,
@@ -11,6 +11,7 @@ import {
   validateFormClient,
 } from "../lib/formValidation";
 import { LAYOUT_META, parseUiSettings, THEME_META } from "../lib/themes";
+import { clearDraft, loadDraft, saveDraft } from "../lib/offlineDrafts";
 
 export function SubmitRequestPage() {
   const navigate = useNavigate();
@@ -19,6 +20,8 @@ export function SubmitRequestPage() {
   const [fields, setFields] = useState<FormField[]>([]);
   const [form, setForm] = useState<Record<string, string>>({});
   const [file, setFile] = useState<File | null>(null);
+  const [draftHint, setDraftHint] = useState("");
+  const [ocrHint, setOcrHint] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [fieldsLoading, setFieldsLoading] = useState(false);
@@ -81,12 +84,67 @@ export function SubmitRequestPage() {
   function onWorkflowChange(id: string) {
     setSelectedId(id);
     setFile(null);
+    setOcrHint("");
     const wf = workflows.find((w) => w.id === id);
     const fromList = wf ? getFormFields(wf.form_schema) : [];
     if (fromList.length > 0) {
       applyWorkflow(wf!);
+      const draft = loadDraft(id);
+      if (draft?.form) {
+        setForm(draft.form as Record<string, string>);
+        setDraftHint(`Draft restored from ${new Date(draft.savedAt).toLocaleString()}`);
+      } else {
+        setDraftHint("");
+      }
     } else {
       loadWorkflowDetail(id);
+    }
+  }
+
+  function onFormChange(key: string, value: string) {
+    const next = { ...form, [key]: value };
+    setForm(next);
+    if (selectedId) {
+      saveDraft(selectedId, next);
+      setDraftHint("Draft saved on this device");
+    }
+  }
+
+  async function onFileSelected(f: File | null) {
+    setFile(f);
+    setOcrHint("");
+    if (!f) return;
+    try {
+      const formData = new FormData();
+      formData.append("file", f);
+      formData.append("doc_type", "auto");
+      const token = getToken();
+      const res = await fetch(`${API_BASE}/api/v1/documents/extract`, {
+        method: "POST",
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
+        body: formData,
+      });
+      if (!res.ok) return;
+      const data = (await res.json()) as {
+        fields: { key: string; value: string; confidence: number }[];
+        message: string;
+        requires_review: boolean;
+      };
+      const patch: Record<string, string> = { ...form };
+      for (const field of data.fields) {
+        if (field.key in patch || fields.some((x) => x.key === field.key)) {
+          patch[field.key] = String(field.value);
+        }
+      }
+      setForm(patch);
+      if (selectedId) saveDraft(selectedId, patch);
+      setOcrHint(
+        data.requires_review
+          ? `${data.message} Review highlighted values before submit.`
+          : data.message
+      );
+    } catch {
+      /* OCR optional */
     }
   }
 
@@ -111,6 +169,7 @@ export function SubmitRequestPage() {
       if (file) {
         await apiUpload(`/api/v1/requests/${inst.id}/attachments`, file, getToken());
       }
+      clearDraft(selectedId);
       navigate(`/requests/${inst.id}`);
     } catch (err) {
       setError(err instanceof ApiError ? err.detail ?? err.message : "Submit failed");
@@ -168,17 +227,23 @@ export function SubmitRequestPage() {
               <WorkflowFormRenderer
                 fields={fields}
                 values={form}
-                onChange={(key, value) => setForm({ ...form, [key]: value })}
+                onChange={onFormChange}
                 layout={ui.form_layout}
               />
             )}
+            {draftHint && <p className="text-xs text-indigo-600">{draftHint}</p>}
             <div>
-              <label className="block text-sm font-medium mb-1">Attachment (optional)</label>
+              <label className="block text-sm font-medium mb-1">
+                Attachment / photo (optional)
+              </label>
               <input
                 type="file"
-                onChange={(e) => setFile(e.target.files?.[0] ?? null)}
-                className="text-sm"
+                accept="image/*,.pdf,.txt,.csv"
+                capture="environment"
+                onChange={(e) => void onFileSelected(e.target.files?.[0] ?? null)}
+                className="text-sm wf-input"
               />
+              {ocrHint && <p className="text-xs text-slate-600 mt-1">{ocrHint}</p>}
             </div>
             <button
               type="submit"

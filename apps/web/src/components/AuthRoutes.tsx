@@ -20,6 +20,7 @@ import { SetupWizardPage } from "../pages/SetupWizardPage";
 import { TemplatesPage } from "../pages/TemplatesPage";
 import { AnalyticsPage } from "../pages/AnalyticsPage";
 import { ReportsPage } from "../pages/ReportsPage";
+import { IntegrationsPage } from "../pages/IntegrationsPage";
 
 function LoadingScreen() {
   return (
@@ -83,6 +84,7 @@ export function AppRoutes() {
           <Route path="analytics" element={<AnalyticsPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="admin" element={<AdminPage />} />
+          <Route path="integrations" element={<IntegrationsPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
       </Route>

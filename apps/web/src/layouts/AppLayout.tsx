@@ -37,6 +37,8 @@ const analyticsNav = [
   { to: "/reports", label: "Reports", Icon: IconClipboardList },
 ] as const;
 
+const adminNav = [{ to: "/integrations", label: "Integrations", Icon: IconShield }] as const;
+
 const tailNav = [
   { to: "/admin", label: "Admin", Icon: IconShield },
   { to: "/settings", label: "Settings", Icon: IconSettings },
@@ -46,9 +48,11 @@ export function AppLayout() {
   const { user } = useAuth();
   const { appTheme } = useAppTheme();
   const showAnalytics = canAccessReports(user?.roles);
+  const isAdmin = user?.roles.includes("company_admin");
   const nav = [
     ...baseNav,
     ...(showAnalytics ? analyticsNav : []),
+    ...(isAdmin ? adminNav : []),
     ...tailNav,
   ];
 

@@ -83,6 +83,8 @@ export function AnalyticsPage() {
   const [userRows, setUserRows] = useState<UserPerformanceRow[]>([]);
   const [financial, setFinancial] = useState<FinancialSummary | null>(null);
   const [exceptions, setExceptions] = useState<ExceptionsSummary | null>(null);
+  const [narrative, setNarrative] = useState("");
+  const [anomalyCount, setAnomalyCount] = useState(0);
 
   const params = useMemo(() => filtersToParams(appliedFilters), [appliedFilters]);
 
@@ -108,6 +110,12 @@ export function AnalyticsPage() {
         setTrends(trendRes.points ?? []);
         setDepartments(dept);
         setBottlenecks(bn);
+        const anom = await apiFetch<{ findings: unknown[] }>(
+          "/api/v1/analytics/anomalies",
+          {},
+          token
+        );
+        setAnomalyCount(anom.findings?.length ?? 0);
       } else if (tab === "workflows") {
         setWorkflowRows(await getWorkflowPerformance(params, token));
       } else if (tab === "people") {
@@ -206,12 +214,47 @@ export function AnalyticsPage() {
       ) : (
         <>
           {tab === "overview" && executive && (
-            <OverviewTab
-              executive={executive}
-              trends={trends}
-              departments={deptChart}
-              bottlenecks={bottlenecks}
-            />
+            <>
+              <div className="wf-panel mb-6 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+                  <h3 className="font-semibold text-slate-800">AI management insight</h3>
+                  <button
+                    type="button"
+                    className="wf-btn-primary text-sm py-1.5 px-3"
+                    onClick={async () => {
+                      const q = new URLSearchParams();
+                      if (params.from) q.set("from", params.from);
+                      if (params.to) q.set("to", params.to);
+                      if (params.workflow_id) q.set("workflow_id", params.workflow_id);
+                      const qs = q.toString();
+                      const path = `/api/v1/analytics/narrative${qs ? `?${qs}` : ""}`;
+                      const res = await apiFetch<{ narrative: string }>(path, {}, getToken());
+                      setNarrative(res.narrative);
+                    }}
+                  >
+                    Generate summary
+                  </button>
+                </div>
+                {anomalyCount > 0 && (
+                  <p className="text-sm text-amber-700 mb-2">
+                    {anomalyCount} anomaly signal(s) detected — review high amounts and volume patterns.
+                  </p>
+                )}
+                {narrative ? (
+                  <p className="text-sm text-slate-700 whitespace-pre-line">{narrative}</p>
+                ) : (
+                  <p className="text-sm text-slate-500">
+                    Plain-English KPI narrative for leadership reviews (template or AI when configured).
+                  </p>
+                )}
+              </div>
+              <OverviewTab
+                executive={executive}
+                trends={trends}
+                departments={deptChart}
+                bottlenecks={bottlenecks}
+              />
+            </>
           )}
           {tab === "workflows" && (
             <WorkflowsTab rows={workflowRows} chartItems={wfChart} />

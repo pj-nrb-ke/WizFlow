@@ -1,6 +1,6 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
@@ -19,6 +19,7 @@ from app.db.session import get_db
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, UserProfile
 from app.schemas.phase1 import CompanyBranding, NotificationPreferences
 from app.services.company_settings import branding_from_settings, user_notification_preferences
+from app.services.security_audit import log_security_event
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -32,8 +33,17 @@ def _user_roles(db: Session, user: User) -> list[str]:
     return [ur.role.slug for ur in (user.user_roles if user else []) if ur.role]
 
 
+def _client_ip(request: Request) -> str | None:
+    forwarded = request.headers.get("x-forwarded-for")
+    if forwarded:
+        return forwarded.split(",")[0].strip()[:45]
+    if request.client:
+        return request.client.host
+    return None
+
+
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
     email = body.email.strip().lower()
     user = db.scalar(
         select(User)
@@ -41,7 +51,23 @@ def login(body: LoginRequest, db: Session = Depends(get_db)) -> TokenResponse:
         .options(joinedload(User.user_roles).joinedload(UserRole.role))
     )
     if not user or not verify_password(body.password, user.password_hash):
+        log_security_event(
+            db,
+            action="auth.login_failed",
+            detail={"email": email},
+            ip_address=_client_ip(request),
+        )
+        db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+
+    log_security_event(
+        db,
+        action="auth.login_success",
+        company_id=user.company_id,
+        actor_user_id=user.id,
+        ip_address=_client_ip(request),
+    )
+    db.commit()
 
     roles = [ur.role.slug for ur in user.user_roles if ur.role]
     access = create_access_token(str(user.id), user.company_id, roles)

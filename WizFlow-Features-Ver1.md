@@ -287,7 +287,7 @@ http://localhost:5200  — admin@demo.wizflow.biz / changeme
 
 **Started:** 2026-05-26  
 **Last updated:** 2026-05-26  
-**Current sprint:** Phase 2 Sprint 1 **complete** (foundation shipped locally; deploy when committed)  
+**Current sprint:** Phase 2 Sprint 1 **complete** (deployed)  
 **Goal:** Enterprise-grade KPI/reporting UX — simple, clean, thorough process visibility.
 
 ### Executive summary (Phase 2)
@@ -364,7 +364,75 @@ cd apps/web && npm run build
 
 ---
 
-## Phase 2 & Phase 3 (reference)
+## Phase 3 — Implementation Progress
 
-Phase 3 features remain **📋 planned** after Phase 2.
+**Started:** 2026-05-26  
+**Last updated:** 2026-05-26  
+**Scope note:** **ERP integrations skipped** for now (items 24–33 in Phase 3 table). Sprint 1 focuses on public API, webhooks, security audit, OCR foundation, mobile/PWA, and AI insights.
+
+### Executive summary (Phase 3)
+
+| Metric | Count |
+|--------|-------|
+| Phase 3 features (total) | 42 |
+| In scope (non-ERP) | 33 |
+| **Deferred (ERP block)** | **9** |
+| Delivered in Sprint 1 | 10 |
+| Partially delivered | 4 |
+| Sprint 2+ | 19+ |
+
+### ⏸️ Deferred — ERP integrations (skipped per product direction)
+
+QuickBooks, Zoho, Odoo, Tally, Sage 200, SAP B1, integration mapping, posting rules, integration logs, manual retry — **not started**; revisit when connector framework is prioritized.
+
+### Phase 3 Sprint 1 — feature status (non-ERP)
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 1–2 | Android / iOS native apps | ⏳ | PWA + responsive web first; React Native/Expo → Sprint 2 |
+| 3 | Push notifications | ⏳ | In-app + email exist; device push → Sprint 2 |
+| 4 | Mobile document capture | ✅ | `capture="environment"` on submit attachment |
+| 5 | Offline draft mode | ✅ | `localStorage` drafts on New request |
+| 6–10 | OCR reading + assisted fill + cheque/invoice/receipt | 🔶 | `/documents/extract` heuristic + confidence; full OCR engine → Sprint 2 |
+| 11–12 | Confidence score + human review | ✅ | `requires_review` + editable form after extract |
+| 13–15 | Voice commands / approval / form | ⏳ | Sprint 2+ |
+| 16–19 | AI policy reader, optimizer, narratives, anomaly | 🔶 | Narrative + rule-based anomalies on `/analytics`; full AI suite → Sprint 2 |
+| 34 | Webhook support | ✅ | Admin webhooks + signed delivery on workflow events |
+| 35 | Public API | ✅ | API keys + `/external/requests` (read/write) |
+| 36 | Advanced role model | ⏳ | Sprint 2 |
+| 37 | Multi-tenant hardening | 🔶 | Security audit log; deeper isolation → Sprint 2 |
+| 38 | Advanced security logs | ✅ | Login success/fail + integration actions |
+| 39–41 | Retention, backup, Azure readiness | ⏳ | Sprint 2+ |
+| 42 | Advanced BI connector | ⏳ | OpenAPI/public API foundation only |
+| 43–44 | Customer portal, eSignature | ⏳ | Sprint 2+ |
+| 45 | Workflow packs marketplace | ⏳ | Templates exist; industry packs → later |
+
+### Sprint 1 — technical deliverables
+
+**API (migration `009_phase3_integrations_security`)**
+- Tables: `api_keys`, `webhook_endpoints`, `webhook_deliveries`, `security_audit_logs`
+- Routers: `integrations` (admin), `external_api`, `documents` (extract)
+- Analytics: `GET /analytics/anomalies`, `GET /analytics/narrative`
+- Webhook dispatch hooked from `record_event`
+- Test: `python -m scripts.test_phase3_api`
+
+**Web**
+- `IntegrationsPage` — `/integrations` (API keys, webhooks, security log)
+- PWA: `manifest.webmanifest`, mobile meta, favicon
+- Submit: offline drafts, camera/file capture, OCR-assisted prefill
+- Analytics: AI insight panel + anomaly count
+
+**Verify locally**
+```text
+/integrations · /submit · /analytics (Generate summary)
+docker compose -p wizflow exec -T api alembic upgrade head
+docker compose -p wizflow exec -T api python -m scripts.test_phase3_api
+```
+
+### Changelog (Phase 3)
+
+| Date | Update |
+|------|--------|
+| 2026-05-26 | Phase 3 Sprint 1 started; ERP integrations explicitly deferred. |
+| 2026-05-26 | Shipped API keys, webhooks, public API, security audit, OCR extract, PWA/mobile drafts, AI narrative/anomalies foundation. |
 
