@@ -69,6 +69,7 @@ export function WorkflowFormRenderer({
             onChange={(v) => handle(amountField.key, v)}
             readOnly={readOnly}
             highlight
+            allValues={values}
           />
         )}
         <div className="space-y-4">
@@ -79,6 +80,7 @@ export function WorkflowFormRenderer({
               value={values[f.key] ?? ""}
               onChange={(v) => handle(f.key, v)}
               readOnly={readOnly}
+              allValues={values}
             />
           ))}
         </div>
@@ -100,6 +102,7 @@ export function WorkflowFormRenderer({
                   value={values[f.key] ?? ""}
                   onChange={(v) => handle(f.key, v)}
                   readOnly={readOnly}
+                  allValues={values}
                 />
               ))}
             </div>
@@ -119,6 +122,7 @@ export function WorkflowFormRenderer({
               value={values[f.key] ?? ""}
               onChange={(v) => handle(f.key, v)}
               readOnly={readOnly}
+              allValues={values}
             />
           </div>
         ))}
@@ -135,6 +139,7 @@ export function WorkflowFormRenderer({
           value={values[f.key] ?? ""}
           onChange={(v) => handle(f.key, v)}
           readOnly={readOnly}
+          allValues={values}
         />
       ))}
     </div>

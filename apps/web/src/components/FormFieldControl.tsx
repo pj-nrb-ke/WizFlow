@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import type { FormField, FormFieldOption, MasterDataEntry } from "../lib/api";
-import { listMasterData } from "../lib/api";
+import { apiFetch, listMasterData } from "../lib/api";
 import { getToken } from "../lib/auth";
+import { evaluateCalculatedFormula } from "../lib/calculatedFields";
 import { sanitizePositiveNumberInput } from "../lib/numberInput";
 
 type Props = {
@@ -12,6 +13,8 @@ type Props = {
   className?: string;
   /** Amount hero panel on purple background */
   variant?: "default" | "hero";
+  /** All form values — used for calculated fields */
+  allValues?: Record<string, string>;
 };
 
 function OptionsList({ options }: { options: FormFieldOption[] }) {
@@ -26,34 +29,76 @@ function OptionsList({ options }: { options: FormFieldOption[] }) {
   );
 }
 
-function useMasterDataOptions(field: FormField): FormFieldOption[] {
+function useFieldOptions(field: FormField): FormFieldOption[] {
   const [options, setOptions] = useState<FormFieldOption[]>(field.options ?? []);
+  const sourceType = field.optionSource?.type;
   const category =
-    field.optionSource?.type === "master_data" ? field.optionSource.category : undefined;
+    sourceType === "master_data" ? field.optionSource?.category : undefined;
+  const apiUrl = sourceType === "api_url" ? field.optionSource?.apiUrl : undefined;
+  const useOrg =
+    sourceType === "org_users" ||
+    field.type === "employee_selector";
 
   useEffect(() => {
-    if (field.optionSource?.type !== "master_data" || !category) {
-      setOptions(field.options ?? []);
-      return;
+    if (useOrg) {
+      let cancelled = false;
+      apiFetch<{ id: string; full_name: string; email: string }[]>(
+        "/api/v1/workflows/company-users",
+        {},
+        getToken()
+      )
+        .then((users) => {
+          if (cancelled) return;
+          setOptions(
+            users.map((u) => ({
+              value: u.id,
+              label: u.full_name || u.email,
+            }))
+          );
+        })
+        .catch(() => {
+          if (!cancelled) setOptions([]);
+        });
+      return () => {
+        cancelled = true;
+      };
     }
-    let cancelled = false;
-    listMasterData(category, getToken())
-      .then((rows: MasterDataEntry[]) => {
-        if (cancelled) return;
-        setOptions(
-          rows.map((r) => ({
-            value: r.code,
-            label: r.label,
-          }))
-        );
-      })
-      .catch(() => {
-        if (!cancelled) setOptions(field.options ?? []);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [category, field.optionSource?.type, field.options]);
+    if (sourceType === "master_data" && category) {
+      let cancelled = false;
+      listMasterData(category, getToken())
+        .then((rows: MasterDataEntry[]) => {
+          if (cancelled) return;
+          setOptions(rows.map((r) => ({ value: r.code, label: r.label })));
+        })
+        .catch(() => {
+          if (!cancelled) setOptions(field.options ?? []);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+    if (sourceType === "api_url" && apiUrl?.trim()) {
+      let cancelled = false;
+      fetch(apiUrl.trim())
+        .then((r) => r.json())
+        .then((data: unknown) => {
+          if (cancelled || !Array.isArray(data)) return;
+          setOptions(
+            data.map((row: { value?: string; label?: string; code?: string }) => ({
+              value: String(row.value ?? row.code ?? ""),
+              label: String(row.label ?? row.value ?? row.code ?? ""),
+            }))
+          );
+        })
+        .catch(() => {
+          if (!cancelled) setOptions(field.options ?? []);
+        });
+      return () => {
+        cancelled = true;
+      };
+    }
+    setOptions(field.options ?? []);
+  }, [useOrg, sourceType, category, apiUrl, field.options]);
 
   return options;
 }
@@ -65,12 +110,24 @@ export function FormFieldControl({
   readOnly = false,
   className = "wf-input",
   variant = "default",
+  allValues = {},
 }: Props) {
   const disabled = readOnly || !onChange;
   const set = (v: string) => onChange?.(v);
-  const masterOptions = useMasterDataOptions(field);
+  const dynamicOptions = useFieldOptions(field);
   const options =
-    field.optionSource?.type === "master_data" ? masterOptions : (field.options ?? []);
+    field.optionSource?.type === "static" || !field.optionSource
+      ? (field.options ?? [])
+      : dynamicOptions;
+
+  if (field.type === "calculated") {
+    const computed = evaluateCalculatedFormula(field.formula, allValues);
+    return (
+      <p className={variant === "hero" ? "wf-readonly-value" : "text-slate-800 font-medium"}>
+        {computed || "—"}
+      </p>
+    );
+  }
 
   if (field.type === "section") {
     return (
@@ -123,19 +180,25 @@ export function FormFieldControl({
 
   if (field.type === "attachment") {
     return (
-      <input
-        type="file"
-        disabled={disabled}
-        className={`${className} text-sm`}
-        onChange={(e) => set(e.target.files?.[0]?.name ?? "")}
-      />
+      <div className="space-y-1">
+        {field.attachmentCategory && (
+          <p className="text-xs text-slate-500">Category: {field.attachmentCategory}</p>
+        )}
+        <input
+          type="file"
+          disabled={disabled}
+          className={`${className} text-sm`}
+          onChange={(e) => set(e.target.files?.[0]?.name ?? "")}
+        />
+      </div>
     );
   }
 
   if (
     field.type === "dropdown" ||
     field.type === "listbox" ||
-    field.type === "master_dropdown"
+    field.type === "master_dropdown" ||
+    field.type === "employee_selector"
   ) {
     return (
       <select
@@ -267,9 +330,10 @@ type BlockProps = {
   onChange?: (value: string) => void;
   readOnly?: boolean;
   highlight?: boolean;
+  allValues?: Record<string, string>;
 };
 
-export function FormFieldBlock({ field, value, onChange, readOnly, highlight }: BlockProps) {
+export function FormFieldBlock({ field, value, onChange, readOnly, highlight, allValues }: BlockProps) {
   if (field.type === "label" || field.type === "section") {
     return <FormFieldControl field={field} value="" readOnly={readOnly} />;
   }
@@ -295,6 +359,7 @@ export function FormFieldBlock({ field, value, onChange, readOnly, highlight }: 
           onChange={onChange}
           readOnly={readOnly}
           variant="hero"
+          allValues={allValues}
         />
       </div>
     );
@@ -306,7 +371,13 @@ export function FormFieldBlock({ field, value, onChange, readOnly, highlight }: 
         {field.label}
         {field.required && <span className="text-red-500"> *</span>}
       </label>
-      <FormFieldControl field={field} value={value} onChange={onChange} readOnly={readOnly} />
+      <FormFieldControl
+        field={field}
+        value={value}
+        onChange={onChange}
+        readOnly={readOnly}
+        allValues={allValues}
+      />
     </div>
   );
 }

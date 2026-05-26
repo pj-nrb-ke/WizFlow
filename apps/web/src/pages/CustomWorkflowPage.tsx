@@ -27,6 +27,7 @@ import {
   WorkflowSummary,
 } from "../lib/api";
 import { getToken } from "../lib/auth";
+import { HelpTip } from "../components/HelpTip";
 
 type ChainRow = ApproverChainItem & { sortId: string };
 
@@ -221,7 +222,10 @@ export function CustomWorkflowPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900">Custom workflow</h1>
+        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+          Custom workflow
+          <HelpTip text="Build a simple approval chain without the full form designer. Attach an existing form workflow and drag approvers into order." />
+        </h1>
         <p className="text-sm text-slate-600 mt-1">
           Name your workflow, attach a form, choose who can start requests (initiators), and set
           approvers in order. Duplicate users in a group are ignored automatically.

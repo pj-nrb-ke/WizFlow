@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate } from "react-router-dom";
 import { HelpTip } from "../components/HelpTip";
+import {
+  SetupWizardGroups,
+  SetupWizardOrganization,
+  SetupWizardUsers,
+} from "../components/SetupWizardInline";
 import { ApiError, getSetupStatus, SetupStatus } from "../lib/api";
 import { getToken } from "../lib/auth";
 import { useAuth } from "../context/AuthContext";
@@ -122,36 +127,45 @@ export function SetupWizardPage() {
         )}
 
         {step.id === "organization" && (
-          <StepPanel
-            title="Organization"
-            body="Configure departments, branches, and roles so requests route to the right people."
-            done={status?.organization_complete}
-            href="/admin"
-            onNext={() => setActiveStep(2)}
-            onBack={() => setActiveStep(0)}
-          />
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-slate-800">Organization</h2>
+            <p className="text-sm text-slate-600">
+              Add departments and branches so requests route and report correctly.
+            </p>
+            {status?.organization_complete && (
+              <p className="text-sm text-green-700">At least one department is configured.</p>
+            )}
+            <SetupWizardOrganization onStatusChange={setStatus} />
+            <StepNav onBack={() => setActiveStep(0)} onNext={() => setActiveStep(2)} />
+          </div>
         )}
 
         {step.id === "users" && (
-          <StepPanel
-            title="Users"
-            body="Invite colleagues and assign roles (admin, manager, originator, approver)."
-            done={status?.users_complete}
-            href="/admin"
-            onNext={() => setActiveStep(3)}
-            onBack={() => setActiveStep(1)}
-          />
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-slate-800">Users</h2>
+            <p className="text-sm text-slate-600">
+              Add colleagues and assign roles. You need at least two active users.
+            </p>
+            {status?.users_complete && (
+              <p className="text-sm text-green-700">User setup looks complete.</p>
+            )}
+            <SetupWizardUsers onStatusChange={setStatus} />
+            <StepNav onBack={() => setActiveStep(1)} onNext={() => setActiveStep(3)} />
+          </div>
         )}
 
         {step.id === "groups" && (
-          <StepPanel
-            title="Groups"
-            body="Create approval groups (e.g. Finance Committee) for shared inbox queues."
-            done={status?.groups_complete}
-            href="/admin"
-            onNext={() => setActiveStep(4)}
-            onBack={() => setActiveStep(2)}
-          />
+          <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-slate-800">Approval groups</h2>
+            <p className="text-sm text-slate-600">
+              Create shared approval teams used in workflow routing.
+            </p>
+            {status?.groups_complete && (
+              <p className="text-sm text-green-700">At least one group exists.</p>
+            )}
+            <SetupWizardGroups onStatusChange={setStatus} />
+            <StepNav onBack={() => setActiveStep(2)} onNext={() => setActiveStep(4)} />
+          </div>
         )}
 
         {step.id === "workflows" && (
@@ -213,34 +227,6 @@ function computePercent(status: SetupStatus | null): number {
     status.workflows_complete,
   ];
   return Math.round((flags.filter(Boolean).length / flags.length) * 100);
-}
-
-function StepPanel({
-  title,
-  body,
-  done,
-  href,
-  onNext,
-  onBack,
-}: {
-  title: string;
-  body: string;
-  done?: boolean;
-  href: string;
-  onNext: () => void;
-  onBack: () => void;
-}) {
-  return (
-    <div className="space-y-4">
-      <h2 className="text-lg font-semibold text-slate-800">{title}</h2>
-      <p className="text-sm text-slate-600">{body}</p>
-      {done && <p className="text-sm text-green-700">This step looks complete.</p>}
-      <Link to={href} className="inline-block px-4 py-2 wf-btn-primary text-sm">
-        Open admin →
-      </Link>
-      <StepNav onBack={onBack} onNext={onNext} />
-    </div>
-  );
 }
 
 function StepNav({ onBack, onNext }: { onBack: () => void; onNext: () => void }) {

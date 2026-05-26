@@ -8,6 +8,7 @@ import {
 } from "react";
 import { ApiError, UserProfile } from "../lib/api";
 import * as auth from "../lib/auth";
+import { applyBrandColor } from "../lib/brandColor";
 
 type AuthContextValue = {
   user: UserProfile | null;
@@ -31,6 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     try {
       const profile = await auth.fetchMe();
       setUser(profile);
+      applyBrandColor(profile.company_branding?.brand_color);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
         auth.clearToken();
@@ -48,6 +50,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const signOut = useCallback(() => {
     auth.clearToken();
     setUser(null);
+    applyBrandColor(null);
     setLoading(false);
   }, []);
 

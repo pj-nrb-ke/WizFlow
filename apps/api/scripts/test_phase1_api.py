@@ -102,6 +102,27 @@ def test_audit_export() -> None:
     assert "timestamp" in r.text
 
 
+def test_workflows_and_inbox_xlsx() -> None:
+    h = login()
+    wf_xlsx = client.get("/api/v1/workflows/export.xlsx", headers=h)
+    assert wf_xlsx.status_code == 200, wf_xlsx.text
+    assert "spreadsheetml" in wf_xlsx.headers.get("content-type", "")
+
+    h2 = login("approver1@demo.wizflow.biz")
+    inbox_xlsx = client.get("/api/v1/inbox/export.xlsx", headers=h2)
+    assert inbox_xlsx.status_code == 200, inbox_xlsx.text
+
+    users = client.get("/api/v1/workflows/company-users", headers=h)
+    assert users.status_code == 200, users.text
+    assert isinstance(users.json(), list)
+
+
+def test_inbox_priority_filter() -> None:
+    h = login("approver1@demo.wizflow.biz")
+    r = client.get("/api/v1/inbox", params={"priority": "normal"}, headers=h)
+    assert r.status_code == 200, r.text
+
+
 def test_company_branding_patch() -> None:
     h = login()
     r = client.patch(
@@ -123,6 +144,8 @@ def main() -> None:
     test_requests_filters_and_export()
     test_inbox_filters_and_export()
     test_audit_export()
+    test_workflows_and_inbox_xlsx()
+    test_inbox_priority_filter()
     test_company_branding_patch()
     print("All Phase 1 API tests passed.")
 

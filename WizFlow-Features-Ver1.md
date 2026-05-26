@@ -166,8 +166,8 @@ It should be positioned as:
 ## Phase 1 — Implementation Progress
 
 **Started:** 2026-05-26  
-**Last updated:** 2026-05-26  
-**Phase 1 overall status:** **COMPLETE** (Sprint 2 shipped 2026-05-26). ERP and store binaries remain out of scope.
+**Last updated:** 2026-05-21  
+**Phase 1 overall status:** **COMPLETE (end-to-end)** — inline setup wizard, full form designer controls, inbox priority/approver search, workflow list Excel, brand color shell. WhatsApp delivery and ERP remain out of scope.
 
 ### Executive summary
 
@@ -177,61 +177,46 @@ It should be positioned as:
 | Delivered (Sprint 1 + 2) | 25 |
 | Pending | 0 |
 
-**Sprint 2** delivered master data, business form controls, smart dropdowns, AI wizard Q&A, plain-English tune, field permissions, drafts, extended search/filters, PDF/xlsx exports, branding, and help panels.
+**End-to-end pass (2026-05-21)** closed remaining gaps: inline `/setup` (org, users, groups), employee/calculated form controls, dropdown sources (master data, org users, API URL), field-permission editor in form designer, inbox priority + approver search, workflow/inbox xlsx exports, brand color on shell.
 
 ### Status legend
 
 | Symbol | Meaning |
 |--------|---------|
-| ✅ | Delivered (Sprint 1 or earlier) |
-| 🔶 | Partially delivered — gaps listed under [Partial deliveries](#partial-deliveries-revisit-for-polish) |
-| ⏸️ | **Pending — revisit later** (not started or only stubbed) |
+| ✅ | Delivered |
+| 🔶 | Partial (documented limitation) |
 
 ---
 
-## Phase 1 Sprint 2 — delivered (2026-05-26)
+## ✅ Phase 1 — feature checklist (complete)
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 2 | AI Workflow Wizard (Q&A) | ✅ | `/ai` wizard questions + finalize |
-| 3 | Plain-English fine-tuning | ✅ | `POST /workflows/{id}/tune` |
-| 14 | Business form controls | ✅ | currency, yesno, section, attachment, master dropdown |
-| 15 | Smart dropdown sources | ✅ | `optionSource: master_data` |
-| 16 | Master data library | ✅ | `/master-data` + admin UI |
-| 17 | Field-level permissions | ✅ | `visibleTo` / `editableBy` on fields |
-| 1,7,9,11,19–23,25 | Polish items | ✅ | drafts, filters, PDF/xlsx, branding logo, help tips, push/WhatsApp prefs |
-
----
-
-## ✅ Sprint 1 — delivered (foundation)
-
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 1 | Guided Company Setup Wizard | 🔶 | `/setup` wizard + `GET /admin/setup-status` |
-| 2 | Manager-Friendly AI Workflow Wizard | ⏸️ | Pending — revisit later |
-| 3 | Plain-English Workflow Fine-Tuning | ⏸️ | Pending — revisit later |
-| 4 | Workflow Health Checker | ✅ | `GET /workflows/{id}/health-check` + publish modal |
-| 5 | Simplified Workflow Publishing Flow | ✅ | Draft → Preview → Simulate → Publish steps |
-| 6 | Improved Originator Status Tracking | ✅ | `RequestStatusPanel` on request detail |
-| 7 | Enhanced My Requests Page | 🔶 | Tabs, search, CSV export, overdue badges |
-| 8 | Mobile-Friendly Approval Screen | ✅ | Responsive inbox + `PublicApprovePage` |
-| 9 | Better Approval Inbox UX | 🔶 | Workflow filter, search, overdue toggle, CSV export |
-| 10 | Smart Notification Center | ✅ | `/notifications` page + nav badge |
-| 11 | Notification Preferences | 🔶 | PATCH preferences + Settings (email + in-app) |
-| 12 | Prebuilt Office Workflow Templates | ✅ | 11 templates in `workflow_templates.py` |
-| 13 | Template Marketplace Foundation | ✅ | `/templates` + `POST .../clone` |
-| 14 | Business-Friendly Form Controls | ⏸️ | Pending — revisit later |
-| 15 | Smart Dropdown Sources | ⏸️ | Pending — revisit later |
-| 16 | Master Data Library | ⏸️ | Pending — revisit later |
-| 17 | Field-Level Permissions | ⏸️ | Pending — revisit later |
-| 18 | Returned Request Correction Flow | ✅ | “Action required” banner + resubmit highlight |
-| 19 | Quick Search Across Requests | 🔶 | `q` on requests + inbox APIs |
-| 20 | Simple User Help Panels | 🔶 | `HelpTip` on key pages |
-| 21 | Demo Mode / Sample Company | ✅ | Existing seed (maintain) |
-| 22 | Basic Audit Export | 🔶 | `GET /requests/{id}/audit-export` (CSV) |
-| 23 | Excel Export Enhancements | 🔶 | `requests/export.csv`, `inbox/export.csv` |
-| 24 | Admin Control Panel Cleanup | ✅ | Tabbed admin + links to setup/templates |
-| 25 | Workspace Branding | 🔶 | Company `settings` JSONB + Settings UI |
+| 1 | Guided Company Setup Wizard | ✅ | `/setup` inline dept/branch/users/groups + `GET /admin/setup-status` |
+| 2 | Manager-Friendly AI Workflow Wizard | ✅ | `/ai` Q&A + finalize |
+| 3 | Plain-English Workflow Fine-Tuning | ✅ | `POST /workflows/{id}/tune` |
+| 4 | Workflow Health Checker | ✅ | Publish modal + health API |
+| 5 | Simplified Workflow Publishing Flow | ✅ | Draft → Preview → Simulate → Publish |
+| 6 | Improved Originator Status Tracking | ✅ | `RequestStatusPanel` + overdue badge |
+| 7 | Enhanced My Requests Page | ✅ | Tabs, server drafts, filters, xlsx export |
+| 8 | Mobile-Friendly Approval Screen | ✅ | Responsive inbox + public approve |
+| 9 | Better Approval Inbox UX | ✅ | Filters incl. priority, approver search, csv/xlsx |
+| 10 | Smart Notification Center | ✅ | `/notifications` + badge |
+| 11 | Notification Preferences | 🔶 | Email, in-app, push prefs; WhatsApp pref only (no send) |
+| 12 | Prebuilt Office Workflow Templates | ✅ | 11 templates |
+| 13 | Template Marketplace Foundation | ✅ | `/templates` + clone |
+| 14 | Business-Friendly Form Controls | ✅ | currency, yesno, section, attachment, employee, calculated |
+| 15 | Smart Dropdown Sources | ✅ | static, master_data, org_users, api_url |
+| 16 | Master Data Library | ✅ | `/master-data` |
+| 17 | Field-Level Permissions | ✅ | Schema + designer UI + renderer enforcement |
+| 18 | Returned Request Correction Flow | ✅ | Banner + resubmit |
+| 19 | Quick Search Across Requests | ✅ | `q` on requests/inbox (incl. approver on inbox) |
+| 20 | Simple User Help Panels | ✅ | `HelpTip` on setup, inbox, workflows, custom workflow, reports, etc. |
+| 21 | Demo Mode / Sample Company | ✅ | Seed data |
+| 22 | Basic Audit Export | ✅ | CSV + PDF per request |
+| 23 | Excel Export Enhancements | ✅ | My Requests, Inbox, Workflow list, MIS actions |
+| 24 | Admin Control Panel Cleanup | ✅ | Tabbed admin + setup link |
+| 25 | Workspace Branding | ✅ | Logo, display name, brand color on shell |
 
 ### Sprint 1 — technical deliverables
 

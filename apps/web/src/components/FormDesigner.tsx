@@ -25,6 +25,7 @@ import { WorkflowFormRenderer } from "./WorkflowFormRenderer";
 import { buildInitialForm } from "../lib/formValidation";
 import {
   DESIGNER_CONTROLS,
+  FIELD_ROLE_OPTIONS,
   MASTER_DATA_CATEGORIES,
   type DesignerControlId,
   type DesignerField,
@@ -169,9 +170,19 @@ function FieldProperties({
     field.type === "yesno";
 
   const isMasterDropdown = field.type === "master_dropdown";
+  const isCalculated = field.type === "calculated";
+  const hasOptionSource =
+    field.type === "dropdown" ||
+    field.type === "combobox" ||
+    field.type === "listbox";
 
   function setOptions(options: FormFieldOption[]) {
     onUpdate({ options });
+  }
+
+  function toggleRole(list: string[] | undefined, role: string): string[] {
+    const cur = list ?? [];
+    return cur.includes(role) ? cur.filter((r) => r !== role) : [...cur, role];
   }
 
   return (
@@ -233,6 +244,122 @@ function FieldProperties({
         </label>
       )}
 
+      {hasOptionSource && (
+        <>
+          <label className="block">
+            <span className="text-slate-600">Dropdown source</span>
+            <select
+              className="wf-input mt-1 w-full"
+              value={field.optionSource?.type ?? "static"}
+              onChange={(e) => {
+                const t = e.target.value as "static" | "master_data" | "org_users" | "api_url";
+                if (t === "static") onUpdate({ optionSource: { type: "static" } });
+                else if (t === "master_data")
+                  onUpdate({ optionSource: { type: "master_data", category: "department" } });
+                else if (t === "org_users") onUpdate({ optionSource: { type: "org_users" } });
+                else onUpdate({ optionSource: { type: "api_url", apiUrl: "" } });
+              }}
+            >
+              <option value="static">Fixed options</option>
+              <option value="master_data">Master data library</option>
+              <option value="org_users">Company users</option>
+              <option value="api_url">External API (JSON)</option>
+            </select>
+          </label>
+          {field.optionSource?.type === "master_data" && (
+            <label className="block">
+              <span className="text-slate-600">Category</span>
+              <select
+                className="wf-input mt-1 w-full"
+                value={field.optionSource.category ?? "department"}
+                onChange={(e) =>
+                  onUpdate({
+                    optionSource: { type: "master_data", category: e.target.value },
+                  })
+                }
+              >
+                {MASTER_DATA_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c.replace(/_/g, " ")}
+                  </option>
+                ))}
+              </select>
+            </label>
+          )}
+          {field.optionSource?.type === "api_url" && (
+            <label className="block">
+              <span className="text-slate-600">API URL</span>
+              <input
+                className="wf-input mt-1 w-full text-xs"
+                value={field.optionSource.apiUrl ?? ""}
+                onChange={(e) =>
+                  onUpdate({
+                    optionSource: { type: "api_url", apiUrl: e.target.value },
+                  })
+                }
+                placeholder="https://…/options.json"
+              />
+            </label>
+          )}
+        </>
+      )}
+
+      {isCalculated && (
+        <label className="block">
+          <span className="text-slate-600">Formula</span>
+          <input
+            className="wf-input mt-1 w-full font-mono text-xs"
+            value={field.formula ?? ""}
+            onChange={(e) => onUpdate({ formula: e.target.value })}
+            placeholder="{amount} * 0.15"
+          />
+        </label>
+      )}
+
+      {field.type === "attachment" && (
+        <label className="block">
+          <span className="text-slate-600">Attachment category</span>
+          <input
+            className="wf-input mt-1 w-full"
+            value={field.attachmentCategory ?? ""}
+            onChange={(e) => onUpdate({ attachmentCategory: e.target.value })}
+            placeholder="e.g. invoice, receipt"
+          />
+        </label>
+      )}
+
+      {isInputField(field) && field.type !== "label" && (
+        <div>
+          <span className="text-slate-600 block mb-2">Visible to roles</span>
+          <div className="flex flex-wrap gap-2">
+            {FIELD_ROLE_OPTIONS.map((role) => (
+              <label key={role} className="text-xs flex items-center gap-1 border rounded px-2 py-1">
+                <input
+                  type="checkbox"
+                  checked={field.visibleTo?.includes(role) ?? false}
+                  onChange={() => onUpdate({ visibleTo: toggleRole(field.visibleTo, role) })}
+                />
+                {role}
+              </label>
+            ))}
+          </div>
+          <span className="text-slate-600 block mb-2 mt-3">Editable by roles</span>
+          <div className="flex flex-wrap gap-2">
+            {FIELD_ROLE_OPTIONS.map((role) => (
+              <label key={`e-${role}`} className="text-xs flex items-center gap-1 border rounded px-2 py-1">
+                <input
+                  type="checkbox"
+                  checked={field.editableBy?.includes(role) ?? false}
+                  onChange={() => onUpdate({ editableBy: toggleRole(field.editableBy, role) })}
+                />
+                {role}
+              </label>
+            ))}
+          </div>
+          <p className="text-xs text-slate-400 mt-1">Leave unchecked to allow all roles.</p>
+        </div>
+      )}
+
       {field.type === "button" && (
         <label className="block">
           <span className="text-slate-600">Button text</span>
@@ -267,7 +394,9 @@ function FieldProperties({
         </label>
       )}
 
-      {hasOptions && !isMasterDropdown && (
+      {hasOptions &&
+        !isMasterDropdown &&
+        (!field.optionSource || field.optionSource.type === "static") && (
         <div>
           <span className="text-slate-600 block mb-2">Options</span>
           <ul className="space-y-2">

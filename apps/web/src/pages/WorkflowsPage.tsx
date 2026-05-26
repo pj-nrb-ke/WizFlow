@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
   ApiError,
+  apiDownload,
   apiFetch,
   getWorkflowHealthCheck,
   tuneWorkflow,
@@ -256,11 +257,27 @@ export function WorkflowsPage() {
 
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <h1 className="wf-page-title">Workflows</h1>
-        <Link to="/ai" className="text-sm px-3 py-1.5 wf-card-accent wf-link font-medium">
-          AI creator
-        </Link>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+        <div className="flex items-center gap-2">
+          <h1 className="wf-page-title">Workflows</h1>
+          <HelpTip text="Draft → preview → simulate → publish. Use plain-English tune on draft workflows. Export the workflow list to Excel for audits." />
+        </div>
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            className="text-sm px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50"
+            onClick={() =>
+              apiDownload("/api/v1/workflows/export.xlsx", "workflows.xlsx", getToken()).catch(
+                (e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Export failed")
+              )
+            }
+          >
+            Export Excel
+          </button>
+          <Link to="/ai" className="text-sm px-3 py-1.5 wf-card-accent wf-link font-medium">
+            AI creator
+          </Link>
+        </div>
       </div>
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 

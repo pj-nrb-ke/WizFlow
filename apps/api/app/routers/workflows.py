@@ -1,6 +1,7 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
@@ -45,6 +46,7 @@ from app.services.instance_queries import to_out
 from app.services.approval_notify import notify_approvers_for_step
 from app.services import versioning
 from app.services.workflow_health import check_workflow_health, health_summary
+from app.services.xlsx_export import rows_to_xlsx
 
 router = APIRouter(prefix="/workflows", tags=["Workflows"])
 
@@ -104,6 +106,20 @@ def org_directory(
             UserGroupOut(id=g.id, name=g.name, member_count=len(members), members=members, created_at=g.created_at)
         )
     return OrgDirectoryOut(users=user_out, groups=group_out)
+
+
+@router.get("/company-users", response_model=list[OrgUserOut])
+def company_users(
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> list[OrgUserOut]:
+    """Active company users for employee selectors and form dropdowns."""
+    users = db.scalars(
+        select(User)
+        .where(User.company_id == user.company_id, User.is_active.is_(True))
+        .order_by(User.full_name)
+    )
+    return [OrgUserOut(id=u.id, email=u.email, full_name=u.full_name) for u in users]
 
 
 @router.get("/form-options", response_model=list[WorkflowDefinitionListOut])
@@ -180,6 +196,37 @@ def create_custom_workflow(
     db.commit()
     db.refresh(defn)
     return defn
+
+
+@router.get("/export.xlsx")
+def export_workflows_xlsx(
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> Response:
+    rows_db = list(
+        db.scalars(
+            select(WorkflowDefinition)
+            .where(WorkflowDefinition.company_id == user.company_id)
+            .order_by(WorkflowDefinition.name)
+        )
+    )
+    data = rows_to_xlsx(
+        ["name", "status", "version", "updated_at"],
+        [
+            [
+                w.name,
+                w.status,
+                str(w.version),
+                w.updated_at.isoformat() if w.updated_at else "",
+            ]
+            for w in rows_db
+        ],
+    )
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=workflows.xlsx"},
+    )
 
 
 @router.get("", response_model=list[WorkflowDefinitionListOut])

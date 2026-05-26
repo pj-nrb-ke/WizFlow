@@ -2,7 +2,7 @@ from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
@@ -13,6 +13,7 @@ from app.schemas.request import ApprovalAction, AttachmentOut, InboxItem, Workfl
 from app.services import instance_engine
 from app.services.approval_notify import notify_approvers_for_step, notify_originator_decision
 from app.services.assignees import needs_claim, user_can_see_inbox
+from app.services.xlsx_export import rows_to_xlsx
 from app.services.events import record_event
 from app.services.files import save_upload
 from app.services.instance_engine import _step_name
@@ -37,6 +38,7 @@ def _build_inbox_items(
     max_amount: float | None = None,
     department: str | None = None,
     overdue_only: bool = False,
+    priority: str | None = None,
 ) -> list[InboxItem]:
     q = select(WorkflowInstance).where(
         WorkflowInstance.company_id == user.company_id,
@@ -44,24 +46,7 @@ def _build_inbox_items(
     )
     if workflow_id:
         q = q.where(WorkflowInstance.workflow_definition_id == workflow_id)
-    if q_text:
-        term = f"%{q_text.strip()}%"
-        originator_ids = [
-            u.id
-            for u in db.scalars(
-                select(User).where(
-                    User.company_id == user.company_id,
-                    User.full_name.ilike(term),
-                )
-            )
-        ]
-        clauses = [
-            WorkflowInstance.reference_number.ilike(term),
-            WorkflowInstance.workflow_name.ilike(term),
-        ]
-        if originator_ids:
-            clauses.append(WorkflowInstance.originator_user_id.in_(originator_ids))
-        q = q.where(or_(*clauses))
+    # Text search is applied in-loop so we can match current approver names too.
     if date_from:
         q = q.where(WorkflowInstance.submitted_at >= date_from)
     if date_to:
@@ -90,6 +75,31 @@ def _build_inbox_items(
         sla = int((defn.settings or {}).get("sla_hours", 48)) if defn else 48
         if overdue_only and not analytics_service.is_overdue(inst, sla_hours=sla, now=now):
             continue
+        inst_priority = str(
+            (inst.request_data or {}).get("priority")
+            or (defn.settings or {}).get("default_priority")
+            or "normal"
+        ).lower()
+        if priority and inst_priority != priority.strip().lower():
+            continue
+        if q_text:
+            term_l = q_text.strip().lower()
+            originator_name_early = ""
+            if inst.originator_user_id:
+                o = db.get(User, inst.originator_user_id)
+                originator_name_early = (o.full_name if o else "").lower()
+            ref = (inst.reference_number or "").lower()
+            wf = inst.workflow_name.lower()
+            approver_match = any(
+                term_l in (a.get("full_name") or "").lower() for a in (inst.assignees or [])
+            )
+            if (
+                term_l not in ref
+                and term_l not in wf
+                and term_l not in originator_name_early
+                and not approver_match
+            ):
+                continue
         step_name = _step_name(defn, inst.current_step_id) if defn else inst.current_step_id or ""
         originator_name = ""
         if inst.originator_user_id:
@@ -126,6 +136,7 @@ def get_inbox(
     max_amount: float | None = None,
     department: str | None = None,
     overdue_only: bool = False,
+    priority: str | None = None,
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> list[InboxItem]:
@@ -140,17 +151,19 @@ def get_inbox(
         max_amount=max_amount,
         department=department,
         overdue_only=overdue_only,
+        priority=priority,
     )
 
 
-@router.get("/inbox/export.csv", response_class=PlainTextResponse)
-def export_inbox_csv(
-    workflow_id: UUID | None = None,
-    q: str | None = None,
-    user: CurrentUser = Depends(require_company),
-    db: Session = Depends(get_db),
-) -> str:
-    items = _build_inbox_items(db, user, workflow_id=workflow_id, q_text=q)
+def _inbox_export_rows(items: list[InboxItem]) -> tuple[list[str], list[list[str]]]:
+    headers = [
+        "reference_number",
+        "workflow_name",
+        "step_name",
+        "originator_name",
+        "submitted_at",
+        "amount",
+    ]
     rows = [
         [
             i.reference_number or "",
@@ -162,9 +175,41 @@ def export_inbox_csv(
         ]
         for i in items
     ]
-    return rows_to_csv(
-        ["reference_number", "workflow_name", "step_name", "originator_name", "submitted_at", "amount"],
-        rows,
+    return headers, rows
+
+
+@router.get("/inbox/export.csv", response_class=PlainTextResponse)
+def export_inbox_csv(
+    workflow_id: UUID | None = None,
+    q: str | None = None,
+    priority: str | None = None,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> str:
+    items = _build_inbox_items(
+        db, user, workflow_id=workflow_id, q_text=q, priority=priority
+    )
+    headers, rows = _inbox_export_rows(items)
+    return rows_to_csv(headers, rows)
+
+
+@router.get("/inbox/export.xlsx")
+def export_inbox_xlsx(
+    workflow_id: UUID | None = None,
+    q: str | None = None,
+    priority: str | None = None,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> Response:
+    items = _build_inbox_items(
+        db, user, workflow_id=workflow_id, q_text=q, priority=priority
+    )
+    headers, rows = _inbox_export_rows(items)
+    data = rows_to_xlsx(headers, rows)
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=inbox.xlsx"},
     )
 
 

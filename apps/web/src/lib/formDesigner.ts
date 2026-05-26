@@ -14,7 +14,18 @@ export type DesignerControlId =
   | "yesno"
   | "section"
   | "attachment"
-  | "master_dropdown";
+  | "master_dropdown"
+  | "employee_selector"
+  | "calculated";
+
+export const FIELD_ROLE_OPTIONS = [
+  "originator",
+  "approver",
+  "manager",
+  "company_admin",
+  "finance",
+  "hr",
+] as const;
 
 export type DesignerField = FormField & {
   /** Stable id for drag-and-drop (not persisted). */
@@ -48,6 +59,16 @@ export const DESIGNER_CONTROLS: {
     id: "master_dropdown",
     label: "Master data list",
     hint: "Dropdown from company master data library",
+  },
+  {
+    id: "employee_selector",
+    label: "Employee selector",
+    hint: "Pick a colleague from your company directory",
+  },
+  {
+    id: "calculated",
+    label: "Calculated field",
+    hint: "Auto-computed from other fields, e.g. {amount} * 0.15",
   },
 ];
 
@@ -114,6 +135,10 @@ export function schemaTypeForControl(control: DesignerControlId): string {
       return "attachment";
     case "master_dropdown":
       return "master_dropdown";
+    case "employee_selector":
+      return "employee_selector";
+    case "calculated":
+      return "calculated";
     default:
       return "text";
   }
@@ -155,6 +180,14 @@ export function createDesignerField(control: DesignerControlId): DesignerField {
   }
   if (control === "attachment") {
     base.required = false;
+    base.attachmentCategory = "supporting";
+  }
+  if (control === "employee_selector") {
+    base.optionSource = { type: "org_users" };
+  }
+  if (control === "calculated") {
+    base.required = false;
+    base.formula = "{amount} * 1";
   }
   return base;
 }
@@ -163,7 +196,8 @@ export function isInputField(field: FormField): boolean {
   return (
     field.type !== "label" &&
     field.type !== "button" &&
-    field.type !== "section"
+    field.type !== "section" &&
+    field.type !== "calculated"
   );
 }
 

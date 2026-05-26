@@ -38,6 +38,7 @@ export function InboxPage() {
   const [maxAmount, setMaxAmount] = useState("");
   const [department, setDepartment] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(false);
+  const [priority, setPriority] = useState("");
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<RequestDetail | null>(null);
   const [fields, setFields] = useState<FormField[]>([]);
@@ -62,8 +63,9 @@ export function InboxPage() {
       max_amount: maxAmount ? Number(maxAmount) : undefined,
       department: department.trim() || undefined,
       overdue_only: overdueOnly,
+      priority: priority || undefined,
     }),
-    [search, workflowFilter, dateFrom, dateTo, minAmount, maxAmount, department, overdueOnly]
+    [search, workflowFilter, dateFrom, dateTo, minAmount, maxAmount, department, overdueOnly, priority]
   );
 
   const loadInbox = useCallback(() => {
@@ -153,8 +155,22 @@ export function InboxPage() {
     }
   }
 
+  function exportQuery() {
+    const p = inboxParams();
+    const q = new URLSearchParams();
+    if (p.q) q.set("q", p.q);
+    if (p.workflow_id) q.set("workflow_id", p.workflow_id);
+    if (p.priority) q.set("priority", p.priority);
+    const qs = q.toString();
+    return qs ? `?${qs}` : "";
+  }
+
   async function exportCsv() {
-    await apiDownload("/api/v1/inbox/export.csv", "inbox.csv", getToken());
+    await apiDownload(`/api/v1/inbox/export.csv${exportQuery()}`, "inbox.csv", getToken());
+  }
+
+  async function exportXlsx() {
+    await apiDownload(`/api/v1/inbox/export.xlsx${exportQuery()}`, "inbox.xlsx", getToken());
   }
 
   const visibleData = detail ? filterRequestData(detail.request_data) : {};
@@ -167,17 +183,30 @@ export function InboxPage() {
           <HelpTip text="Review items waiting for your approval. Filter by workflow or search by reference; overdue highlights items past the SLA window." />
         }
         actions={
-          <button
-            type="button"
-            onClick={() =>
-              exportCsv().catch((e) =>
-                setError(e instanceof ApiError ? e.detail ?? e.message : "Export failed")
-              )
-            }
-            className="px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50"
-          >
-            Export CSV
-          </button>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={() =>
+                exportCsv().catch((e) =>
+                  setError(e instanceof ApiError ? e.detail ?? e.message : "Export failed")
+                )
+              }
+              className="px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50"
+            >
+              CSV
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                exportXlsx().catch((e) =>
+                  setError(e instanceof ApiError ? e.detail ?? e.message : "Export failed")
+                )
+              }
+              className="px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50"
+            >
+              Excel
+            </button>
+          </div>
         }
       />
 
@@ -201,7 +230,7 @@ export function InboxPage() {
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && void loadInbox()}
-            placeholder="Search reference, originator…"
+            placeholder="Search reference, originator, approver…"
             className="wf-input flex-1 min-w-[12rem]"
             aria-label="Search inbox"
           />
@@ -253,6 +282,20 @@ export function InboxPage() {
               onChange={(e) => setDepartment(e.target.value)}
               className="wf-input block mt-0.5 w-full max-w-xs"
             />
+          </label>
+          <label className="text-xs text-slate-600">
+            Priority
+            <select
+              value={priority}
+              onChange={(e) => setPriority(e.target.value)}
+              className="wf-input block mt-0.5"
+            >
+              <option value="">All</option>
+              <option value="low">Low</option>
+              <option value="normal">Normal</option>
+              <option value="high">High</option>
+              <option value="urgent">Urgent</option>
+            </select>
           </label>
           <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer shrink-0 self-end pb-1">
             <input

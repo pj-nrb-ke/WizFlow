@@ -154,9 +154,13 @@ export type AiDraftResponse = {
 export type FormFieldOption = { value: string; label: string };
 
 export type FormFieldOptionSource = {
-  type: "static" | "master_data";
+  type: "static" | "master_data" | "org_users" | "api_url";
   category?: string;
+  /** For type `api_url` — JSON array of {value, label} */
+  apiUrl?: string;
 };
+
+export type Branch = { id: string; name: string; code: string | null; created_at: string };
 
 export type FormField = {
   key: string;
@@ -172,6 +176,10 @@ export type FormField = {
   content?: string;
   /** Caption for type `button`. */
   buttonText?: string;
+  /** For type `calculated` — e.g. `{amount} * 0.15` */
+  formula?: string;
+  /** For type `attachment` */
+  attachmentCategory?: string;
 };
 
 export type MasterDataEntry = {
@@ -439,6 +447,7 @@ export type InboxListParams = {
   max_amount?: number;
   department?: string;
   overdue_only?: boolean;
+  priority?: string;
 };
 
 function inboxListQuery(params?: InboxListParams): string {
@@ -451,6 +460,7 @@ function inboxListQuery(params?: InboxListParams): string {
   if (params?.max_amount != null) search.set("max_amount", String(params.max_amount));
   if (params?.department?.trim()) search.set("department", params.department.trim());
   if (params?.overdue_only) search.set("overdue_only", "true");
+  if (params?.priority?.trim()) search.set("priority", params.priority.trim());
   const qs = search.toString();
   return qs ? `?${qs}` : "";
 }
@@ -459,8 +469,22 @@ export function listInbox(params?: InboxListParams, token?: string | null) {
   return apiFetch<InboxItem[]>(`/api/v1/inbox${inboxListQuery(params)}`, {}, token);
 }
 
-export function getSetupStatus(token?: string | null) {
-  return apiFetch<SetupStatus>("/api/v1/admin/setup-status", {}, token);
+type SetupStatusRaw = {
+  steps: Record<string, boolean>;
+  complete: boolean;
+  percent: number;
+};
+
+export async function getSetupStatus(token?: string | null): Promise<SetupStatus> {
+  const raw = await apiFetch<SetupStatusRaw>("/api/v1/admin/setup-status", {}, token);
+  const s = raw.steps ?? {};
+  return {
+    organization_complete: Boolean(s.departments),
+    users_complete: Boolean(s.users),
+    groups_complete: Boolean(s.groups),
+    workflows_complete: Boolean(s.published_workflow ?? s.workflows),
+    overall_percent: raw.percent,
+  };
 }
 
 export function getWorkflowHealthCheck(workflowId: string, token?: string | null) {

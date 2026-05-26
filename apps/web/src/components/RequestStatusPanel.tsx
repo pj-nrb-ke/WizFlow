@@ -4,6 +4,7 @@ import { eventLabel } from "../lib/eventLabels";
 import { apiDownload, RequestDetail, WorkflowEvent } from "../lib/api";
 import { formatDateTimeShort } from "../lib/datetime";
 import { getToken } from "../lib/auth";
+import { isRequestOverdue } from "../lib/sla";
 
 function whatHappensNext(status: string, assigneeNames: string): string {
   switch (status) {
@@ -31,6 +32,9 @@ export function RequestStatusPanel({ request, events }: RequestStatusPanelProps)
   const assigneeNames =
     request.assignees?.map((a) => a.full_name).filter(Boolean).join(", ") || "";
   const recent = events.slice(-4).reverse();
+  const overdue =
+    request.status === "in_progress" &&
+    isRequestOverdue(request.submitted_at, request.sla_hours ?? null, request.status);
 
   async function exportAudit() {
     const ref = request.reference_number?.replace(/[^\w-]/g, "_") || request.id.slice(0, 8);
@@ -45,7 +49,14 @@ export function RequestStatusPanel({ request, events }: RequestStatusPanelProps)
     <div className="wf-card p-4 space-y-4">
       <div className="flex flex-wrap items-start justify-between gap-2">
         <h2 className="font-semibold text-slate-800">Status</h2>
-        <StatusBadge status={request.status} />
+        <div className="flex items-center gap-2">
+          {overdue && (
+            <span className="text-xs font-semibold px-2 py-0.5 rounded bg-amber-100 text-amber-900">
+              Overdue
+            </span>
+          )}
+          <StatusBadge status={request.status} />
+        </div>
       </div>
 
       <dl className="text-sm grid gap-2">

@@ -249,8 +249,12 @@ export function AdminPage() {
                 </dd>
               </div>
             </dl>
-            <p className="text-xs text-slate-400 mb-3">
-              Logo upload and accent colors will be available in a later sprint.
+            <p className="text-sm text-slate-600 mb-3">
+              Set your company logo and brand color under{" "}
+              <Link to="/settings" className="wf-link font-medium">
+                Settings → Workspace branding
+              </Link>
+              . The accent color applies across the app shell.
             </p>
             <AppThemeSwitcher />
           </div>
