@@ -7,15 +7,19 @@ from app.routers import (
     ai,
     analytics,
     auth,
+    delegations,
     documents,
+    drafts,
     external_api,
     health,
     inbox,
     integrations,
+    master_data,
     notifications,
     public_approval,
     reports,
     requests,
+    saved_views,
     templates,
     user_groups,
     users,
@@ -24,7 +28,7 @@ from app.routers import (
 
 app = FastAPI(
     title=settings.app_name,
-    version="0.5.0",
+    version="0.6.0",
     description="WizFlow API — see packages/openapi/wizflow.yaml",
 )
 
@@ -55,6 +59,10 @@ v1.include_router(users.router)
 v1.include_router(integrations.router)
 v1.include_router(external_api.router)
 v1.include_router(documents.router)
+v1.include_router(master_data.router)
+v1.include_router(drafts.router)
+v1.include_router(saved_views.router)
+v1.include_router(delegations.router)
 app.include_router(v1)
 
 

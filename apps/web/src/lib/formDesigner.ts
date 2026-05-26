@@ -9,7 +9,12 @@ export type DesignerControlId =
   | "options"
   | "date"
   | "time"
-  | "label";
+  | "label"
+  | "currency"
+  | "yesno"
+  | "section"
+  | "attachment"
+  | "master_dropdown";
 
 export type DesignerField = FormField & {
   /** Stable id for drag-and-drop (not persisted). */
@@ -35,7 +40,27 @@ export const DESIGNER_CONTROLS: {
   { id: "date", label: "Date picker", hint: "Calendar date" },
   { id: "time", label: "Time picker", hint: "Time of day" },
   { id: "label", label: "Label", hint: "Static heading or help text" },
+  { id: "currency", label: "Currency amount", hint: "Monetary value with validation" },
+  { id: "yesno", label: "Yes / No", hint: "Binary choice" },
+  { id: "section", label: "Section header", hint: "Visual divider and instructions" },
+  { id: "attachment", label: "Attachment", hint: "File upload on submit" },
+  {
+    id: "master_dropdown",
+    label: "Master data list",
+    hint: "Dropdown from company master data library",
+  },
 ];
+
+export const MASTER_DATA_CATEGORIES = [
+  "department",
+  "branch",
+  "cost_center",
+  "vendor",
+  "project",
+  "expense_type",
+  "category",
+  "approval_limit",
+] as const;
 
 let fieldCounter = 0;
 
@@ -79,6 +104,16 @@ export function schemaTypeForControl(control: DesignerControlId): string {
       return "time";
     case "label":
       return "label";
+    case "currency":
+      return "currency";
+    case "yesno":
+      return "yesno";
+    case "section":
+      return "section";
+    case "attachment":
+      return "attachment";
+    case "master_dropdown":
+      return "master_dropdown";
     default:
       return "text";
   }
@@ -105,15 +140,31 @@ export function createDesignerField(control: DesignerControlId): DesignerField {
     base.buttonText = "Submit";
     base.required = false;
   }
-  if (control === "label") {
+  if (control === "label" || control === "section") {
     base.content = "Section heading or instructions";
+    base.required = false;
+  }
+  if (control === "yesno") {
+    base.options = [
+      { value: "yes", label: "Yes" },
+      { value: "no", label: "No" },
+    ];
+  }
+  if (control === "master_dropdown") {
+    base.optionSource = { type: "master_data", category: "department" };
+  }
+  if (control === "attachment") {
     base.required = false;
   }
   return base;
 }
 
 export function isInputField(field: FormField): boolean {
-  return field.type !== "label" && field.type !== "button";
+  return (
+    field.type !== "label" &&
+    field.type !== "button" &&
+    field.type !== "section"
+  );
 }
 
 export function toPersistedSchema(design: FormDesignerSchema): {

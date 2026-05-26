@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { ThemeScope } from "../context/ThemeContext";
 import { ApprovalActions } from "../components/ApprovalActions";
 import { HelpTip } from "../components/HelpTip";
@@ -12,6 +12,7 @@ import {
   apiFetch,
   FormField,
   InboxItem,
+  listInbox,
   RequestDetail,
   WorkflowSummary,
 } from "../lib/api";
@@ -31,6 +32,11 @@ export function InboxPage() {
   const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
   const [workflowFilter, setWorkflowFilter] = useState("");
   const [search, setSearch] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+  const [minAmount, setMinAmount] = useState("");
+  const [maxAmount, setMaxAmount] = useState("");
+  const [department, setDepartment] = useState("");
   const [overdueOnly, setOverdueOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<RequestDetail | null>(null);
@@ -46,12 +52,26 @@ export function InboxPage() {
     ? (detail!.form_layout as FormLayout)
     : "stacked";
 
+  const inboxParams = useCallback(
+    () => ({
+      q: search.trim() || undefined,
+      workflow_id: workflowFilter || undefined,
+      from: dateFrom ? `${dateFrom}T00:00:00` : undefined,
+      to: dateTo ? `${dateTo}T23:59:59` : undefined,
+      min_amount: minAmount ? Number(minAmount) : undefined,
+      max_amount: maxAmount ? Number(maxAmount) : undefined,
+      department: department.trim() || undefined,
+      overdue_only: overdueOnly,
+    }),
+    [search, workflowFilter, dateFrom, dateTo, minAmount, maxAmount, department, overdueOnly]
+  );
+
   const loadInbox = useCallback(() => {
-    return apiFetch<InboxItem[]>("/api/v1/inbox", {}, getToken()).then((data) => {
+    return listInbox(inboxParams(), getToken()).then((data) => {
       setItems(data);
       return data;
     });
-  }, []);
+  }, [inboxParams]);
 
   useEffect(() => {
     loadInbox().catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed"));
@@ -60,25 +80,7 @@ export function InboxPage() {
       .catch(() => {});
   }, [loadInbox]);
 
-  const filteredItems = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    return items.filter((item) => {
-      if (workflowFilter && item.workflow_name !== workflowFilter) return false;
-      if (overdueOnly && !isRequestOverdue(item.submitted_at, null, "in_progress")) return false;
-      if (!q) return true;
-      const hay = [
-        item.reference_number,
-        item.workflow_name,
-        item.originator_name,
-        item.step_name,
-        item.amount_preview,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-      return hay.includes(q);
-    });
-  }, [items, workflowFilter, search, overdueOnly]);
+  const filteredItems = items;
 
   async function claimTask(requestId: string) {
     setError("");
@@ -140,11 +142,7 @@ export function InboxPage() {
       setComment("");
       const remaining = await loadInbox();
       setDetail(null);
-      const next = remaining.filter((i) => {
-        if (workflowFilter && i.workflow_name !== workflowFilter) return false;
-        if (overdueOnly && !isRequestOverdue(i.submitted_at, null, "in_progress")) return false;
-        return true;
-      });
+      const next = remaining;
       if (next.length > 0) {
         await openItem(next[0].request_id);
       } else {
@@ -183,37 +181,89 @@ export function InboxPage() {
         }
       />
 
-      <div className="flex flex-col lg:flex-row flex-wrap gap-3 mb-4 p-3 wf-card">
-        <select
-          value={workflowFilter}
-          onChange={(e) => setWorkflowFilter(e.target.value)}
-          className="wf-input max-w-xs"
-          aria-label="Filter by workflow"
-        >
-          <option value="">All workflows</option>
-          {workflows.map((w) => (
-            <option key={w.id} value={w.name}>
-              {w.name}
-            </option>
-          ))}
-        </select>
-        <input
-          type="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search reference, originator…"
-          className="wf-input flex-1 min-w-[12rem]"
-          aria-label="Search inbox"
-        />
-        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer shrink-0">
+      <div className="flex flex-col gap-3 mb-4 p-3 wf-card">
+        <div className="flex flex-col lg:flex-row flex-wrap gap-3">
+          <select
+            value={workflowFilter}
+            onChange={(e) => setWorkflowFilter(e.target.value)}
+            className="wf-input max-w-xs"
+            aria-label="Filter by workflow"
+          >
+            <option value="">All workflows</option>
+            {workflows.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name}
+              </option>
+            ))}
+          </select>
           <input
-            type="checkbox"
-            checked={overdueOnly}
-            onChange={(e) => setOverdueOnly(e.target.checked)}
-            className="rounded border-slate-300"
+            type="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && void loadInbox()}
+            placeholder="Search reference, originator…"
+            className="wf-input flex-1 min-w-[12rem]"
+            aria-label="Search inbox"
           />
-          Overdue only
-        </label>
+          <button type="button" onClick={() => void loadInbox()} className="wf-btn-secondary text-sm px-3">
+            Apply filters
+          </button>
+        </div>
+        <div className="flex flex-wrap gap-3">
+          <label className="text-xs text-slate-600">
+            From
+            <input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              className="wf-input block mt-0.5"
+            />
+          </label>
+          <label className="text-xs text-slate-600">
+            To
+            <input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              className="wf-input block mt-0.5"
+            />
+          </label>
+          <label className="text-xs text-slate-600">
+            Min amount
+            <input
+              type="number"
+              value={minAmount}
+              onChange={(e) => setMinAmount(e.target.value)}
+              className="wf-input block mt-0.5 w-28"
+            />
+          </label>
+          <label className="text-xs text-slate-600">
+            Max amount
+            <input
+              type="number"
+              value={maxAmount}
+              onChange={(e) => setMaxAmount(e.target.value)}
+              className="wf-input block mt-0.5 w-28"
+            />
+          </label>
+          <label className="text-xs text-slate-600 flex-1 min-w-[8rem]">
+            Department
+            <input
+              value={department}
+              onChange={(e) => setDepartment(e.target.value)}
+              className="wf-input block mt-0.5 w-full max-w-xs"
+            />
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer shrink-0 self-end pb-1">
+            <input
+              type="checkbox"
+              checked={overdueOnly}
+              onChange={(e) => setOverdueOnly(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Overdue only
+          </label>
+        </div>
       </div>
 
       {error && <p className="text-sm text-red-600 mb-2">{error}</p>}

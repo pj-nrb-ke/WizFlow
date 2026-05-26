@@ -18,8 +18,10 @@ import {
   getAnalyticsTrends,
   getBottlenecks,
   getDepartmentPerformance,
+  getCompliance,
   getExceptionsSummary,
   getExecutiveSummary,
+  type ComplianceOut,
   getFinancialSummary,
   getUserPerformance,
   getWorkflowPerformance,
@@ -36,7 +38,7 @@ import {
 import { getToken } from "../lib/auth";
 import { canAccessReports } from "../lib/roles";
 
-type TabId = "overview" | "workflows" | "people" | "financial" | "exceptions";
+type TabId = "overview" | "workflows" | "people" | "financial" | "exceptions" | "compliance";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
@@ -44,6 +46,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "people", label: "People" },
   { id: "financial", label: "Financial" },
   { id: "exceptions", label: "Exceptions" },
+  { id: "compliance", label: "Compliance" },
 ];
 
 function fmtNum(n: number) {
@@ -83,6 +86,7 @@ export function AnalyticsPage() {
   const [userRows, setUserRows] = useState<UserPerformanceRow[]>([]);
   const [financial, setFinancial] = useState<FinancialSummary | null>(null);
   const [exceptions, setExceptions] = useState<ExceptionsSummary | null>(null);
+  const [compliance, setCompliance] = useState<ComplianceOut | null>(null);
   const [narrative, setNarrative] = useState("");
   const [anomalyCount, setAnomalyCount] = useState(0);
 
@@ -122,6 +126,8 @@ export function AnalyticsPage() {
         setUserRows(await getUserPerformance(params, token));
       } else if (tab === "financial") {
         setFinancial(await getFinancialSummary(params, token));
+      } else if (tab === "compliance") {
+        setCompliance(await getCompliance(params, token));
       } else {
         setExceptions(await getExceptionsSummary(params, token));
       }
@@ -209,7 +215,13 @@ export function AnalyticsPage() {
         </div>
       )}
 
-      {loading && !executive && !workflowRows.length && !userRows.length && !financial && !exceptions ? (
+      {loading &&
+      !executive &&
+      !workflowRows.length &&
+      !userRows.length &&
+      !financial &&
+      !exceptions &&
+      !compliance ? (
         <p className="text-slate-500 py-12 text-center">Loading analytics…</p>
       ) : (
         <>
@@ -266,8 +278,58 @@ export function AnalyticsPage() {
           {tab === "exceptions" && exceptions && (
             <ExceptionsTab summary={exceptions} />
           )}
+          {tab === "compliance" && compliance && (
+            <ComplianceTab summary={compliance} />
+          )}
         </>
       )}
+    </div>
+  );
+}
+
+function ComplianceTab({ summary }: { summary: ComplianceOut }) {
+  return (
+    <div className="space-y-6">
+      <section className="wf-analytics-kpi-grid">
+        <KpiCard label="Open requests" value={fmtNum(summary.total_open)} to="/inbox" />
+        <KpiCard
+          label="Missing documents"
+          value={fmtNum(summary.missing_documents)}
+          deltaHint="Flagged on open requests"
+          subdued
+        />
+        <KpiCard
+          label="Overdue without action"
+          value={fmtNum(summary.overdue_without_action)}
+          to="/inbox?overdue=1"
+        />
+        <KpiCard
+          label="Returned (not resubmitted)"
+          value={fmtNum(summary.returned_without_resubmit)}
+          to="/requests?status=returned"
+        />
+      </section>
+      <div className="wf-card p-5">
+        <h2 className="font-semibold text-slate-800 mb-3">Policy gaps</h2>
+        {summary.policy_gaps.length === 0 ? (
+          <p className="text-sm text-slate-500">No policy gaps detected in this period.</p>
+        ) : (
+          <ul className="divide-y text-sm">
+            {summary.policy_gaps.map((g, i) => (
+              <li key={`${g.type}-${g.reference_number}-${i}`} className="py-2">
+                <span className="text-xs uppercase text-amber-700 font-medium">{g.type}</span>
+                <p className="text-slate-800">{g.message}</p>
+                {g.workflow_name && (
+                  <p className="text-xs text-slate-500">{g.workflow_name}</p>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
+        <p className="text-xs text-slate-400 mt-4">
+          Generated {new Date(summary.generated_at).toLocaleString()}
+        </p>
+      </div>
     </div>
   );
 }

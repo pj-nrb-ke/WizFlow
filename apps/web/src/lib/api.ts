@@ -59,6 +59,19 @@ export async function apiUpload<T>(
   return res.json() as Promise<T>;
 }
 
+export type NotificationPreferences = {
+  email: boolean;
+  in_app: boolean;
+  push: boolean;
+  whatsapp: boolean;
+};
+
+export type CompanyBranding = {
+  logo_url: string | null;
+  brand_color: string | null;
+  display_name?: string | null;
+};
+
 export type UserProfile = {
   id: string;
   email: string;
@@ -66,6 +79,8 @@ export type UserProfile = {
   company_id: string | null;
   company_name: string | null;
   roles: string[];
+  notification_preferences?: NotificationPreferences;
+  company_branding?: CompanyBranding;
 };
 
 export type TokenResponse = {
@@ -138,6 +153,11 @@ export type AiDraftResponse = {
 
 export type FormFieldOption = { value: string; label: string };
 
+export type FormFieldOptionSource = {
+  type: "static" | "master_data";
+  category?: string;
+};
+
 export type FormField = {
   key: string;
   type: string;
@@ -145,10 +165,73 @@ export type FormField = {
   required?: boolean;
   placeholder?: string;
   options?: FormFieldOption[];
-  /** Static text for type `label`. */
+  optionSource?: FormFieldOptionSource;
+  visibleTo?: string[];
+  editableBy?: string[];
+  /** Static text for type `label` or `section`. */
   content?: string;
   /** Caption for type `button`. */
   buttonText?: string;
+};
+
+export type MasterDataEntry = {
+  id: string;
+  category: string;
+  code: string;
+  label: string;
+  meta: Record<string, unknown>;
+  is_active: boolean;
+};
+
+export type RequestDraft = {
+  id: string;
+  workflow_definition_id: string;
+  workflow_name: string;
+  data: Record<string, unknown>;
+  updated_at: string;
+};
+
+export type SavedReportView = {
+  id: string;
+  name: string;
+  report_type: string;
+  filters: Record<string, unknown>;
+  created_at: string;
+};
+
+export type Delegation = {
+  id: string;
+  user_id: string;
+  delegate_user_id: string;
+  delegate_name: string;
+  starts_at: string;
+  ends_at: string;
+  is_active: boolean;
+};
+
+export type WizardQuestion = {
+  id: string;
+  prompt: string;
+  type: string;
+  default?: string;
+};
+
+export type WizardQuestionsOut = {
+  questions: WizardQuestion[];
+  initial_hint: string;
+};
+
+export type ComplianceOut = {
+  total_open: number;
+  missing_documents: number;
+  overdue_without_action: number;
+  returned_without_resubmit: number;
+  policy_gaps: { type: string; reference_number?: string | null; workflow_name?: string; message: string }[];
+  generated_at: string;
+};
+
+export type CompanySettings = {
+  data_retention_days?: number | null;
 };
 
 export type SimulationResult = {
@@ -256,14 +339,10 @@ export type Notification = {
   notification_type?: string | null;
 };
 
+/** @deprecated Use NotificationPreferences from auth/me */
 export type UserPreferences = {
   email_enabled: boolean;
   in_app_enabled: boolean;
-};
-
-export type CompanyBranding = {
-  logo_url: string | null;
-  brand_color: string | null;
 };
 
 export type SetupStatus = {
@@ -322,15 +401,62 @@ export async function apiDownload(
   URL.revokeObjectURL(url);
 }
 
-export function listMyRequests(
-  params?: { q?: string; status?: string },
-  token?: string | null
-) {
+export type RequestListParams = {
+  q?: string;
+  status?: string;
+  workflow_id?: string;
+  from?: string;
+  to?: string;
+  min_amount?: number;
+  max_amount?: number;
+  department?: string;
+};
+
+function requestListQuery(params?: RequestListParams): string {
   const search = new URLSearchParams();
   if (params?.q?.trim()) search.set("q", params.q.trim());
   if (params?.status) search.set("status", params.status);
+  if (params?.workflow_id) search.set("workflow_id", params.workflow_id);
+  if (params?.from) search.set("from", params.from);
+  if (params?.to) search.set("to", params.to);
+  if (params?.min_amount != null) search.set("min_amount", String(params.min_amount));
+  if (params?.max_amount != null) search.set("max_amount", String(params.max_amount));
+  if (params?.department?.trim()) search.set("department", params.department.trim());
   const qs = search.toString();
-  return apiFetch<RequestSummary[]>(`/api/v1/requests${qs ? `?${qs}` : ""}`, {}, token);
+  return qs ? `?${qs}` : "";
+}
+
+export function listMyRequests(params?: RequestListParams, token?: string | null) {
+  return apiFetch<RequestSummary[]>(`/api/v1/requests${requestListQuery(params)}`, {}, token);
+}
+
+export type InboxListParams = {
+  q?: string;
+  workflow_id?: string;
+  from?: string;
+  to?: string;
+  min_amount?: number;
+  max_amount?: number;
+  department?: string;
+  overdue_only?: boolean;
+};
+
+function inboxListQuery(params?: InboxListParams): string {
+  const search = new URLSearchParams();
+  if (params?.q?.trim()) search.set("q", params.q.trim());
+  if (params?.workflow_id) search.set("workflow_id", params.workflow_id);
+  if (params?.from) search.set("from", params.from);
+  if (params?.to) search.set("to", params.to);
+  if (params?.min_amount != null) search.set("min_amount", String(params.min_amount));
+  if (params?.max_amount != null) search.set("max_amount", String(params.max_amount));
+  if (params?.department?.trim()) search.set("department", params.department.trim());
+  if (params?.overdue_only) search.set("overdue_only", "true");
+  const qs = search.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export function listInbox(params?: InboxListParams, token?: string | null) {
+  return apiFetch<InboxItem[]>(`/api/v1/inbox${inboxListQuery(params)}`, {}, token);
 }
 
 export function getSetupStatus(token?: string | null) {
@@ -345,16 +471,143 @@ export function listWorkflowTemplates(token?: string | null) {
   return apiFetch<WorkflowTemplate[]>("/api/v1/templates", {}, token);
 }
 
-export function getUserPreferences(token?: string | null) {
-  return apiFetch<UserPreferences>("/api/v1/users/me/preferences", {}, token);
-}
-
-export function patchUserPreferences(
-  body: Partial<UserPreferences>,
+export function patchNotificationPreferences(
+  body: Partial<NotificationPreferences>,
   token?: string | null
 ) {
-  return apiFetch<UserPreferences>(
+  return apiFetch<NotificationPreferences>(
     "/api/v1/users/me/preferences",
+    { method: "PATCH", body: JSON.stringify(body) },
+    token
+  );
+}
+
+export function listMasterDataCategories(token?: string | null) {
+  return apiFetch<{ categories: string[] }>("/api/v1/master-data/categories", {}, token);
+}
+
+export function listMasterData(category?: string, token?: string | null) {
+  const qs = category ? `?category=${encodeURIComponent(category)}` : "";
+  return apiFetch<MasterDataEntry[]>(`/api/v1/master-data${qs}`, {}, token);
+}
+
+export function createMasterDataEntry(
+  body: { category: string; code: string; label: string; meta?: Record<string, unknown> },
+  token?: string | null
+) {
+  return apiFetch<MasterDataEntry>(
+    "/api/v1/master-data",
+    { method: "POST", body: JSON.stringify(body) },
+    token
+  );
+}
+
+export function updateMasterDataEntry(
+  id: string,
+  body: { label?: string; meta?: Record<string, unknown>; is_active?: boolean },
+  token?: string | null
+) {
+  return apiFetch<MasterDataEntry>(
+    `/api/v1/master-data/${id}`,
+    { method: "PATCH", body: JSON.stringify(body) },
+    token
+  );
+}
+
+export function deleteMasterDataEntry(id: string, token?: string | null) {
+  return apiFetch<void>(`/api/v1/master-data/${id}`, { method: "DELETE" }, token);
+}
+
+export function listRequestDrafts(token?: string | null) {
+  return apiFetch<RequestDraft[]>("/api/v1/drafts", {}, token);
+}
+
+export function deleteRequestDraft(id: string, token?: string | null) {
+  return apiFetch<void>(`/api/v1/drafts/${id}`, { method: "DELETE" }, token);
+}
+
+export function postWizardQuestions(description: string, token?: string | null) {
+  return apiFetch<WizardQuestionsOut>(
+    "/api/v1/ai/workflow/wizard/questions",
+    { method: "POST", body: JSON.stringify({ description }) },
+    token
+  );
+}
+
+export function postWizardFinalize(
+  description: string,
+  answers: Record<string, string>,
+  token?: string | null
+) {
+  return apiFetch<AiDraftResponse>(
+    "/api/v1/ai/workflow/wizard/finalize",
+    { method: "POST", body: JSON.stringify({ description, answers }) },
+    token
+  );
+}
+
+export function tuneWorkflow(workflowId: string, instruction: string, token?: string | null) {
+  return apiFetch<{ explanation: string; workflow_id: string }>(
+    `/api/v1/workflows/${workflowId}/tune`,
+    { method: "POST", body: JSON.stringify({ instruction }) },
+    token
+  );
+}
+
+export function getCompliance(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<ComplianceOut>(
+    `/api/v1/analytics/compliance${analyticsQuery(params)}`,
+    {},
+    token
+  );
+}
+
+export function listSavedReportViews(reportType?: string, token?: string | null) {
+  const qs = reportType ? `?report_type=${encodeURIComponent(reportType)}` : "";
+  return apiFetch<SavedReportView[]>(`/api/v1/saved-views${qs}`, {}, token);
+}
+
+export function createSavedReportView(
+  body: { name: string; report_type: string; filters: Record<string, unknown> },
+  token?: string | null
+) {
+  return apiFetch<SavedReportView>(
+    "/api/v1/saved-views",
+    { method: "POST", body: JSON.stringify(body) },
+    token
+  );
+}
+
+export function deleteSavedReportView(id: string, token?: string | null) {
+  return apiFetch<void>(`/api/v1/saved-views/${id}`, { method: "DELETE" }, token);
+}
+
+export function listDelegations(token?: string | null) {
+  return apiFetch<Delegation[]>("/api/v1/delegations", {}, token);
+}
+
+export function createDelegation(
+  body: { delegate_user_id: string; starts_at: string; ends_at: string },
+  token?: string | null
+) {
+  return apiFetch<Delegation>(
+    "/api/v1/delegations",
+    { method: "POST", body: JSON.stringify(body) },
+    token
+  );
+}
+
+export function revokeDelegation(id: string, token?: string | null) {
+  return apiFetch<void>(`/api/v1/delegations/${id}`, { method: "DELETE" }, token);
+}
+
+export function getCompanySettings(token?: string | null) {
+  return apiFetch<CompanySettings>("/api/v1/admin/company/settings", {}, token);
+}
+
+export function patchCompanySettings(body: CompanySettings, token?: string | null) {
+  return apiFetch<CompanySettings>(
+    "/api/v1/admin/company/settings",
     { method: "PATCH", body: JSON.stringify(body) },
     token
   );

@@ -1,7 +1,8 @@
+from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -18,6 +19,8 @@ from app.schemas.request import (
 from app.services import instance_engine
 from app.services.approval_notify import notify_approvers_for_step
 from app.services.csv_export import rows_to_csv
+from app.services.pdf_export import text_to_pdf
+from app.services.xlsx_export import rows_to_xlsx
 from app.services.event_labels import label_for_event
 from app.services.instance_queries import get_instance, to_out, to_summary
 from app.services.request_filters import list_my_requests as query_my_requests
@@ -39,6 +42,11 @@ def list_my_requests(
     status: str | None = Query(None, description="Comma-separated statuses"),
     q: str | None = Query(None, description="Search reference number or workflow name"),
     workflow_id: UUID | None = None,
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    min_amount: float | None = None,
+    max_amount: float | None = None,
+    department: str | None = None,
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> list[WorkflowInstanceSummary]:
@@ -49,6 +57,11 @@ def list_my_requests(
         status=status,
         q_text=q,
         workflow_id=workflow_id,
+        date_from=from_date,
+        date_to=to_date,
+        min_amount=min_amount,
+        max_amount=max_amount,
+        department=department,
     )
     return _summaries_for_instances(db, rows)
 
@@ -58,6 +71,11 @@ def export_my_requests_csv(
     status: str | None = Query(None),
     q: str | None = None,
     workflow_id: UUID | None = None,
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    min_amount: float | None = None,
+    max_amount: float | None = None,
+    department: str | None = None,
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> str:
@@ -68,6 +86,11 @@ def export_my_requests_csv(
         status=status,
         q_text=q,
         workflow_id=workflow_id,
+        date_from=from_date,
+        date_to=to_date,
+        min_amount=min_amount,
+        max_amount=max_amount,
+        department=department,
     )
     summaries = _summaries_for_instances(db, rows)
     rows = [
@@ -84,6 +107,44 @@ def export_my_requests_csv(
     return rows_to_csv(
         ["reference_number", "workflow_name", "status", "current_step", "submitted_at", "amount"],
         rows,
+    )
+
+
+@router.get("/export.xlsx")
+def export_my_requests_xlsx(
+    status: str | None = Query(None),
+    q: str | None = None,
+    workflow_id: UUID | None = None,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> Response:
+    rows = query_my_requests(
+        db,
+        company_id=user.company_id,
+        originator_user_id=user.id,
+        status=status,
+        q_text=q,
+        workflow_id=workflow_id,
+    )
+    summaries = _summaries_for_instances(db, rows)
+    data = rows_to_xlsx(
+        ["reference_number", "workflow_name", "status", "current_step", "submitted_at", "amount"],
+        [
+            [
+                s.reference_number or "",
+                s.workflow_name,
+                s.status,
+                s.current_step_name or s.current_step or "",
+                s.submitted_at.isoformat() if s.submitted_at else "",
+                s.amount_preview or "",
+            ]
+            for s in summaries
+        ],
+    )
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=my-requests.xlsx"},
     )
 
 
@@ -206,3 +267,29 @@ def audit_export(
         )
     body = rows_to_csv(["timestamp", "event_type", "actor", "step", "comment"], rows)
     return PlainTextResponse(content=body, media_type="text/csv")
+
+
+@router.get("/{request_id}/audit-export.pdf")
+def audit_export_pdf(
+    request_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> Response:
+    inst = get_instance(db, request_id, user.company_id)
+    events = db.scalars(
+        select(WorkflowEvent)
+        .where(
+            WorkflowEvent.company_id == user.company_id,
+            WorkflowEvent.instance_id == inst.id,
+        )
+        .order_by(WorkflowEvent.created_at.asc())
+    )
+    lines = [f"Audit trail — {inst.reference_number or inst.id}", f"Workflow: {inst.workflow_name}", ""]
+    for ev in events:
+        actor_name = ""
+        if ev.actor_user_id:
+            u = db.get(User, ev.actor_user_id)
+            actor_name = u.full_name if u else ""
+        lines.append(f"{ev.created_at.isoformat()} | {ev.event_type} | {actor_name}")
+    pdf = text_to_pdf("WizFlow Audit Export", lines)
+    return Response(content=pdf, media_type="application/pdf")

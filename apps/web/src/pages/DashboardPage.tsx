@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { StatusBadge } from "../components/StatusBadge";
+import { VoiceCommandBar } from "../components/VoiceCommandBar";
 import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
 import { apiFetch, InboxItem, Notification, RequestSummary, WorkflowSummary } from "../lib/api";
@@ -102,6 +103,8 @@ export function DashboardPage() {
           </Link>
         )}
       </section>
+
+      <VoiceCommandBar />
 
       {showAnalytics && (
         <Link to="/analytics" className="wf-analytics-promo wf-card mb-6 block">

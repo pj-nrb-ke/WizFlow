@@ -1,4 +1,7 @@
-import type { FormField, FormFieldOption } from "../lib/api";
+import { useEffect, useState } from "react";
+import type { FormField, FormFieldOption, MasterDataEntry } from "../lib/api";
+import { listMasterData } from "../lib/api";
+import { getToken } from "../lib/auth";
 import { sanitizePositiveNumberInput } from "../lib/numberInput";
 
 type Props = {
@@ -23,6 +26,38 @@ function OptionsList({ options }: { options: FormFieldOption[] }) {
   );
 }
 
+function useMasterDataOptions(field: FormField): FormFieldOption[] {
+  const [options, setOptions] = useState<FormFieldOption[]>(field.options ?? []);
+  const category =
+    field.optionSource?.type === "master_data" ? field.optionSource.category : undefined;
+
+  useEffect(() => {
+    if (field.optionSource?.type !== "master_data" || !category) {
+      setOptions(field.options ?? []);
+      return;
+    }
+    let cancelled = false;
+    listMasterData(category, getToken())
+      .then((rows: MasterDataEntry[]) => {
+        if (cancelled) return;
+        setOptions(
+          rows.map((r) => ({
+            value: r.code,
+            label: r.label,
+          }))
+        );
+      })
+      .catch(() => {
+        if (!cancelled) setOptions(field.options ?? []);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [category, field.optionSource?.type, field.options]);
+
+  return options;
+}
+
 export function FormFieldControl({
   field,
   value,
@@ -33,6 +68,22 @@ export function FormFieldControl({
 }: Props) {
   const disabled = readOnly || !onChange;
   const set = (v: string) => onChange?.(v);
+  const masterOptions = useMasterDataOptions(field);
+  const options =
+    field.optionSource?.type === "master_data" ? masterOptions : (field.options ?? []);
+
+  if (field.type === "section") {
+    return (
+      <div className="border-t border-slate-200 pt-4 mt-2">
+        {field.label && (
+          <p className="text-sm font-semibold text-slate-800 mb-1">{field.label}</p>
+        )}
+        {field.content && (
+          <p className="text-sm text-slate-600 whitespace-pre-wrap">{field.content}</p>
+        )}
+      </div>
+    );
+  }
 
   if (field.type === "label") {
     return (
@@ -62,15 +113,30 @@ export function FormFieldControl({
 
   if (readOnly) {
     const roClass =
-      variant === "hero"
-        ? "wf-readonly-value"
-        : "text-slate-800 font-medium";
+      variant === "hero" ? "wf-readonly-value" : "text-slate-800 font-medium";
+    if (field.type === "yesno") {
+      const label = options.find((o) => o.value === value)?.label ?? value;
+      return <p className={roClass}>{label || "—"}</p>;
+    }
     return <p className={roClass}>{value || "—"}</p>;
   }
 
-  const options = field.options ?? [];
+  if (field.type === "attachment") {
+    return (
+      <input
+        type="file"
+        disabled={disabled}
+        className={`${className} text-sm`}
+        onChange={(e) => set(e.target.files?.[0]?.name ?? "")}
+      />
+    );
+  }
 
-  if (field.type === "dropdown" || field.type === "listbox") {
+  if (
+    field.type === "dropdown" ||
+    field.type === "listbox" ||
+    field.type === "master_dropdown"
+  ) {
     return (
       <select
         required={field.required}
@@ -102,7 +168,7 @@ export function FormFieldControl({
     );
   }
 
-  if (field.type === "radio" || field.type === "options") {
+  if (field.type === "radio" || field.type === "options" || field.type === "yesno") {
     return (
       <div className="space-y-2" role="radiogroup" aria-label={field.label}>
         {options.map((o) => (
@@ -158,7 +224,7 @@ export function FormFieldControl({
     );
   }
 
-  if (field.type === "number") {
+  if (field.type === "number" || field.type === "currency") {
     return (
       <input
         type="text"
@@ -178,7 +244,7 @@ export function FormFieldControl({
           set(sanitizePositiveNumberInput(text));
         }}
         className={`${className} wf-input-number`}
-        placeholder={field.placeholder}
+        placeholder={field.placeholder ?? (field.type === "currency" ? "0.00" : undefined)}
       />
     );
   }
@@ -204,7 +270,7 @@ type BlockProps = {
 };
 
 export function FormFieldBlock({ field, value, onChange, readOnly, highlight }: BlockProps) {
-  if (field.type === "label") {
+  if (field.type === "label" || field.type === "section") {
     return <FormFieldControl field={field} value="" readOnly={readOnly} />;
   }
 
@@ -216,7 +282,7 @@ export function FormFieldBlock({ field, value, onChange, readOnly, highlight }: 
     );
   }
 
-  if (highlight && field.key === "amount") {
+  if (highlight && (field.key === "amount" || field.type === "currency")) {
     return (
       <div className="wf-form-hero-amount">
         <label className="block text-sm font-medium mb-1">

@@ -1,55 +1,63 @@
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ApiError, AiDraftResponse, apiFetch, WorkflowDefinition } from "../lib/api";
+import { HelpTip } from "../components/HelpTip";
+import { PageHeader } from "../components/PageHeader";
+import {
+  AiDraftResponse,
+  ApiError,
+  apiFetch,
+  postWizardFinalize,
+  postWizardQuestions,
+  WizardQuestion,
+  WorkflowDefinition,
+} from "../lib/api";
 import { getToken } from "../lib/auth";
+
+type Step = "describe" | "questions" | "preview";
 
 export function AiWorkflowPage() {
   const navigate = useNavigate();
+  const [step, setStep] = useState<Step>("describe");
   const [description, setDescription] = useState(
     "Purchase request workflow: manager approves under 10k, finance above 10k. Fields: amount, vendor, item description."
   );
-  const [refineText, setRefineText] = useState("");
+  const [questions, setQuestions] = useState<WizardQuestion[]>([]);
+  const [hint, setHint] = useState("");
+  const [answers, setAnswers] = useState<Record<string, string>>({});
   const [draft, setDraft] = useState<AiDraftResponse | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  async function generate() {
+  async function loadQuestions() {
     setError("");
     setBusy(true);
     try {
-      const result = await apiFetch<AiDraftResponse>(
-        "/api/v1/ai/workflow/draft",
-        { method: "POST", body: JSON.stringify({ description }) },
-        getToken()
-      );
-      setDraft(result);
+      const res = await postWizardQuestions(description, getToken());
+      setQuestions(res.questions);
+      setHint(res.initial_hint);
+      const initial: Record<string, string> = {};
+      for (const q of res.questions) {
+        initial[q.id] = q.default ?? "";
+      }
+      setAnswers(initial);
+      setStep("questions");
     } catch (e) {
-      setError(e instanceof ApiError ? e.detail ?? e.message : "Draft failed");
+      setError(e instanceof ApiError ? e.detail ?? e.message : "Could not load questions");
     } finally {
       setBusy(false);
     }
   }
 
-  async function refine() {
-    if (!draft || !refineText.trim()) return;
+  async function finalize(e: FormEvent) {
+    e.preventDefault();
     setError("");
     setBusy(true);
     try {
-      const result = await apiFetch<AiDraftResponse>(
-        "/api/v1/ai/workflow/refine",
-        {
-          method: "POST",
-          body: JSON.stringify({
-            instruction: refineText,
-            current_draft: draft.draft,
-          }),
-        },
-        getToken()
-      );
+      const result = await postWizardFinalize(description, answers, getToken());
       setDraft(result);
-      setRefineText("");
-    } catch (e) {
-      setError(e instanceof ApiError ? e.detail ?? e.message : "Refine failed");
+      setStep("preview");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Finalize failed");
     } finally {
       setBusy(false);
     }
@@ -68,9 +76,9 @@ export function AiWorkflowPage() {
         },
         getToken()
       );
-      navigate(`/workflows`, { state: { openId: saved.id } });
-    } catch (e) {
-      setError(e instanceof ApiError ? e.detail ?? e.message : "Save failed");
+      navigate("/workflows", { state: { openId: saved.id } });
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Save failed");
     } finally {
       setBusy(false);
     }
@@ -84,34 +92,113 @@ export function AiWorkflowPage() {
 
   return (
     <div>
-      <h1 className="text-2xl font-bold text-slate-800 mb-2">AI Workflow Creator</h1>
-      <p className="text-sm text-slate-500 mb-4">
-        Describe a process in plain language. Review the draft, refine it, then save and publish from
-        Workflows.
-      </p>
+      <PageHeader
+        title="AI Workflow Wizard"
+        subtitle="Describe your process, answer a few questions, then review and save as a draft workflow."
+        help={
+          <HelpTip text="The guided wizard builds form fields, approval steps, SLA, and notifications from your answers. Publish from Workflows after preview and test." />
+        }
+      />
+
+      <ol className="flex flex-wrap gap-2 mb-6 text-xs">
+        {(["Describe", "Questions", "Preview"] as const).map((label, i) => {
+          const active =
+            (step === "describe" && i === 0) ||
+            (step === "questions" && i === 1) ||
+            (step === "preview" && i === 2);
+          const done =
+            (step === "questions" && i === 0) ||
+            (step === "preview" && i <= 1);
+          return (
+            <li
+              key={label}
+              className={`px-3 py-1 rounded-full border ${
+                active
+                  ? "border-[rgb(var(--wf-brand-600))] bg-[rgb(var(--wf-accent-muted))] font-semibold"
+                  : done
+                    ? "border-green-200 bg-green-50 text-green-800"
+                    : "border-slate-200 text-slate-500"
+              }`}
+            >
+              {done && !active ? "✓ " : ""}
+              {label}
+            </li>
+          );
+        })}
+      </ol>
+
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
-      <div className="bg-white rounded-lg border border-slate-200 p-4 mb-4">
-        <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
-        <textarea
-          value={description}
-          onChange={(e) => setDescription(e.target.value)}
-          rows={4}
-          className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm"
-        />
-        <button
-          type="button"
-          disabled={busy || description.length < 10}
-          onClick={generate}
-          className="mt-3 px-4 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
-        >
-          {busy ? "Working…" : "Generate draft"}
-        </button>
-      </div>
+      {step === "describe" && (
+        <div className="wf-card p-4">
+          <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
+          <textarea
+            value={description}
+            onChange={(e) => setDescription(e.target.value)}
+            rows={5}
+            className="wf-input w-full"
+          />
+          <button
+            type="button"
+            disabled={busy || description.length < 10}
+            onClick={() => void loadQuestions()}
+            className="mt-3 px-4 py-2 wf-btn-primary text-sm disabled:opacity-50"
+          >
+            {busy ? "Working…" : "Continue to questions"}
+          </button>
+        </div>
+      )}
 
-      {draft && (
+      {step === "questions" && (
+        <form onSubmit={finalize} className="wf-card p-4 space-y-4">
+          {hint && <p className="text-sm text-slate-600">{hint}</p>}
+          {questions.map((q) => (
+            <label key={q.id} className="block text-sm">
+              <span className="font-medium text-slate-800">{q.prompt}</span>
+              {q.type === "yesno" ? (
+                <select
+                  className="wf-input mt-1 w-full max-w-xs"
+                  value={answers[q.id] ?? "yes"}
+                  onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
+                >
+                  <option value="yes">Yes</option>
+                  <option value="no">No</option>
+                </select>
+              ) : q.type === "number" ? (
+                <input
+                  type="number"
+                  className="wf-input mt-1 w-full max-w-xs"
+                  value={answers[q.id] ?? ""}
+                  onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
+                />
+              ) : (
+                <input
+                  type="text"
+                  className="wf-input mt-1 w-full"
+                  value={answers[q.id] ?? ""}
+                  onChange={(e) => setAnswers({ ...answers, [q.id]: e.target.value })}
+                />
+              )}
+            </label>
+          ))}
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="px-4 py-2 wf-btn-secondary text-sm"
+              onClick={() => setStep("describe")}
+            >
+              Back
+            </button>
+            <button type="submit" disabled={busy} className="px-4 py-2 wf-btn-primary text-sm">
+              {busy ? "Building draft…" : "Generate preview"}
+            </button>
+          </div>
+        </form>
+      )}
+
+      {step === "preview" && draft && (
         <div className="space-y-4">
-          <div className="bg-slate-50 rounded-lg border border-slate-200 p-4 text-sm">
+          <div className="wf-card p-4 text-sm">
             <p className="font-medium text-slate-800 mb-1">
               {String(d?.name ?? "Draft")}{" "}
               <span className="text-xs text-slate-500">({draft.source})</span>
@@ -133,39 +220,28 @@ export function AiWorkflowPage() {
               ))}
             </ol>
           </div>
-
-          <div className="bg-white rounded-lg border border-slate-200 p-4">
-            <label className="block text-sm font-medium text-slate-700 mb-2">Refine</label>
-            <input
-              value={refineText}
-              onChange={(e) => setRefineText(e.target.value)}
-              placeholder="e.g. Add a finance step for amounts over 5000"
-              className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm mb-2"
-            />
-            <div className="flex flex-wrap gap-2">
-              <button
-                type="button"
-                disabled={busy || !refineText.trim()}
-                onClick={refine}
-                className="px-4 py-2 border border-slate-300 text-sm rounded-lg hover:bg-slate-50 disabled:opacity-50"
-              >
-                Apply refinement
-              </button>
-              <button
-                type="button"
-                disabled={busy}
-                onClick={saveDraft}
-                className="px-4 py-2 bg-brand-600 text-white text-sm rounded-lg hover:bg-brand-700 disabled:opacity-50"
-              >
-                Save as draft workflow
-              </button>
-            </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="px-4 py-2 wf-btn-secondary text-sm"
+              onClick={() => setStep("questions")}
+            >
+              Back to questions
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => void saveDraft()}
+              className="px-4 py-2 wf-btn-primary text-sm disabled:opacity-50"
+            >
+              Save as draft workflow
+            </button>
           </div>
         </div>
       )}
 
       <p className="text-xs text-slate-400 mt-6">
-        <Link to="/workflows" className="text-brand-600">
+        <Link to="/workflows" className="wf-link">
           ← Workflows
         </Link>
       </p>

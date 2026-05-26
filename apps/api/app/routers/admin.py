@@ -26,8 +26,19 @@ from app.schemas.org import (
     UserCreate,
     UserOut,
 )
-from app.schemas.phase1 import CompanyBranding, CompanyBrandingUpdate, SetupStatusOut
-from app.services.company_settings import branding_from_settings, merge_branding
+from app.schemas.phase1 import (
+    CompanyBranding,
+    CompanyBrandingUpdate,
+    CompanySettingsOut,
+    CompanySettingsUpdate,
+    SetupStatusOut,
+)
+from app.services.company_settings import (
+    branding_from_settings,
+    company_settings_from_dict,
+    merge_branding,
+    merge_company_settings,
+)
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -185,6 +196,45 @@ def setup_status(
     total = len(steps)
     percent = round(100.0 * done / total, 1) if total else 0.0
     return SetupStatusOut(steps=steps, complete=done == total, percent=percent)
+
+
+@router.get("/company/settings", response_model=CompanySettingsOut)
+def get_company_settings(
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> CompanySettingsOut:
+    company = db.get(Company, user.company_id)
+    if not company:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    return CompanySettingsOut(**company_settings_from_dict(company.settings))
+
+
+@router.patch("/company/settings", response_model=CompanySettingsOut)
+def update_company_settings(
+    body: CompanySettingsUpdate,
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> CompanySettingsOut:
+    company = db.get(Company, user.company_id)
+    if not company:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    company.settings = merge_company_settings(
+        company.settings, body.model_dump(exclude_unset=True)
+    )
+    db.commit()
+    db.refresh(company)
+    return CompanySettingsOut(**company_settings_from_dict(company.settings))
+
+
+@router.get("/company/branding", response_model=CompanyBranding)
+def get_company_branding(
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> CompanyBranding:
+    company = db.get(Company, user.company_id)
+    if not company:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    return CompanyBranding(**branding_from_settings(company.settings))
 
 
 @router.patch("/company/branding", response_model=CompanyBranding)

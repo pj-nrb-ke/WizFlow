@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session
 from app.core.deps import CurrentUser, require_roles
 from app.db.session import get_db
 from app.schemas.integrations import AnomaliesOut, AnomalyFinding, NarrativeOut
+from app.schemas.web_phases import ComplianceOut
+from app.services import compliance as compliance_service
 from app.schemas.analytics import (
     BottlenecksOut,
     DepartmentPerformanceOut,
@@ -151,3 +153,15 @@ def get_narrative(
 ) -> NarrativeOut:
     text = ai_insights.executive_narrative(db, _ctx(user, from_date, to_date, workflow_id))
     return NarrativeOut(narrative=text, generated_at=datetime.now(timezone.utc))
+
+
+@router.get("/compliance", response_model=ComplianceOut)
+def get_compliance(
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    workflow_id: UUID | None = None,
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> ComplianceOut:
+    data = compliance_service.compliance_summary(db, _ctx(user, from_date, to_date, workflow_id))
+    return ComplianceOut(**data)

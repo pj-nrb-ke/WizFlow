@@ -7,7 +7,7 @@ import { RequestStatusPanel } from "../components/RequestStatusPanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { eventLabel } from "../lib/eventLabels";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
-import { ApiError, apiFetch, FormField, RequestDetail, WorkflowEvent } from "../lib/api";
+import { ApiError, apiDownload, apiFetch, FormField, RequestDetail, WorkflowEvent } from "../lib/api";
 import { getToken } from "../lib/auth";
 import {
   formToPayload,
@@ -126,6 +126,40 @@ export function RequestDetailPage() {
         <div className="flex flex-wrap items-center gap-3 mb-1">
           <h1 className="wf-page-title">{request.workflow_name}</h1>
           <StatusBadge status={request.status} />
+          {id && (
+            <div className="flex flex-wrap gap-2 ml-auto">
+              <button
+                type="button"
+                className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg hover:bg-slate-50"
+                onClick={() =>
+                  apiDownload(
+                    `/api/v1/requests/${id}/audit-export`,
+                    `audit-${request.reference_number ?? id}.csv`,
+                    getToken()
+                  ).catch((e) =>
+                    setError(e instanceof ApiError ? e.detail ?? e.message : "Export failed")
+                  )
+                }
+              >
+                Export audit CSV
+              </button>
+              <button
+                type="button"
+                className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg hover:bg-slate-50"
+                onClick={() =>
+                  apiDownload(
+                    `/api/v1/requests/${id}/audit-export.pdf`,
+                    `audit-${request.reference_number ?? id}.pdf`,
+                    getToken()
+                  ).catch((e) =>
+                    setError(e instanceof ApiError ? e.detail ?? e.message : "Export failed")
+                  )
+                }
+              >
+                Export audit PDF
+              </button>
+            </div>
+          )}
         </div>
         <p className="text-sm text-slate-500 mb-2">
           {request.current_step_name && `Step: ${request.current_step_name} · `}

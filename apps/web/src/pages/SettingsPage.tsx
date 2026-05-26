@@ -6,35 +6,61 @@ import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
 import {
   ApiError,
+  apiFetch,
+  createDelegation,
   getCompanyBranding,
-  getUserPreferences,
+  getCompanySettings,
+  listDelegations,
+  OrgDirectory,
   patchCompanyBranding,
-  patchUserPreferences,
+  patchCompanySettings,
+  patchNotificationPreferences,
+  revokeDelegation,
+  type Delegation,
 } from "../lib/api";
 import { getToken } from "../lib/auth";
 import { THEME_META } from "../lib/themes";
 
 export function SettingsPage() {
-  const { user } = useAuth();
+  const { user, refreshUser } = useAuth();
   const { appTheme } = useAppTheme();
   const meta = THEME_META[appTheme];
   const isAdmin = user?.roles?.includes("company_admin");
 
   const [emailEnabled, setEmailEnabled] = useState(true);
   const [inAppEnabled, setInAppEnabled] = useState(true);
+  const [pushEnabled, setPushEnabled] = useState(true);
+  const [whatsappEnabled, setWhatsappEnabled] = useState(false);
   const [logoUrl, setLogoUrl] = useState("");
   const [brandColor, setBrandColor] = useState("#1d4ed8");
+  const [retentionDays, setRetentionDays] = useState("365");
+  const [delegations, setDelegations] = useState<Delegation[]>([]);
+  const [directory, setDirectory] = useState<OrgDirectory | null>(null);
+  const [delegateId, setDelegateId] = useState("");
+  const [startsAt, setStartsAt] = useState("");
+  const [endsAt, setEndsAt] = useState("");
   const [prefsMsg, setPrefsMsg] = useState("");
   const [brandMsg, setBrandMsg] = useState("");
+  const [delegMsg, setDelegMsg] = useState("");
+  const [retentionMsg, setRetentionMsg] = useState("");
   const [error, setError] = useState("");
 
   useEffect(() => {
     const token = getToken();
-    getUserPreferences(token)
-      .then((p) => {
-        setEmailEnabled(p.email_enabled);
-        setInAppEnabled(p.in_app_enabled);
-      })
+    const prefs = user?.notification_preferences;
+    if (prefs) {
+      setEmailEnabled(prefs.email);
+      setInAppEnabled(prefs.in_app);
+      setPushEnabled(prefs.push !== false);
+      setWhatsappEnabled(!!prefs.whatsapp);
+    } else {
+      refreshUser().catch(() => {});
+    }
+    listDelegations(token)
+      .then(setDelegations)
+      .catch(() => {});
+    apiFetch<OrgDirectory>("/api/v1/workflows/org-directory", {}, token)
+      .then(setDirectory)
       .catch(() => {});
     if (isAdmin) {
       getCompanyBranding(token)
@@ -43,18 +69,29 @@ export function SettingsPage() {
           setBrandColor(b.brand_color ?? "#1d4ed8");
         })
         .catch(() => {});
+      getCompanySettings(token)
+        .then((s) => {
+          if (s.data_retention_days != null) setRetentionDays(String(s.data_retention_days));
+        })
+        .catch(() => {});
     }
-  }, [isAdmin]);
+  }, [isAdmin, user?.notification_preferences, refreshUser]);
 
   async function savePreferences(e: FormEvent) {
     e.preventDefault();
     setPrefsMsg("");
     setError("");
     try {
-      await patchUserPreferences(
-        { email_enabled: emailEnabled, in_app_enabled: inAppEnabled },
+      await patchNotificationPreferences(
+        {
+          email: emailEnabled,
+          in_app: inAppEnabled,
+          push: pushEnabled,
+          whatsapp: whatsappEnabled,
+        },
         getToken()
       );
+      await refreshUser();
       setPrefsMsg("Notification preferences saved.");
     } catch (err) {
       setError(err instanceof ApiError ? err.detail ?? err.message : "Could not save preferences");
@@ -73,11 +110,64 @@ export function SettingsPage() {
         },
         getToken()
       );
+      await refreshUser();
       setBrandMsg("Workspace branding updated.");
     } catch (err) {
       setError(err instanceof ApiError ? err.detail ?? err.message : "Could not save branding");
     }
   }
+
+  async function saveRetention(e: FormEvent) {
+    e.preventDefault();
+    setRetentionMsg("");
+    setError("");
+    const days = Number(retentionDays);
+    if (!Number.isFinite(days) || days < 30) {
+      setError("Retention must be at least 30 days.");
+      return;
+    }
+    try {
+      await patchCompanySettings({ data_retention_days: days }, getToken());
+      setRetentionMsg("Data retention policy saved.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Could not save retention");
+    }
+  }
+
+  async function addDelegation(e: FormEvent) {
+    e.preventDefault();
+    setDelegMsg("");
+    setError("");
+    if (!delegateId || !startsAt || !endsAt) return;
+    try {
+      await createDelegation(
+        {
+          delegate_user_id: delegateId,
+          starts_at: new Date(startsAt).toISOString(),
+          ends_at: new Date(endsAt).toISOString(),
+        },
+        getToken()
+      );
+      setDelegateId("");
+      setStartsAt("");
+      setEndsAt("");
+      setDelegations(await listDelegations(getToken()));
+      setDelegMsg("Delegation added.");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Could not add delegation");
+    }
+  }
+
+  async function removeDelegation(id: string) {
+    try {
+      await revokeDelegation(id, getToken());
+      setDelegations(await listDelegations(getToken()));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Could not revoke");
+    }
+  }
+
+  const colleagues = (directory?.users ?? []).filter((u) => u.id !== user?.id);
 
   return (
     <div className="max-w-2xl">
@@ -111,7 +201,7 @@ export function SettingsPage() {
       <section className="wf-card p-5 mb-6">
         <div className="flex items-center gap-2 mb-1">
           <h2 className="text-sm font-semibold text-slate-800">Notification preferences</h2>
-          <HelpTip text="Choose how WizFlow reaches you. In-app alerts appear in the notification center; email sends copies to your login address when enabled." />
+          <HelpTip text="Choose how WizFlow reaches you — in-app, email, mobile push, and WhatsApp when enabled for your company." />
         </div>
         <form onSubmit={savePreferences} className="space-y-3 mt-4">
           <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
@@ -132,6 +222,24 @@ export function SettingsPage() {
             />
             Email notifications
           </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={pushEnabled}
+              onChange={(e) => setPushEnabled(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            Push notifications (mobile)
+          </label>
+          <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={whatsappEnabled}
+              onChange={(e) => setWhatsappEnabled(e.target.checked)}
+              className="rounded border-slate-300"
+            />
+            WhatsApp notifications
+          </label>
           <button type="submit" className="px-4 py-2 wf-btn-primary text-sm">
             Save preferences
           </button>
@@ -139,51 +247,145 @@ export function SettingsPage() {
         </form>
       </section>
 
-      {isAdmin && (
-        <section className="wf-card p-5 mb-6">
-          <div className="flex items-center gap-2 mb-1">
-            <h2 className="text-sm font-semibold text-slate-800">Workspace branding</h2>
-            <HelpTip text="Set a logo URL and accent color for your company workspace. Shown in headers and customer-facing views when supported." />
-          </div>
-          <form onSubmit={saveBranding} className="space-y-3 mt-4">
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Logo URL</label>
+      <section className="wf-card p-5 mb-6">
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-sm font-semibold text-slate-800">Approval delegations</h2>
+          <HelpTip text="When you are away, delegate your approval authority to a colleague for a date range. They can act on items assigned to you during that period." />
+        </div>
+        {delegations.length > 0 && (
+          <ul className="text-sm divide-y mb-4 mt-3">
+            {delegations.map((d) => (
+              <li key={d.id} className="py-2 flex justify-between gap-2">
+                <span>
+                  <strong>{d.delegate_name}</strong>
+                  <span className="text-slate-500 block text-xs">
+                    {new Date(d.starts_at).toLocaleDateString()} –{" "}
+                    {new Date(d.ends_at).toLocaleDateString()}
+                  </span>
+                </span>
+                <button
+                  type="button"
+                  className="text-xs text-red-600 hover:underline shrink-0"
+                  onClick={() => removeDelegation(d.id)}
+                >
+                  Revoke
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
+        <form onSubmit={addDelegation} className="space-y-3">
+          <label className="block text-sm">
+            <span className="text-slate-600">Delegate to</span>
+            <select
+              className="wf-input mt-1 w-full"
+              value={delegateId}
+              onChange={(e) => setDelegateId(e.target.value)}
+              required
+            >
+              <option value="">— Select colleague —</option>
+              {colleagues.map((u) => (
+                <option key={u.id} value={u.id}>
+                  {u.full_name}
+                </option>
+              ))}
+            </select>
+          </label>
+          <div className="flex flex-wrap gap-3">
+            <label className="text-sm">
+              <span className="text-slate-600">Starts</span>
               <input
-                type="url"
-                value={logoUrl}
-                onChange={(e) => setLogoUrl(e.target.value)}
-                placeholder="https://…/logo.png"
-                className="wf-input w-full"
+                type="datetime-local"
+                value={startsAt}
+                onChange={(e) => setStartsAt(e.target.value)}
+                className="wf-input block mt-1"
+                required
               />
+            </label>
+            <label className="text-sm">
+              <span className="text-slate-600">Ends</span>
+              <input
+                type="datetime-local"
+                value={endsAt}
+                onChange={(e) => setEndsAt(e.target.value)}
+                className="wf-input block mt-1"
+                required
+              />
+            </label>
+          </div>
+          <button type="submit" className="px-4 py-2 wf-btn-secondary text-sm">
+            Add delegation
+          </button>
+          {delegMsg && <p className="text-sm text-green-700">{delegMsg}</p>}
+        </form>
+      </section>
+
+      {isAdmin && (
+        <>
+          <section className="wf-card p-5 mb-6">
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-sm font-semibold text-slate-800">Workspace branding</h2>
+              <HelpTip text="Set a logo URL and accent color for your company workspace. Shown in the header when configured." />
             </div>
-            <div>
-              <label className="block text-xs text-slate-500 mb-1">Brand color</label>
-              <div className="flex gap-2 items-center">
+            <form onSubmit={saveBranding} className="space-y-3 mt-4">
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Logo URL</label>
                 <input
-                  type="color"
-                  value={brandColor}
-                  onChange={(e) => setBrandColor(e.target.value)}
-                  className="h-10 w-14 rounded border border-slate-200 cursor-pointer"
-                />
-                <input
-                  type="text"
-                  value={brandColor}
-                  onChange={(e) => setBrandColor(e.target.value)}
-                  className="wf-input flex-1 font-mono text-sm"
+                  type="url"
+                  value={logoUrl}
+                  onChange={(e) => setLogoUrl(e.target.value)}
+                  placeholder="https://…/logo.png"
+                  className="wf-input w-full"
                 />
               </div>
+              <div>
+                <label className="block text-xs text-slate-500 mb-1">Brand color</label>
+                <div className="flex gap-2 items-center">
+                  <input
+                    type="color"
+                    value={brandColor}
+                    onChange={(e) => setBrandColor(e.target.value)}
+                    className="h-10 w-14 rounded border border-slate-200 cursor-pointer"
+                  />
+                  <input
+                    type="text"
+                    value={brandColor}
+                    onChange={(e) => setBrandColor(e.target.value)}
+                    className="wf-input flex-1 font-mono text-sm"
+                  />
+                </div>
+              </div>
+              <button type="submit" className="px-4 py-2 wf-btn-primary text-sm">
+                Save branding
+              </button>
+              {brandMsg && <p className="text-sm text-green-700">{brandMsg}</p>}
+            </form>
+          </section>
+
+          <section className="wf-card p-5 mb-6">
+            <div className="flex items-center gap-2 mb-1">
+              <h2 className="text-sm font-semibold text-slate-800">Data retention</h2>
+              <HelpTip text="How long completed requests and audit data are kept before archival. Minimum 30 days." />
             </div>
-            <button type="submit" className="px-4 py-2 wf-btn-primary text-sm">
-              Save branding
-            </button>
-            {brandMsg && <p className="text-sm text-green-700">{brandMsg}</p>}
-          </form>
-          <p className="text-xs text-slate-500 mt-4">
-            <Link to="/setup" className="wf-link">
-              Open company setup wizard →
-            </Link>
-          </p>
-        </section>
+            <form onSubmit={saveRetention} className="space-y-3 mt-4">
+              <label className="block text-sm">
+                <span className="text-slate-600">Retention period (days)</span>
+                <input
+                  type="number"
+                  min={30}
+                  max={3650}
+                  value={retentionDays}
+                  onChange={(e) => setRetentionDays(e.target.value)}
+                  className="wf-input mt-1 w-32"
+                />
+              </label>
+              <button type="submit" className="px-4 py-2 wf-btn-primary text-sm">
+                Save retention policy
+              </button>
+              {retentionMsg && <p className="text-sm text-green-700">{retentionMsg}</p>}
+            </form>
+          </section>
+        </>
       )}
 
       <section className="wf-card p-5 mb-6">
@@ -204,6 +406,13 @@ export function SettingsPage() {
           </Link>
           .
         </p>
+        {isAdmin && (
+          <p className="text-xs text-slate-500 mt-4">
+            <Link to="/setup" className="wf-link">
+              Open company setup wizard →
+            </Link>
+          </p>
+        )}
       </section>
     </div>
   );

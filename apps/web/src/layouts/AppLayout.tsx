@@ -16,7 +16,7 @@ import {
 import { UserMenu } from "../components/UserMenu";
 import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
-import { canAccessReports } from "../lib/roles";
+import { canAccessReports, canManageMasterData } from "../lib/roles";
 import { THEME_META } from "../lib/themes";
 
 const baseNav = [
@@ -49,8 +49,14 @@ export function AppLayout() {
   const { appTheme } = useAppTheme();
   const showAnalytics = canAccessReports(user?.roles);
   const isAdmin = user?.roles.includes("company_admin");
+  const showMasterData = canManageMasterData(user?.roles);
+  const logoUrl = user?.company_branding?.logo_url;
+  const masterDataNav = showMasterData
+    ? [{ to: "/master-data", label: "Master Data", Icon: IconShield, end: false as const }]
+    : [];
   const nav = [
     ...baseNav,
+    ...masterDataNav,
     ...(showAnalytics ? analyticsNav : []),
     ...(isAdmin ? adminNav : []),
     ...tailNav,
@@ -60,8 +66,11 @@ export function AppLayout() {
     <div className="min-h-screen flex flex-col">
       <header className="wf-header">
         <div className="wf-header-inner">
-          <Link to="/" className="wf-header-brand shrink-0">
-            WizFlow
+          <Link to="/" className="wf-header-brand shrink-0 flex items-center gap-2">
+            {logoUrl ? (
+              <img src={logoUrl} alt="" className="h-8 w-auto max-w-[120px] object-contain" />
+            ) : null}
+            <span>{user?.company_branding?.display_name ?? user?.company_name ?? "WizFlow"}</span>
           </Link>
           <nav className="wf-nav justify-center flex-1 min-w-0" aria-label="Main">
             {nav.map(({ to, label, Icon, ...rest }) => (

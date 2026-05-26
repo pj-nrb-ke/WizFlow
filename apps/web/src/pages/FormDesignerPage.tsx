@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { FormDesigner, getDesignerJson } from "../components/FormDesigner";
+import { HelpTip } from "../components/HelpTip";
 import { ApiError, apiFetch } from "../lib/api";
 import { getToken } from "../lib/auth";
 import {
@@ -76,7 +77,10 @@ export function FormDesignerPage() {
     <div className="max-w-6xl mx-auto space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-slate-900">Form Designer</h1>
+          <div className="flex items-center gap-2">
+            <h1 className="text-2xl font-bold text-slate-900">Form Designer</h1>
+            <HelpTip text="Drag controls onto the canvas, set keys and options, then save as a draft workflow. Use Master data lists for company-wide dropdowns." />
+          </div>
           <p className="text-slate-600 mt-1 text-sm max-w-xl">
             Build a form visually—drag controls from the toolbar onto the canvas, like Form.io.
             Save as a draft workflow or copy the JSON schema.

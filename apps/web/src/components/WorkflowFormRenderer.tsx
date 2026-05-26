@@ -1,5 +1,6 @@
 import type { FormField } from "../lib/api";
 import type { FormLayout } from "../lib/themes";
+import { filterVisibleFields } from "../lib/fieldPermissions";
 import { FormFieldBlock } from "./FormFieldControl";
 
 type Props = {
@@ -8,6 +9,7 @@ type Props = {
   onChange: (key: string, value: string) => void;
   layout: FormLayout;
   readOnly?: boolean;
+  userRoles?: string[];
 };
 
 function groupSections(fields: FormField[]): { title: string; fields: FormField[] }[] {
@@ -50,12 +52,14 @@ export function WorkflowFormRenderer({
   onChange,
   layout,
   readOnly = false,
+  userRoles = [],
 }: Props) {
+  const visible = userRoles.length ? filterVisibleFields(fields, userRoles) : fields;
   const handle = (key: string, value: string) => onChange(key, value);
 
   if (layout === "highlight-amount") {
-    const amountField = fields.find((f) => f.key === "amount");
-    const rest = fields.filter((f) => f.key !== "amount");
+    const amountField = visible.find((f) => f.key === "amount");
+    const rest = visible.filter((f) => f.key !== "amount");
     return (
       <div className="space-y-4">
         {amountField && (
@@ -85,7 +89,7 @@ export function WorkflowFormRenderer({
   if (layout === "sectioned") {
     return (
       <div className="space-y-6">
-        {groupSections(fields).map((sec) => (
+        {groupSections(visible).map((sec) => (
           <div key={sec.title}>
             <h3 className="wf-form-section-title">{sec.title}</h3>
             <div className="space-y-4">
@@ -108,7 +112,7 @@ export function WorkflowFormRenderer({
   if (layout === "two-column") {
     return (
       <div className="grid sm:grid-cols-2 gap-4">
-        {fields.map((f) => (
+        {visible.map((f) => (
           <div key={f.key} className={f.type === "textarea" || f.type === "label" ? "sm:col-span-2" : ""}>
             <FormFieldBlock
               field={f}
@@ -124,7 +128,7 @@ export function WorkflowFormRenderer({
 
   return (
     <div className="space-y-4">
-      {fields.map((f) => (
+      {visible.map((f) => (
         <FormFieldBlock
           key={f.key}
           field={f}

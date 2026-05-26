@@ -39,6 +39,14 @@ class CompanyBrandingUpdate(BaseModel):
     display_name: str | None = None
 
 
+class CompanySettingsOut(BaseModel):
+    data_retention_days: int | None = None
+
+
+class CompanySettingsUpdate(BaseModel):
+    data_retention_days: int | None = Field(default=None, ge=30, le=3650)
+
+
 class SetupStatusOut(BaseModel):
     steps: dict[str, bool]
     complete: bool

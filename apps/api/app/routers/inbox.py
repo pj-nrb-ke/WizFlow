@@ -1,3 +1,4 @@
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
@@ -18,6 +19,7 @@ from app.services.instance_engine import _step_name
 from app.services.csv_export import rows_to_csv
 from app.services.instance_queries import get_instance, to_out
 from app.services.notifications import notify_users
+from app.services import analytics as analytics_service
 from app.services.request_serial import backfill_reference_for_instance
 
 router = APIRouter(tags=["Inbox"])
@@ -29,6 +31,12 @@ def _build_inbox_items(
     *,
     workflow_id: UUID | None = None,
     q_text: str | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    min_amount: float | None = None,
+    max_amount: float | None = None,
+    department: str | None = None,
+    overdue_only: bool = False,
 ) -> list[InboxItem]:
     q = select(WorkflowInstance).where(
         WorkflowInstance.company_id == user.company_id,
@@ -54,13 +62,34 @@ def _build_inbox_items(
         if originator_ids:
             clauses.append(WorkflowInstance.originator_user_id.in_(originator_ids))
         q = q.where(or_(*clauses))
+    if date_from:
+        q = q.where(WorkflowInstance.submitted_at >= date_from)
+    if date_to:
+        q = q.where(WorkflowInstance.submitted_at <= date_to)
 
     rows = db.scalars(q.order_by(WorkflowInstance.submitted_at.desc()))
     items: list[InboxItem] = []
+    now = datetime.now(timezone.utc)
     for inst in rows:
         if not user_can_see_inbox(inst, user.id):
             continue
+        if department:
+            dept = str((inst.request_data or {}).get("department") or "")
+            if department.lower() not in dept.lower():
+                continue
+        amount_val = (inst.request_data or {}).get("amount")
+        try:
+            amt = float(amount_val) if amount_val is not None else None
+        except (TypeError, ValueError):
+            amt = None
+        if min_amount is not None and (amt is None or amt < min_amount):
+            continue
+        if max_amount is not None and (amt is None or amt > max_amount):
+            continue
         defn = db.get(WorkflowDefinition, inst.workflow_definition_id)
+        sla = int((defn.settings or {}).get("sla_hours", 48)) if defn else 48
+        if overdue_only and not analytics_service.is_overdue(inst, sla_hours=sla, now=now):
+            continue
         step_name = _step_name(defn, inst.current_step_id) if defn else inst.current_step_id or ""
         originator_name = ""
         if inst.originator_user_id:
@@ -91,10 +120,27 @@ def _build_inbox_items(
 def get_inbox(
     workflow_id: UUID | None = None,
     q: str | None = Query(None, description="Search reference, workflow name, or originator"),
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    min_amount: float | None = None,
+    max_amount: float | None = None,
+    department: str | None = None,
+    overdue_only: bool = False,
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> list[InboxItem]:
-    return _build_inbox_items(db, user, workflow_id=workflow_id, q_text=q)
+    return _build_inbox_items(
+        db,
+        user,
+        workflow_id=workflow_id,
+        q_text=q,
+        date_from=from_date,
+        date_to=to_date,
+        min_amount=min_amount,
+        max_amount=max_amount,
+        department=department,
+        overdue_only=overdue_only,
+    )
 
 
 @router.get("/inbox/export.csv", response_class=PlainTextResponse)

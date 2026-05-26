@@ -4,6 +4,7 @@ import {
   ApiError,
   apiFetch,
   getWorkflowHealthCheck,
+  tuneWorkflow,
   PublishPreview,
   PublishRequest,
   SimulationResult,
@@ -40,6 +41,8 @@ export function WorkflowsPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
   const [amount, setAmount] = useState("3000");
+  const [tuneText, setTuneText] = useState("");
+  const [tuneMsg, setTuneMsg] = useState("");
 
   const loadExtras = useCallback(async (id: string) => {
     const token = getToken();
@@ -138,6 +141,26 @@ export function WorkflowsPage() {
       await loadExtras(updated.id);
     } catch (e) {
       setError(e instanceof ApiError ? e.detail ?? e.message : "Publish failed");
+    }
+  }
+
+  async function applyTune() {
+    if (!selected || !tuneText.trim()) return;
+    setError("");
+    setTuneMsg("");
+    try {
+      const res = await tuneWorkflow(selected.id, tuneText.trim(), getToken());
+      setTuneMsg(res.explanation);
+      setTuneText("");
+      const detail = await apiFetch<WorkflowDefinition>(
+        `/api/v1/workflows/${selected.id}`,
+        {},
+        getToken()
+      );
+      setSelected(detail);
+      await loadExtras(selected.id);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail ?? e.message : "Tune failed");
     }
   }
 
@@ -401,6 +424,31 @@ export function WorkflowsPage() {
                 </div>
                 {selected.status === "draft" && !tested && (
                   <p className="text-xs text-amber-700 mt-2">Run a test before publishing.</p>
+                )}
+                {selected.status === "draft" && (
+                  <div className="mt-4 p-3 border border-slate-200 rounded-lg bg-slate-50/80">
+                    <p className="text-sm font-medium text-slate-800 mb-2">Plain-English tune</p>
+                    <p className="text-xs text-slate-500 mb-2">
+                      e.g. “Add Finance approval for amounts over 5000” or “Require attachment on submit”
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      <input
+                        value={tuneText}
+                        onChange={(e) => setTuneText(e.target.value)}
+                        placeholder="Describe the change…"
+                        className="wf-input flex-1 min-w-[12rem]"
+                      />
+                      <button
+                        type="button"
+                        disabled={tuneText.trim().length < 3}
+                        onClick={() => void applyTune()}
+                        className="px-4 py-2 wf-btn-secondary text-sm disabled:opacity-50"
+                      >
+                        Apply tune
+                      </button>
+                    </div>
+                    {tuneMsg && <p className="text-xs text-green-700 mt-2">{tuneMsg}</p>}
+                  </div>
                 )}
               </div>
 

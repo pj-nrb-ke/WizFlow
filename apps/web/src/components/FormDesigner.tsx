@@ -25,6 +25,7 @@ import { WorkflowFormRenderer } from "./WorkflowFormRenderer";
 import { buildInitialForm } from "../lib/formValidation";
 import {
   DESIGNER_CONTROLS,
+  MASTER_DATA_CATEGORIES,
   type DesignerControlId,
   type DesignerField,
   type FormDesignerSchema,
@@ -164,7 +165,10 @@ function FieldProperties({
     field.type === "dropdown" ||
     field.type === "combobox" ||
     field.type === "radio" ||
-    field.type === "listbox";
+    field.type === "listbox" ||
+    field.type === "yesno";
+
+  const isMasterDropdown = field.type === "master_dropdown";
 
   function setOptions(options: FormFieldOption[]) {
     onUpdate({ options });
@@ -197,7 +201,7 @@ function FieldProperties({
         </label>
       )}
 
-      {field.type === "label" && (
+      {(field.type === "label" || field.type === "section") && (
         <label className="block">
           <span className="text-slate-600">Text content</span>
           <textarea
@@ -205,6 +209,27 @@ function FieldProperties({
             value={field.content ?? ""}
             onChange={(e) => onUpdate({ content: e.target.value })}
           />
+        </label>
+      )}
+
+      {isMasterDropdown && (
+        <label className="block">
+          <span className="text-slate-600">Master data category</span>
+          <select
+            className="wf-input mt-1 w-full"
+            value={field.optionSource?.category ?? "department"}
+            onChange={(e) =>
+              onUpdate({
+                optionSource: { type: "master_data", category: e.target.value },
+              })
+            }
+          >
+            {MASTER_DATA_CATEGORIES.map((c) => (
+              <option key={c} value={c}>
+                {c.replace(/_/g, " ")}
+              </option>
+            ))}
+          </select>
         </label>
       )}
 
@@ -242,7 +267,7 @@ function FieldProperties({
         </label>
       )}
 
-      {hasOptions && (
+      {hasOptions && !isMasterDropdown && (
         <div>
           <span className="text-slate-600 block mb-2">Options</span>
           <ul className="space-y-2">

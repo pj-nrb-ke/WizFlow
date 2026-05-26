@@ -4,7 +4,7 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import PlainTextResponse
+from fastapi.responses import PlainTextResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -14,6 +14,7 @@ from app.db.session import get_db
 from app.schemas.request import MisActionRow
 from app.services.event_labels import label_for_event
 from app.services.request_serial import backfill_reference_for_instance
+from app.services.xlsx_export import rows_to_xlsx
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
@@ -108,3 +109,36 @@ def mis_actions_csv(
             f'"{r.step_id or ""}","{comment}"'
         )
     return "\n".join(lines) + "\n"
+
+
+@router.get("/mis/actions/export.xlsx")
+def mis_actions_xlsx(
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    workflow_id: UUID | None = None,
+    status: str | None = None,
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> Response:
+    rows = _fetch_mis_actions(db, user, from_date, to_date, workflow_id, status)
+    data = rows_to_xlsx(
+        ["reference", "workflow", "status", "event", "action_at", "actor", "step", "comment"],
+        [
+            [
+                r.reference_number or "",
+                r.workflow_name,
+                r.request_status,
+                r.event_label,
+                r.action_at.isoformat(),
+                r.actor_name or "",
+                r.step_id or "",
+                r.comment or "",
+            ]
+            for r in rows
+        ],
+    )
+    return Response(
+        content=data,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": "attachment; filename=mis-actions.xlsx"},
+    )

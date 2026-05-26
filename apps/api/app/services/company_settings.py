@@ -26,6 +26,21 @@ def merge_branding(settings: dict | None, update: dict) -> dict:
     return merged
 
 
+def company_settings_from_dict(settings: dict | None) -> dict:
+    raw = settings or {}
+    retention = raw.get("data_retention_days")
+    return {
+        "data_retention_days": int(retention) if retention is not None else None,
+    }
+
+
+def merge_company_settings(settings: dict | None, update: dict) -> dict:
+    merged = dict(settings or {})
+    if "data_retention_days" in update:
+        merged["data_retention_days"] = update["data_retention_days"]
+    return merged
+
+
 def user_notification_preferences(user) -> dict:
     prefs = getattr(user, "notification_preferences", None)
     if not prefs:

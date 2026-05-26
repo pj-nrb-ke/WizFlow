@@ -2,9 +2,10 @@
 
 from __future__ import annotations
 
+from datetime import datetime
 from uuid import UUID
 
-from sqlalchemy import Select, or_, select
+from sqlalchemy import Numeric, Select, cast, or_, select
 from sqlalchemy.orm import Session
 
 from app.db.models import WorkflowInstance
@@ -18,6 +19,11 @@ def apply_request_filters(
     status: str | None = None,
     q_text: str | None = None,
     workflow_id: UUID | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    min_amount: float | None = None,
+    max_amount: float | None = None,
+    department: str | None = None,
 ) -> Select:
     q = q.where(
         WorkflowInstance.company_id == company_id,
@@ -37,6 +43,16 @@ def apply_request_filters(
                 WorkflowInstance.workflow_name.ilike(term),
             )
         )
+    if date_from:
+        q = q.where(WorkflowInstance.submitted_at >= date_from)
+    if date_to:
+        q = q.where(WorkflowInstance.submitted_at <= date_to)
+    if department:
+        q = q.where(WorkflowInstance.request_data["department"].astext.ilike(f"%{department.strip()}%"))
+    if min_amount is not None:
+        q = q.where(cast(WorkflowInstance.request_data["amount"].astext, Numeric) >= min_amount)
+    if max_amount is not None:
+        q = q.where(cast(WorkflowInstance.request_data["amount"].astext, Numeric) <= max_amount)
     return q
 
 
@@ -48,6 +64,11 @@ def list_my_requests(
     status: str | None = None,
     q_text: str | None = None,
     workflow_id: UUID | None = None,
+    date_from: datetime | None = None,
+    date_to: datetime | None = None,
+    min_amount: float | None = None,
+    max_amount: float | None = None,
+    department: str | None = None,
 ) -> list[WorkflowInstance]:
     q = apply_request_filters(
         select(WorkflowInstance),
@@ -56,5 +77,10 @@ def list_my_requests(
         status=status,
         q_text=q_text,
         workflow_id=workflow_id,
+        date_from=date_from,
+        date_to=date_to,
+        min_amount=min_amount,
+        max_amount=max_amount,
+        department=department,
     )
     return list(db.scalars(q.order_by(WorkflowInstance.created_at.desc())))

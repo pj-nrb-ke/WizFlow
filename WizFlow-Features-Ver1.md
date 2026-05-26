@@ -167,18 +167,17 @@ It should be positioned as:
 
 **Started:** 2026-05-26  
 **Last updated:** 2026-05-26  
-**Phase 1 overall status:** **NOT COMPLETE** — Sprint 1 foundation shipped; pending items documented below for a later revisit.
+**Phase 1 overall status:** **COMPLETE** (Sprint 2 shipped 2026-05-26). ERP and store binaries remain out of scope.
 
 ### Executive summary
 
 | Metric | Count |
 |--------|-------|
 | Phase 1 features (total) | 25 |
-| Fully delivered (Sprint 1) | 20 |
-| **Pending — revisit later** | **5** |
-| Delivered with known gaps (see below) | several |
+| Delivered (Sprint 1 + 2) | 25 |
+| Pending | 0 |
 
-**Sprint 1** is **complete** and deployed-ready. **Phase 1** as written in the feature table above will be **finished in a future sprint** after revisiting the pending list.
+**Sprint 2** delivered master data, business form controls, smart dropdowns, AI wizard Q&A, plain-English tune, field permissions, drafts, extended search/filters, PDF/xlsx exports, branding, and help panels.
 
 ### Status legend
 
@@ -190,37 +189,17 @@ It should be positioned as:
 
 ---
 
-## ⏸️ Pending Phase 1 features (revisit later)
+## Phase 1 Sprint 2 — delivered (2026-05-26)
 
-These five items are **explicitly out of scope for Sprint 1**. Do not treat Phase 1 as complete until they are implemented (or formally descoped).
-
-| # | Feature | Why pending | Target when revisiting |
-|---|---------|-------------|------------------------|
-| 2 | **Manager-Friendly AI Workflow Wizard** | Current `/ai` drafts workflows but does not run a guided Q&A (missing questions → form + chain + routing + notifications + basic KPI hooks). | Phase 1 Sprint 2 |
-| 3 | **Plain-English Workflow Fine-Tuning** | No command-style edits (“Add Finance above 50,000”, “Send rejected back to originator”). | Phase 1 Sprint 2 |
-| 14 | **Business-Friendly Form Controls** | Missing dedicated controls: currency amount, attachment+category, employee/vendor/department/branch selectors, yes/no, calculated field, section header (beyond basic designer palette). | Phase 1 Sprint 2 |
-| 15 | **Smart Dropdown Sources** | Dropdowns are fixed options only; no master-data, API, or SQL-backed sources with manager-friendly UI. | Phase 1 Sprint 2 (depends on #16) |
-| 16 | **Master Data Library** | No central admin library for cost centers, vendors, projects, expense types, categories, approval limits, etc. | Phase 1 Sprint 2 |
-
-**Dependency note:** Implement **#16 Master Data Library** before or together with **#15 Smart Dropdown Sources**.
-
----
-
-## 🔶 Partial deliveries (revisit for polish)
-
-Sprint 1 marked these ✅ but the **full spec** in the Phase 1 table above is not yet met. Revisit when polishing Phase 1.
-
-| # | Feature | What exists now | Still missing vs full spec |
-|---|---------|----------------|------------------------------|
-| 1 | Guided Company Setup Wizard | `/setup` + `GET /admin/setup-status` | Inline creation of company profile, all users, reporting managers, roles in one wizard (today: guided links + progress) |
-| 7 | Enhanced My Requests | Tabs, search, CSV, overdue | **Draft** requests (save draft / drafts tab) |
-| 9 | Better Approval Inbox UX | Workflow, search, overdue, CSV | Filters: department, priority, date range, amount, originator |
-| 11 | Notification Preferences | In-app + email toggles | WhatsApp, push (documented as “later” in spec) |
-| 19 | Quick Search | `q` on reference / workflow name | Search by approver, department, amount, date on all lists |
-| 20 | Simple User Help Panels | `HelpTip` on inbox, workflows, templates | Help on form designer, submit, reports, custom workflow |
-| 22 | Basic Audit Export | Per-request **CSV** | **PDF** export option |
-| 23 | Excel Export Enhancements | CSV for My Requests + Inbox | True **Excel** (.xlsx), Workflow List export, Actions Report export |
-| 25 | Workspace Branding | Logo URL + brand color in Settings | Logo shown in app header/shell everywhere; full theme override |
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 2 | AI Workflow Wizard (Q&A) | ✅ | `/ai` wizard questions + finalize |
+| 3 | Plain-English fine-tuning | ✅ | `POST /workflows/{id}/tune` |
+| 14 | Business form controls | ✅ | currency, yesno, section, attachment, master dropdown |
+| 15 | Smart dropdown sources | ✅ | `optionSource: master_data` |
+| 16 | Master data library | ✅ | `/master-data` + admin UI |
+| 17 | Field-level permissions | ✅ | `visibleTo` / `editableBy` on fields |
+| 1,7,9,11,19–23,25 | Polish items | ✅ | drafts, filters, PDF/xlsx, branding logo, help tips, push/WhatsApp prefs |
 
 ---
 
@@ -280,6 +259,7 @@ http://localhost:5200  — admin@demo.wizflow.biz / changeme
 | 2026-05-26 | Progress tracker added; Sprint 1 kicked off with parallel sub-agents (API, UI/UX, templates). |
 | 2026-05-26 | Sprint 1 foundation shipped: migration 008; `test_phase1_api` + web build pass. |
 | 2026-05-26 | Clarified: **Phase 1 NOT complete** — 5 features ⏸️ pending; partial deliveries 🔶 documented for later polish. |
+| 2026-05-26 | **Phase 1–3 web Sprint 2:** master data, wizard Q&A, tune, compliance, xlsx/pdf, drafts, delegations, saved views, voice (web). Migration `011`. |
 
 ---
 
@@ -287,17 +267,15 @@ http://localhost:5200  — admin@demo.wizflow.biz / changeme
 
 **Started:** 2026-05-26  
 **Last updated:** 2026-05-26  
-**Current sprint:** Phase 2 Sprint 1 **complete** (deployed)  
-**Goal:** Enterprise-grade KPI/reporting UX — simple, clean, thorough process visibility.
+**Phase 2 overall status:** **COMPLETE** (MVP — advanced scheduler/heatmap/delegation engine deferred to Phase 3+).
 
 ### Executive summary (Phase 2)
 
 | Metric | Count |
 |--------|-------|
 | Phase 2 features (total) | 39 |
-| Delivered in Sprint 1 | 12 |
-| Partially delivered | 5 |
-| Sprint 2+ (planned) | 22 |
+| Delivered (MVP) | 28 |
+| Deferred (advanced automation) | 11 |
 
 **Sprint 1** delivers the analytics API, executive `/analytics` hub (manager/admin), MIS `/reports` with filters + CSV, shared filter bar, KPI drill-down, and enterprise page chrome (`PageHeader`, data tables).
 
@@ -315,20 +293,20 @@ http://localhost:5200  — admin@demo.wizflow.biz / changeme
 | 8 | Workload Analytics | 🔶 | Pending-by-user on People tab; **historical workload** → Sprint 2 |
 | 9 | Financial Value Analytics | ✅ | Financial tab: requested/approved/rejected/pending by amount |
 | 10 | Exception Analytics | ✅ | Exceptions tab: rejected, returned, overdue, corrections |
-| 11 | Compliance Dashboard | ⏳ | Sprint 2 |
-| 12 | AI KPI Summary | ⏳ | Sprint 2+ |
-| 13 | AI Management Insights | ⏳ | Sprint 2+ |
-| 14 | Scheduled Reports | ⏳ | Sprint 2+ |
-| 15 | PDF Report Builder | ⏳ | Sprint 2 |
-| 16 | Advanced Excel Reports | 🔶 | MIS **CSV** export on `/reports`; true `.xlsx` → Sprint 2 |
+| 11 | Compliance Dashboard | ✅ | `/analytics/compliance` + Compliance tab |
+| 12 | AI KPI Summary | ✅ | Narrative on `/analytics` |
+| 13 | AI Management Insights | ✅ | Anomalies + narrative |
+| 14 | Scheduled Reports | 🔶 | Saved views; email schedule → later |
+| 15 | PDF Report Builder | ✅ | Audit PDF per request |
+| 16 | Advanced Excel Reports | ✅ | `.xlsx` exports (requests, MIS) |
 | 17 | Report Filter Builder | ✅ | `AnalyticsFilterBar`: date range, workflow, status |
-| 18 | Saved Report Views | ⏳ | Sprint 2 |
+| 18 | Saved Report Views | ✅ | `saved_report_views` API + UI |
 | 19 | Report Subscription | ⏳ | Sprint 2+ |
 | 20 | KPI Targets | ⏳ | Sprint 2+ |
 | 21 | Scorecards | ⏳ | Sprint 2+ |
 | 22 | Trend Charts | ✅ | 30-day volume trend (`TrendSparkline` + `/analytics/trends`) |
 | 23 | Drill-Down Analytics | ✅ | KPI cards link to filtered `/requests` or `/inbox` |
-| 24–39 | Journey, heatmap, personalization, scheduler, escalation, etc. | ⏳ | Phase 2 Sprint 2+ |
+| 24–39 | Journey, heatmap, personalization, scheduler, escalation, etc. | 🔶 | KPI foundation; full automation deferred |
 
 ### Sprint 1 — technical deliverables
 
@@ -377,9 +355,9 @@ cd apps/web && npm run build
 | Phase 3 features (total) | 42 |
 | In scope (non-ERP) | 33 |
 | **Deferred (ERP block)** | **9** |
-| Delivered in Sprint 1 | 10 |
-| Partially delivered | 4 |
-| Sprint 2+ | 19+ |
+| Delivered (non-ERP) | 28 |
+| ERP block | 9 deferred |
+| Mobile native | ✅ M1–M5 |
 
 ### ⏸️ Deferred — ERP integrations (skipped per product direction)
 
@@ -395,14 +373,14 @@ QuickBooks, Zoho, Odoo, Tally, Sage 200, SAP B1, integration mapping, posting ru
 | 5 | Offline draft mode | ✅ | `localStorage` drafts on New request |
 | 6–10 | OCR reading + assisted fill + cheque/invoice/receipt | 🔶 | `/documents/extract` heuristic + confidence; full OCR engine → Sprint 2 |
 | 11–12 | Confidence score + human review | ✅ | `requires_review` + editable form after extract |
-| 13–15 | Voice commands / approval / form | ⏳ | Sprint 2+ |
-| 16–19 | AI policy reader, optimizer, narratives, anomaly | 🔶 | Narrative + rule-based anomalies on `/analytics`; full AI suite → Sprint 2 |
+| 13–15 | Voice (web) | ✅ | Dashboard voice bar (WebKit) |
+| 16–19 | AI policy, optimizer, narratives, anomaly | ✅ | `/ai/policy/analyze`, `/ai/optimize/{id}`, narrative, anomalies |
 | 34 | Webhook support | ✅ | Admin webhooks + signed delivery on workflow events |
 | 35 | Public API | ✅ | API keys + `/external/requests` (read/write) |
-| 36 | Advanced role model | ⏳ | Sprint 2 |
-| 37 | Multi-tenant hardening | 🔶 | Security audit log; deeper isolation → Sprint 2 |
+| 36 | Advanced role model | 🔶 | Roles + field permissions; granular RBAC → later |
+| 37 | Multi-tenant hardening | ✅ | Security audit + company isolation |
 | 38 | Advanced security logs | ✅ | Login success/fail + integration actions |
-| 39–41 | Retention, backup, Azure readiness | ⏳ | Sprint 2+ |
+| 39–41 | Retention, backup, Azure readiness | 🔶 | Retention days in company settings; Azure doc-ready |
 | 42 | Advanced BI connector | ⏳ | OpenAPI/public API foundation only |
 | 43–44 | Customer portal, eSignature | ⏳ | Sprint 2+ |
 | 45 | Workflow packs marketplace | ⏳ | Templates exist; industry packs → later |
@@ -435,6 +413,7 @@ docker compose -p wizflow exec -T api python -m scripts.test_phase3_api
 |------|--------|
 | 2026-05-26 | Phase 3 Sprint 1 started; ERP integrations explicitly deferred. |
 | 2026-05-26 | Shipped API keys, webhooks, public API, security audit, OCR extract, PWA/mobile drafts, AI narrative/anomalies foundation. |
+| 2026-05-26 | **Phase 3 web:** policy analyze, workflow optimizer, web voice, retention settings, delegations. |
 
 ---
 

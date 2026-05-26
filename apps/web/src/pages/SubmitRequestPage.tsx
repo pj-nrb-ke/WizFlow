@@ -1,6 +1,7 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { ThemeScope } from "../context/ThemeContext";
+import { HelpTip } from "../components/HelpTip";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
 import { API_BASE, ApiError, apiFetch, apiUpload, FormField, WorkflowDefinition } from "../lib/api";
 import { getToken } from "../lib/auth";
@@ -183,7 +184,10 @@ export function SubmitRequestPage() {
 
   return (
     <div>
-      <h1 className="wf-page-title mb-1">New request</h1>
+      <div className="flex items-center gap-2 mb-1">
+        <h1 className="wf-page-title">New request</h1>
+        <HelpTip text="Pick a published workflow, fill required fields, and attach supporting documents. Your progress is auto-saved on this device until you submit." />
+      </div>
       <p className="text-sm text-slate-500 mb-4">Choose a workflow and complete all required fields.</p>
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
       {workflows.length === 0 ? (

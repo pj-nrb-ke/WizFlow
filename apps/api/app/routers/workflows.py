@@ -9,6 +9,7 @@ from app.db.models import User, UserGroup, UserGroupMember, WorkflowDefinition, 
 from app.db.session import get_db
 from app.schemas.request import RequestSubmit, WorkflowInstanceOut
 from app.schemas.phase1 import HealthCheckOut, HealthIssue
+from app.schemas.web_phases import WorkflowTuneIn
 from app.schemas.workflow import (
     PublishPreview,
     PublishRequest,
@@ -225,6 +226,35 @@ def create_workflow(
     db.commit()
     db.refresh(defn)
     return defn
+
+
+@router.post("/{workflow_id}/tune")
+def tune_workflow(
+    workflow_id: UUID,
+    body: WorkflowTuneIn,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> dict:
+    from app.services.versioning import snapshot_definition
+    from app.services.workflow_commands import apply_plain_english_command
+
+    if not any(r in MANAGER_ROLES for r in user.roles):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
+    defn = _get_definition(db, workflow_id, user.company_id)
+    if defn.status != "draft":
+        raise HTTPException(status_code=400, detail="Tune is only available on draft workflows")
+    snap = snapshot_definition(defn)
+    try:
+        updated, explanation = apply_plain_english_command(snap, body.instruction)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    defn.name = updated.get("name", defn.name)
+    defn.form_schema = updated.get("form_schema", defn.form_schema)
+    defn.steps = updated.get("steps", defn.steps)
+    defn.routing_rules = updated.get("routing_rules", defn.routing_rules)
+    defn.settings = updated.get("settings", defn.settings)
+    db.commit()
+    return {"explanation": explanation, "workflow_id": str(defn.id)}
 
 
 @router.get("/{workflow_id}/health-check", response_model=HealthCheckOut)
