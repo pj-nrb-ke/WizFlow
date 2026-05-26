@@ -2,6 +2,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, Field
 
+from app.schemas.phase1 import CompanyBranding, NotificationPreferences
+
 
 class LoginRequest(BaseModel):
     email: str = Field(min_length=3)
@@ -26,3 +28,7 @@ class UserProfile(BaseModel):
     company_id: UUID | None
     company_name: str | None
     roles: list[str]
+    notification_preferences: NotificationPreferences = Field(
+        default_factory=lambda: NotificationPreferences()
+    )
+    company_branding: CompanyBranding = Field(default_factory=lambda: CompanyBranding())

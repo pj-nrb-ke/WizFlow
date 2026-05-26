@@ -1,7 +1,8 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import func, select
+from fastapi import APIRouter, Depends, File, HTTPException, Query, UploadFile, status
+from fastapi.responses import PlainTextResponse
+from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, require_company
@@ -14,25 +15,47 @@ from app.services.assignees import needs_claim, user_can_see_inbox
 from app.services.events import record_event
 from app.services.files import save_upload
 from app.services.instance_engine import _step_name
+from app.services.csv_export import rows_to_csv
 from app.services.instance_queries import get_instance, to_out
 from app.services.notifications import notify_users
+from app.services.request_serial import backfill_reference_for_instance
 
 router = APIRouter(tags=["Inbox"])
 
 
-@router.get("/inbox", response_model=list[InboxItem])
-def get_inbox(
-    user: CurrentUser = Depends(require_company),
-    db: Session = Depends(get_db),
+def _build_inbox_items(
+    db: Session,
+    user: CurrentUser,
+    *,
+    workflow_id: UUID | None = None,
+    q_text: str | None = None,
 ) -> list[InboxItem]:
-    rows = db.scalars(
-        select(WorkflowInstance)
-        .where(
-            WorkflowInstance.company_id == user.company_id,
-            WorkflowInstance.status == "in_progress",
-        )
-        .order_by(WorkflowInstance.submitted_at.desc())
+    q = select(WorkflowInstance).where(
+        WorkflowInstance.company_id == user.company_id,
+        WorkflowInstance.status == "in_progress",
     )
+    if workflow_id:
+        q = q.where(WorkflowInstance.workflow_definition_id == workflow_id)
+    if q_text:
+        term = f"%{q_text.strip()}%"
+        originator_ids = [
+            u.id
+            for u in db.scalars(
+                select(User).where(
+                    User.company_id == user.company_id,
+                    User.full_name.ilike(term),
+                )
+            )
+        ]
+        clauses = [
+            WorkflowInstance.reference_number.ilike(term),
+            WorkflowInstance.workflow_name.ilike(term),
+        ]
+        if originator_ids:
+            clauses.append(WorkflowInstance.originator_user_id.in_(originator_ids))
+        q = q.where(or_(*clauses))
+
+    rows = db.scalars(q.order_by(WorkflowInstance.submitted_at.desc()))
     items: list[InboxItem] = []
     for inst in rows:
         if not user_can_see_inbox(inst, user.id):
@@ -46,8 +69,6 @@ def get_inbox(
         amount = inst.request_data.get("amount")
         ref = inst.reference_number
         if not ref and defn:
-            from app.services.request_serial import backfill_reference_for_instance
-
             ref = backfill_reference_for_instance(db, inst, defn)
         items.append(
             InboxItem(
@@ -64,6 +85,41 @@ def get_inbox(
         )
     db.commit()
     return items
+
+
+@router.get("/inbox", response_model=list[InboxItem])
+def get_inbox(
+    workflow_id: UUID | None = None,
+    q: str | None = Query(None, description="Search reference, workflow name, or originator"),
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> list[InboxItem]:
+    return _build_inbox_items(db, user, workflow_id=workflow_id, q_text=q)
+
+
+@router.get("/inbox/export.csv", response_class=PlainTextResponse)
+def export_inbox_csv(
+    workflow_id: UUID | None = None,
+    q: str | None = None,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> str:
+    items = _build_inbox_items(db, user, workflow_id=workflow_id, q_text=q)
+    rows = [
+        [
+            i.reference_number or "",
+            i.workflow_name,
+            i.step_name,
+            i.originator_name,
+            i.submitted_at.isoformat() if i.submitted_at else "",
+            i.amount_preview or "",
+        ]
+        for i in items
+    ]
+    return rows_to_csv(
+        ["reference_number", "workflow_name", "step_name", "originator_name", "submitted_at", "amount"],
+        rows,
+    )
 
 
 @router.post("/requests/{request_id}/claim", response_model=WorkflowInstanceOut)

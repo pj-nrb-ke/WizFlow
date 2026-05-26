@@ -3,6 +3,7 @@ import { Link, useParams } from "react-router-dom";
 import { ThemeScope } from "../context/ThemeContext";
 import { ApprovalActions } from "../components/ApprovalActions";
 import { RequestMetaBar } from "../components/RequestMetaBar";
+import { RequestStatusPanel } from "../components/RequestStatusPanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { eventLabel } from "../lib/eventLabels";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
@@ -133,8 +134,27 @@ export function RequestDetailPage() {
         </p>
         {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
+        {request.status === "returned" && isOriginator && (
+          <div
+            className="mb-6 rounded-xl border-2 border-amber-400 bg-amber-50 px-5 py-4"
+            role="alert"
+          >
+            <h2 className="text-lg font-bold text-amber-950">Action required</h2>
+            <p className="text-sm text-amber-900 mt-1">
+              This request was returned for correction. Update the highlighted fields below and
+              resubmit to continue approval.
+            </p>
+          </div>
+        )}
+
         <div className="grid lg:grid-cols-2 gap-6">
-          <div className="wf-card p-4">
+          <div
+            className={`wf-card p-4 ${
+              request.status === "returned" && isOriginator
+                ? "ring-2 ring-amber-400 ring-offset-2"
+                : ""
+            }`}
+          >
             <h2 className="font-semibold mb-3">Request data</h2>
             {fields.length > 0 ? (
               <WorkflowFormRenderer
@@ -165,8 +185,11 @@ export function RequestDetailPage() {
               />
             )}
             {request.status === "returned" && isOriginator && (
-              <form onSubmit={resubmit} className="mt-4 space-y-4 border-t pt-4">
-                <p className="text-sm font-medium">Resubmit after edits</p>
+              <form
+                onSubmit={resubmit}
+                className="mt-4 space-y-4 border-t border-amber-200 pt-4 bg-amber-50/60 -mx-4 px-4 pb-4 rounded-b-lg"
+              >
+                <p className="text-sm font-semibold text-amber-950">Resubmit after edits</p>
                 <WorkflowFormRenderer
                   fields={fields}
                   values={resubmitData}
@@ -180,7 +203,10 @@ export function RequestDetailPage() {
             )}
           </div>
 
-          <div className="wf-card p-4">
+          <div className="space-y-6">
+            <RequestStatusPanel request={request} events={events} />
+
+            <div id="timeline" className="wf-card p-4">
             <h2 className="font-semibold mb-3">Timeline</h2>
             <ul className="space-y-3 text-sm">
               {events.map((ev) => (
@@ -197,6 +223,7 @@ export function RequestDetailPage() {
                 </li>
               ))}
             </ul>
+            </div>
           </div>
         </div>
       </div>

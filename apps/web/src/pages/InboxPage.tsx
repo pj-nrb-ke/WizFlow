@@ -1,12 +1,22 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { ThemeScope } from "../context/ThemeContext";
 import { ApprovalActions } from "../components/ApprovalActions";
+import { HelpTip } from "../components/HelpTip";
 import { RequestMetaBar } from "../components/RequestMetaBar";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
 import { formatDateTimeShort } from "../lib/datetime";
-import { ApiError, apiFetch, FormField, InboxItem, RequestDetail } from "../lib/api";
+import {
+  ApiError,
+  apiDownload,
+  apiFetch,
+  FormField,
+  InboxItem,
+  RequestDetail,
+  WorkflowSummary,
+} from "../lib/api";
 import { getToken } from "../lib/auth";
 import { getFormFields } from "../lib/formValidation";
+import { isRequestOverdue } from "../lib/sla";
 import {
   APP_THEMES,
   filterRequestData,
@@ -17,6 +27,10 @@ import {
 
 export function InboxPage() {
   const [items, setItems] = useState<InboxItem[]>([]);
+  const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
+  const [workflowFilter, setWorkflowFilter] = useState("");
+  const [search, setSearch] = useState("");
+  const [overdueOnly, setOverdueOnly] = useState(false);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<RequestDetail | null>(null);
   const [fields, setFields] = useState<FormField[]>([]);
@@ -31,13 +45,39 @@ export function InboxPage() {
     ? (detail!.form_layout as FormLayout)
     : "stacked";
 
-  function loadInbox() {
-    return apiFetch<InboxItem[]>("/api/v1/inbox", {}, getToken()).then(setItems);
-  }
+  const loadInbox = useCallback(() => {
+    return apiFetch<InboxItem[]>("/api/v1/inbox", {}, getToken()).then((data) => {
+      setItems(data);
+      return data;
+    });
+  }, []);
 
   useEffect(() => {
     loadInbox().catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed"));
-  }, []);
+    apiFetch<WorkflowSummary[]>("/api/v1/workflows", {}, getToken())
+      .then(setWorkflows)
+      .catch(() => {});
+  }, [loadInbox]);
+
+  const filteredItems = useMemo(() => {
+    const q = search.trim().toLowerCase();
+    return items.filter((item) => {
+      if (workflowFilter && item.workflow_name !== workflowFilter) return false;
+      if (overdueOnly && !isRequestOverdue(item.submitted_at, null, "in_progress")) return false;
+      if (!q) return true;
+      const hay = [
+        item.reference_number,
+        item.workflow_name,
+        item.originator_name,
+        item.step_name,
+        item.amount_preview,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return hay.includes(q);
+    });
+  }, [items, workflowFilter, search, overdueOnly]);
 
   async function claimTask(requestId: string) {
     setError("");
@@ -97,11 +137,15 @@ export function InboxPage() {
         `Request ${actionSuccessLabel(action)} successfully${actedRef ? ` (${actedRef})` : actedName ? ` (${actedName})` : ""}.`
       );
       setComment("");
-      const remaining = await apiFetch<InboxItem[]>("/api/v1/inbox", {}, getToken());
-      setItems(remaining);
+      const remaining = await loadInbox();
       setDetail(null);
-      if (remaining.length > 0) {
-        await openItem(remaining[0].request_id);
+      const next = remaining.filter((i) => {
+        if (workflowFilter && i.workflow_name !== workflowFilter) return false;
+        if (overdueOnly && !isRequestOverdue(i.submitted_at, null, "in_progress")) return false;
+        return true;
+      });
+      if (next.length > 0) {
+        await openItem(next[0].request_id);
       } else {
         setSelectedId(null);
       }
@@ -110,54 +154,124 @@ export function InboxPage() {
     }
   }
 
+  async function exportCsv() {
+    await apiDownload("/api/v1/inbox/export.csv", "inbox.csv", getToken());
+  }
+
   const visibleData = detail ? filterRequestData(detail.request_data) : {};
 
   return (
     <div>
-      <h1 className="wf-page-title mb-4">Approval inbox</h1>
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+        <div className="flex items-center gap-2">
+          <h1 className="wf-page-title">Approval inbox</h1>
+          <HelpTip text="Review items waiting for your approval. Filter by workflow or search by reference; overdue highlights items past the SLA window." />
+        </div>
+        <button
+          type="button"
+          onClick={() =>
+            exportCsv().catch((e) =>
+              setError(e instanceof ApiError ? e.detail ?? e.message : "Export failed")
+            )
+          }
+          className="px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50"
+        >
+          Export CSV
+        </button>
+      </div>
+
+      <div className="flex flex-col lg:flex-row flex-wrap gap-3 mb-4 p-3 wf-card">
+        <select
+          value={workflowFilter}
+          onChange={(e) => setWorkflowFilter(e.target.value)}
+          className="wf-input max-w-xs"
+          aria-label="Filter by workflow"
+        >
+          <option value="">All workflows</option>
+          {workflows.map((w) => (
+            <option key={w.id} value={w.name}>
+              {w.name}
+            </option>
+          ))}
+        </select>
+        <input
+          type="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search reference, originator…"
+          className="wf-input flex-1 min-w-[12rem]"
+          aria-label="Search inbox"
+        />
+        <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer shrink-0">
+          <input
+            type="checkbox"
+            checked={overdueOnly}
+            onChange={(e) => setOverdueOnly(e.target.checked)}
+            className="rounded border-slate-300"
+          />
+          Overdue only
+        </label>
+      </div>
+
       {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
       {msg && <p className="text-sm text-green-700 mb-2">{msg}</p>}
 
-      <div className="grid lg:grid-cols-3 gap-6 min-w-0">
-        <div className="lg:col-span-1 wf-card divide-y min-w-0 max-h-[70vh] overflow-y-auto">
-          {items.length === 0 ? (
-            <p className="p-4 text-sm text-slate-500">No pending approvals.</p>
+      <div className="grid max-md:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6 min-w-0">
+        <div className="lg:col-span-1 wf-card divide-y min-w-0 max-h-[70vh] overflow-y-auto order-1">
+          {filteredItems.length === 0 ? (
+            <p className="p-4 text-sm text-slate-500">
+              {items.length === 0
+                ? "No pending approvals."
+                : "No items match your filters."}
+            </p>
           ) : (
-            items.map((item) => (
-              <button
-                key={item.request_id}
-                type="button"
-                onClick={() => openItem(item.request_id)}
-                className={`w-full text-left p-4 hover:bg-slate-50/80 ${
-                  selectedId === item.request_id ? "bg-[rgb(var(--wf-accent-muted))]" : ""
-                }`}
-              >
-                {item.reference_number && (
-                  <p className="font-mono text-xs font-semibold text-[rgb(var(--wf-brand-700))]">
-                    {item.reference_number}
+            filteredItems.map((item) => {
+              const overdue = isRequestOverdue(item.submitted_at, null, "in_progress");
+              return (
+                <button
+                  key={item.request_id}
+                  type="button"
+                  onClick={() => openItem(item.request_id)}
+                  className={`w-full text-left p-4 hover:bg-slate-50/80 ${
+                    selectedId === item.request_id ? "bg-[rgb(var(--wf-accent-muted))]" : ""
+                  }`}
+                >
+                  {item.reference_number && (
+                    <p className="font-mono text-xs font-semibold text-[rgb(var(--wf-brand-700))]">
+                      {item.reference_number}
+                    </p>
+                  )}
+                  <p className="font-medium">{item.workflow_name}</p>
+                  <p className="text-xs text-slate-500">
+                    {item.originator_name} · {item.step_name}
                   </p>
-                )}
-                <p className="font-medium">{item.workflow_name}</p>
-                <p className="text-xs text-slate-500">
-                  {item.originator_name} · {item.step_name}
-                </p>
-                {item.submitted_at && (
-                  <p className="text-[10px] text-slate-400">{formatDateTimeShort(item.submitted_at)}</p>
-                )}
-                {item.amount_preview && (
-                  <p className="text-xs text-slate-400">Amount: {item.amount_preview}</p>
-                )}
-                {item.needs_claim && (
-                  <span className="inline-block mt-1 text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 rounded">
-                    Claim to assign
-                  </span>
-                )}
-              </button>
-            ))
+                  {item.submitted_at && (
+                    <p className="text-[10px] text-slate-400">
+                      {formatDateTimeShort(item.submitted_at)}
+                    </p>
+                  )}
+                  {item.amount_preview && (
+                    <p className="text-xs text-slate-600 font-medium">Amount: {item.amount_preview}</p>
+                  )}
+                  <div className="flex flex-wrap gap-1 mt-1">
+                    {item.needs_claim && (
+                      <span className="text-[10px] font-medium text-amber-700 bg-amber-50 px-1.5 rounded">
+                        Claim to assign
+                      </span>
+                    )}
+                    {overdue && (
+                      <span className="text-[10px] font-semibold uppercase text-red-700 bg-red-50 px-1.5 rounded">
+                        Overdue
+                      </span>
+                    )}
+                  </div>
+                </button>
+              );
+            })
           )}
         </div>
 
-        <div className="lg:col-span-2 min-w-0">
+        <div className="lg:col-span-2 min-w-0 order-2">
           {detail ? (
             <ThemeScope theme={uiTheme}>
               <div className="wf-card p-4 space-y-4">

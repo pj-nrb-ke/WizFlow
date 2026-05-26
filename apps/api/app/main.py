@@ -12,7 +12,9 @@ from app.routers import (
     public_approval,
     reports,
     requests,
+    templates,
     user_groups,
+    users,
     workflows,
 )
 
@@ -43,6 +45,8 @@ v1.include_router(inbox.router)
 v1.include_router(notifications.router)
 v1.include_router(public_approval.router)
 v1.include_router(reports.router)
+v1.include_router(templates.router)
+v1.include_router(users.router)
 app.include_router(v1)
 
 

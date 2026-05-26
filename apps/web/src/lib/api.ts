@@ -1,4 +1,4 @@
-const API_BASE = import.meta.env.VITE_API_URL || "";
+export const API_BASE = import.meta.env.VITE_API_URL || "";
 
 export class ApiError extends Error {
   constructor(
@@ -165,6 +165,8 @@ export type RequestSummary = {
   current_step: string | null;
   current_step_name: string | null;
   submitted_at: string | null;
+  amount_preview?: string | null;
+  sla_hours?: number | null;
 };
 
 export type RequestDetail = RequestSummary & {
@@ -250,7 +252,133 @@ export type Notification = {
   body: string;
   read: boolean;
   created_at: string;
+  instance_id?: string | null;
+  notification_type?: string | null;
 };
+
+export type UserPreferences = {
+  email_enabled: boolean;
+  in_app_enabled: boolean;
+};
+
+export type CompanyBranding = {
+  logo_url: string | null;
+  brand_color: string | null;
+};
+
+export type SetupStatus = {
+  organization_complete: boolean;
+  users_complete: boolean;
+  groups_complete: boolean;
+  workflows_complete: boolean;
+  templates_used?: boolean;
+  overall_percent?: number;
+};
+
+export type WorkflowHealthIssue = {
+  severity: "error" | "warning" | string;
+  message: string;
+  step_id?: string | null;
+};
+
+export type WorkflowHealthCheck = {
+  ok: boolean;
+  issues: WorkflowHealthIssue[];
+  warnings?: string[];
+};
+
+export type WorkflowTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  category?: string | null;
+};
+
+/** Download a file from the API with Bearer auth. */
+export async function apiDownload(
+  path: string,
+  filename: string,
+  token?: string | null
+): Promise<void> {
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, { headers });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const err = await res.json();
+      detail = err.detail ?? detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(detail, res.status, detail);
+  }
+  const blob = await res.blob();
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+export function listMyRequests(
+  params?: { q?: string; status?: string },
+  token?: string | null
+) {
+  const search = new URLSearchParams();
+  if (params?.q?.trim()) search.set("q", params.q.trim());
+  if (params?.status) search.set("status", params.status);
+  const qs = search.toString();
+  return apiFetch<RequestSummary[]>(`/api/v1/requests${qs ? `?${qs}` : ""}`, {}, token);
+}
+
+export function getSetupStatus(token?: string | null) {
+  return apiFetch<SetupStatus>("/api/v1/admin/setup-status", {}, token);
+}
+
+export function getWorkflowHealthCheck(workflowId: string, token?: string | null) {
+  return apiFetch<WorkflowHealthCheck>(`/api/v1/workflows/${workflowId}/health-check`, {}, token);
+}
+
+export function listWorkflowTemplates(token?: string | null) {
+  return apiFetch<WorkflowTemplate[]>("/api/v1/templates", {}, token);
+}
+
+export function getUserPreferences(token?: string | null) {
+  return apiFetch<UserPreferences>("/api/v1/users/me/preferences", {}, token);
+}
+
+export function patchUserPreferences(
+  body: Partial<UserPreferences>,
+  token?: string | null
+) {
+  return apiFetch<UserPreferences>(
+    "/api/v1/users/me/preferences",
+    { method: "PATCH", body: JSON.stringify(body) },
+    token
+  );
+}
+
+export function getCompanyBranding(token?: string | null) {
+  return apiFetch<CompanyBranding>("/api/v1/admin/company/branding", {}, token);
+}
+
+export function patchCompanyBranding(body: Partial<CompanyBranding>, token?: string | null) {
+  return apiFetch<CompanyBranding>(
+    "/api/v1/admin/company/branding",
+    { method: "PATCH", body: JSON.stringify(body) },
+    token
+  );
+}
+
+export function markNotificationRead(notificationId: string, token?: string | null) {
+  return apiFetch<void>(
+    `/api/v1/notifications/${notificationId}/read`,
+    { method: "POST" },
+    token
+  );
+}
 
 export type Department = { id: string; name: string; code: string | null; created_at: string };
 export type UserRow = { id: string; email: string; full_name: string; is_active: boolean; roles: string[] };

@@ -50,6 +50,9 @@ export function DashboardPage() {
   const actions = [
     { to: "/submit", title: "Submit request", desc: "Start petty cash, purchase, leave…", icon: "＋" },
     { to: "/inbox", title: "Approval inbox", desc: "Review items waiting on you", icon: "✉" },
+    { to: "/templates", title: "Templates", desc: "Ready-made office workflows", icon: "▣" },
+    { to: "/setup", title: "Company setup", desc: "Guided onboarding for admins", icon: "◇" },
+    { to: "/notifications", title: "Notifications", desc: "Alerts, returns, and updates", icon: "◉" },
     { to: "/workflows", title: "Workflows", desc: "Publish, test, themes", icon: "⚙" },
     { to: "/custom-workflow", title: "Custom workflow", desc: "Approvers, initiators, forms", icon: "⇄" },
     { to: "/ai", title: "AI creator", desc: "Draft a process in plain English", icon: "✦" },

@@ -17,6 +17,8 @@ from app.core.security import (
 from app.db.models import Company, User, UserRole
 from app.db.session import get_db
 from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, UserProfile
+from app.schemas.phase1 import CompanyBranding, NotificationPreferences
+from app.services.company_settings import branding_from_settings, user_notification_preferences
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -76,9 +78,14 @@ def refresh(body: RefreshRequest, db: Session = Depends(get_db)) -> TokenRespons
 @router.get("/me", response_model=UserProfile)
 def me(user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)) -> UserProfile:
     company_name = None
+    branding = CompanyBranding()
+    db_user = db.get(User, user.id)
+    prefs = NotificationPreferences(**user_notification_preferences(db_user)) if db_user else NotificationPreferences()
     if user.company_id:
         company = db.get(Company, user.company_id)
-        company_name = company.name if company else None
+        if company:
+            company_name = company.name
+            branding = CompanyBranding(**branding_from_settings(company.settings))
     return UserProfile(
         id=user.id,
         email=user.email,
@@ -86,4 +93,6 @@ def me(user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_
         company_id=user.company_id,
         company_name=company_name,
         roles=user.roles,
+        notification_preferences=prefs,
+        company_branding=branding,
     )

@@ -42,10 +42,10 @@ export function PublicApprovePage() {
 
   if (done) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
-        <div className="wf-card max-w-md w-full p-8 text-center">
-          <p className="text-lg font-semibold text-green-700">{done}</p>
-          <p className="text-sm text-slate-500 mt-2">You may close this window.</p>
+      <div className="wf-public-approve min-h-screen flex items-center justify-center bg-slate-50 p-6">
+        <div className="wf-card max-w-md w-full p-8 sm:p-10 text-center">
+          <p className="text-xl font-semibold text-green-700">{done}</p>
+          <p className="text-base text-slate-500 mt-3">You may close this window.</p>
         </div>
       </div>
     );
@@ -53,61 +53,67 @@ export function PublicApprovePage() {
 
   if (!view) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50 p-6">
-        <p className="text-slate-500">{error || "Loading approval…"}</p>
+      <div className="wf-public-approve min-h-screen flex items-center justify-center bg-slate-50 p-6">
+        <p className="text-base text-slate-500">{error || "Loading approval…"}</p>
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-slate-50 py-10 px-4">
-      <div className="max-w-lg mx-auto wf-card p-6 space-y-4">
+    <div className="wf-public-approve min-h-screen bg-slate-50 py-6 sm:py-10 px-4 sm:px-6">
+      <div className="max-w-lg mx-auto wf-card p-6 sm:p-8 space-y-5">
         <RequestMetaBar
           referenceNumber={view.reference_number}
           workflowName={view.workflow_name}
           submittedAt={view.submitted_at}
         />
-        <p className="text-sm text-slate-500 text-center">{view.step_name}</p>
-        <p className="text-sm text-slate-600">
+        <p className="text-base text-slate-600 text-center font-medium">{view.step_name}</p>
+        <p className="text-base text-slate-700 leading-relaxed">
           Submitted by <strong>{view.originator_name || "—"}</strong>
           {view.submitted_at && (
-            <span className="text-slate-400">
-              {" "}
-              · {new Date(view.submitted_at).toLocaleString()}
+            <span className="block text-slate-500 text-sm mt-1">
+              {new Date(view.submitted_at).toLocaleString()}
             </span>
           )}
         </p>
-        <dl className="text-sm bg-slate-50 rounded-lg p-4 space-y-2">
+        <dl className="text-base bg-slate-50 rounded-xl p-4 sm:p-5 space-y-3">
           {Object.entries(view.request_preview).map(([k, v]) => (
-            <div key={k} className="flex justify-between gap-4">
-              <dt className="text-slate-500 capitalize">{k.replace(/_/g, " ")}</dt>
-              <dd className="font-medium text-slate-800">{String(v)}</dd>
+            <div key={k} className="flex flex-col sm:flex-row sm:justify-between gap-1 sm:gap-4">
+              <dt className="text-slate-500 capitalize shrink-0">{k.replace(/_/g, " ")}</dt>
+              <dd className="font-medium text-slate-800 break-words">{String(v)}</dd>
             </div>
           ))}
         </dl>
-        {error && <p className="text-sm text-red-600">{error}</p>}
-        <form onSubmit={onSubmit} className="space-y-3">
+        {error && <p className="text-base text-red-600">{error}</p>}
+        <form onSubmit={onSubmit} className="space-y-4">
+          <label className="block text-sm font-medium text-slate-700" htmlFor="public-comment">
+            Comment (optional)
+          </label>
           <textarea
+            id="public-comment"
             value={comment}
             onChange={(e) => setComment(e.target.value)}
-            placeholder="Comment (optional)"
-            className="wf-input w-full"
-            rows={2}
+            placeholder="Add a note for the requester…"
+            className="wf-input w-full text-base min-h-[5rem]"
+            rows={3}
           />
-          <div className="flex flex-wrap gap-2">
-            <button type="submit" className="flex-1 min-w-[120px] px-4 py-2.5 bg-green-600 text-white rounded-lg font-medium">
+          <div className="flex flex-col gap-3 sm:flex-row sm:gap-4">
+            <button
+              type="submit"
+              className="wf-public-approve-btn flex-1 min-h-[3rem] px-5 py-3.5 bg-green-600 text-white rounded-xl font-semibold text-base"
+            >
               Approve
             </button>
             <button
               type="button"
               onClick={() => decide("reject")}
-              className="flex-1 min-w-[120px] px-4 py-2.5 bg-red-600 text-white rounded-lg font-medium"
+              className="wf-public-approve-btn flex-1 min-h-[3rem] px-5 py-3.5 bg-red-600 text-white rounded-xl font-semibold text-base"
             >
               Reject
             </button>
           </div>
         </form>
-        <p className="text-xs text-slate-400 text-center">Secure one-time link · no login required</p>
+        <p className="text-sm text-slate-400 text-center">Secure one-time link · no login required</p>
       </div>
     </div>
   );

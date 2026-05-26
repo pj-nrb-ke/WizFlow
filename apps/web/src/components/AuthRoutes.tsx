@@ -15,6 +15,9 @@ import { WorkflowsPage } from "../pages/WorkflowsPage";
 import { FormDesignerPage } from "../pages/FormDesignerPage";
 import { CustomWorkflowPage } from "../pages/CustomWorkflowPage";
 import { PublicApprovePage } from "../pages/PublicApprovePage";
+import { NotificationsPage } from "../pages/NotificationsPage";
+import { SetupWizardPage } from "../pages/SetupWizardPage";
+import { TemplatesPage } from "../pages/TemplatesPage";
 
 function LoadingScreen() {
   return (
@@ -72,6 +75,9 @@ export function AppRoutes() {
           <Route path="requests" element={<MyRequestsPage />} />
           <Route path="requests/:id" element={<RequestDetailPage />} />
           <Route path="inbox" element={<InboxPage />} />
+          <Route path="templates" element={<TemplatesPage />} />
+          <Route path="notifications" element={<NotificationsPage />} />
+          <Route path="setup" element={<SetupWizardPage />} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>

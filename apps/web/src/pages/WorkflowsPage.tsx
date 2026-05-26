@@ -3,15 +3,18 @@ import { Link, useLocation } from "react-router-dom";
 import {
   ApiError,
   apiFetch,
+  getWorkflowHealthCheck,
   PublishPreview,
   PublishRequest,
   SimulationResult,
   WorkflowDefinition,
+  WorkflowHealthCheck,
   WorkflowPreview,
   WorkflowSummary,
   WorkflowVersion,
 } from "../lib/api";
 import { getToken } from "../lib/auth";
+import { HelpTip } from "../components/HelpTip";
 import { ThemeSwatches } from "../components/ThemeSwitcher";
 import { StatusBadge } from "../components/StatusBadge";
 import {
@@ -30,6 +33,8 @@ export function WorkflowsPage() {
   const [versions, setVersions] = useState<WorkflowVersion[]>([]);
   const [publishPreview, setPublishPreview] = useState<PublishPreview | null>(null);
   const [showPublish, setShowPublish] = useState(false);
+  const [healthCheck, setHealthCheck] = useState<WorkflowHealthCheck | null>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
   const [confirmPreview, setConfirmPreview] = useState(false);
   const [simResult, setSimResult] = useState<SimulationResult | null>(null);
   const [error, setError] = useState("");
@@ -89,17 +94,28 @@ export function WorkflowsPage() {
   async function openPublishModal() {
     if (!selected) return;
     setError("");
+    setHealthLoading(true);
+    setHealthCheck(null);
     try {
-      const pp = await apiFetch<PublishPreview>(
-        `/api/v1/workflows/${selected.id}/publish-preview`,
-        {},
-        getToken()
-      );
+      const [pp, health] = await Promise.all([
+        apiFetch<PublishPreview>(
+          `/api/v1/workflows/${selected.id}/publish-preview`,
+          {},
+          getToken()
+        ),
+        getWorkflowHealthCheck(selected.id, getToken()).catch(() => ({
+          ok: true,
+          issues: [] as WorkflowHealthCheck["issues"],
+        })),
+      ]);
       setPublishPreview(pp);
+      setHealthCheck(health);
       setConfirmPreview(false);
       setShowPublish(true);
     } catch (e) {
       setError(e instanceof ApiError ? e.detail ?? e.message : "Could not load publish preview");
+    } finally {
+      setHealthLoading(false);
     }
   }
 
@@ -212,6 +228,8 @@ export function WorkflowsPage() {
   if (loading) return <p className="text-slate-500">Loading workflows…</p>;
 
   const tested = Boolean(selected?.settings?.last_simulated_at) || Boolean(simResult);
+  const previewReady = preview != null && preview.gaps.length === 0;
+  const publishStep = selected?.status === "published" ? 4 : !previewReady ? 1 : !tested ? 2 : 3;
 
   return (
     <div>
@@ -308,15 +326,48 @@ export function WorkflowsPage() {
                     );
                   })}
                 </ol>
-                <div className="flex flex-wrap gap-2">
+                {selected.status === "draft" && (
+                  <div className="mb-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
+                      Publishing steps
+                    </p>
+                    <ol className="flex flex-wrap gap-2 text-xs">
+                      {(["Draft", "Preview", "Simulate", "Publish"] as const).map((label, i) => {
+                        const stepIndex = i;
+                        const active = publishStep === stepIndex;
+                        const done = publishStep > stepIndex;
+                        return (
+                          <li
+                            key={label}
+                            className={`px-2.5 py-1 rounded-full border ${
+                              active
+                                ? "border-[rgb(var(--wf-brand-600))] bg-[rgb(var(--wf-accent-muted))] font-semibold text-[rgb(var(--wf-brand-700))]"
+                                : done
+                                  ? "border-green-200 bg-green-50 text-green-800"
+                                  : "border-slate-200 text-slate-500"
+                            }`}
+                          >
+                            {done && !active ? "✓ " : ""}
+                            {label}
+                          </li>
+                        );
+                      })}
+                    </ol>
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2 items-center">
                   {selected.status === "draft" && (
                     <button
                       type="button"
                       onClick={openPublishModal}
-                      className="px-4 py-2 wf-btn-primary text-sm"
+                      disabled={healthLoading}
+                      className="px-4 py-2 wf-btn-primary text-sm disabled:opacity-50"
                     >
-                      Publish…
+                      {healthLoading ? "Checking…" : "Publish…"}
                     </button>
+                  )}
+                  {selected.status === "draft" && (
+                    <HelpTip text="Review the preview, run a simulation with sample data, then publish. Health check warns about missing assignees or form gaps before go-live." />
                   )}
                   {selected.status === "published" && (
                     <button
@@ -418,8 +469,30 @@ export function WorkflowsPage() {
 
       {showPublish && publishPreview && (
         <div className="fixed inset-0 bg-black/30 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-5 text-sm">
+          <div className="bg-white rounded-lg shadow-lg max-w-md w-full p-5 text-sm max-h-[90vh] overflow-y-auto">
             <h3 className="font-semibold text-lg mb-2">Confirm publish</h3>
+            {healthCheck && (
+              <div
+                className={`mb-3 rounded-lg border p-3 ${
+                  healthCheck.ok
+                    ? "border-green-200 bg-green-50 text-green-900"
+                    : "border-amber-300 bg-amber-50 text-amber-950"
+                }`}
+              >
+                <p className="font-medium mb-1">
+                  Health check {healthCheck.ok ? "passed" : "— review issues"}
+                </p>
+                {healthCheck.issues.length > 0 ? (
+                  <ul className="list-disc list-inside space-y-0.5">
+                    {healthCheck.issues.map((issue, i) => (
+                      <li key={`${issue.message}-${i}`}>{issue.message}</li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="text-xs">No blocking issues detected.</p>
+                )}
+              </div>
+            )}
             <p className="text-slate-600 mb-3">{publishPreview.change_summary}</p>
             <label className="flex items-start gap-2 mb-4">
               <input
@@ -443,7 +516,7 @@ export function WorkflowsPage() {
               </button>
               <button
                 type="button"
-                disabled={!confirmPreview || !tested}
+                disabled={!confirmPreview || !tested || (healthCheck != null && !healthCheck.ok)}
                 onClick={publish}
                 className="px-3 py-1.5 wf-btn-primary disabled:opacity-50"
               >

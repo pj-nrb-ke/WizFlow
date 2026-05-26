@@ -8,6 +8,7 @@ from app.core.deps import CurrentUser, require_company
 from app.db.models import User, UserGroup, UserGroupMember, WorkflowDefinition, WorkflowEvent
 from app.db.session import get_db
 from app.schemas.request import RequestSubmit, WorkflowInstanceOut
+from app.schemas.phase1 import HealthCheckOut, HealthIssue
 from app.schemas.workflow import (
     PublishPreview,
     PublishRequest,
@@ -42,6 +43,7 @@ from app.services.initiators import effective_form_schema, user_can_initiate
 from app.services.instance_queries import to_out
 from app.services.approval_notify import notify_approvers_for_step
 from app.services import versioning
+from app.services.workflow_health import check_workflow_health, health_summary
 
 router = APIRouter(prefix="/workflows", tags=["Workflows"])
 
@@ -223,6 +225,21 @@ def create_workflow(
     db.commit()
     db.refresh(defn)
     return defn
+
+
+@router.get("/{workflow_id}/health-check", response_model=HealthCheckOut)
+def workflow_health_check(
+    workflow_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> HealthCheckOut:
+    defn = _get_definition(db, workflow_id, user.company_id)
+    issues = check_workflow_health(db, defn)
+    summary = health_summary(issues)
+    return HealthCheckOut(
+        issues=[HealthIssue(**i) for i in issues],
+        ok=summary["ok"],
+    )
 
 
 @router.get("/{workflow_id}", response_model=WorkflowDefinitionOut)

@@ -108,6 +108,16 @@ export function UserMenu() {
             </Link>
           )}
           <Link
+            to="/notifications"
+            onClick={() => setOpen(false)}
+            className="flex items-center justify-between px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"
+          >
+            Notifications
+            {counts.unread > 0 && (
+              <span className="text-xs bg-red-100 text-red-700 px-1.5 rounded-full">{counts.unread}</span>
+            )}
+          </Link>
+          <Link
             to="/settings"
             onClick={() => setOpen(false)}
             className="flex items-center gap-2 px-3 py-2 text-sm text-slate-700 hover:bg-slate-50"

@@ -1,12 +1,21 @@
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
 from app.core.deps import CurrentUser, require_roles
 from app.core.security import hash_password
-from app.db.models import Branch, Department, Role, User, UserRole
+from app.db.models import (
+    Branch,
+    Company,
+    Department,
+    Role,
+    User,
+    UserGroup,
+    UserRole,
+    WorkflowDefinition,
+)
 from app.db.session import get_db
 from app.schemas.org import (
     BranchCreate,
@@ -17,6 +26,8 @@ from app.schemas.org import (
     UserCreate,
     UserOut,
 )
+from app.schemas.phase1 import CompanyBranding, CompanyBrandingUpdate, SetupStatusOut
+from app.services.company_settings import branding_from_settings, merge_branding
 
 router = APIRouter(prefix="/admin", tags=["Admin"])
 
@@ -141,3 +152,51 @@ def create_user(
         .options(joinedload(User.user_roles).joinedload(UserRole.role))
     )
     return _user_out(db_user)
+
+
+@router.get("/setup-status", response_model=SetupStatusOut)
+def setup_status(
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> SetupStatusOut:
+    cid = user.company_id
+    dept_count = db.scalar(select(func.count()).select_from(Department).where(Department.company_id == cid)) or 0
+    user_count = db.scalar(
+        select(func.count()).select_from(User).where(User.company_id == cid, User.is_active.is_(True))
+    ) or 0
+    group_count = db.scalar(select(func.count()).select_from(UserGroup).where(UserGroup.company_id == cid)) or 0
+    wf_count = db.scalar(
+        select(func.count()).select_from(WorkflowDefinition).where(WorkflowDefinition.company_id == cid)
+    ) or 0
+    published_count = db.scalar(
+        select(func.count())
+        .select_from(WorkflowDefinition)
+        .where(WorkflowDefinition.company_id == cid, WorkflowDefinition.status == "published")
+    ) or 0
+
+    steps = {
+        "departments": dept_count > 0,
+        "users": user_count >= 2,
+        "groups": group_count > 0,
+        "workflows": wf_count > 0,
+        "published_workflow": published_count > 0,
+    }
+    done = sum(1 for v in steps.values() if v)
+    total = len(steps)
+    percent = round(100.0 * done / total, 1) if total else 0.0
+    return SetupStatusOut(steps=steps, complete=done == total, percent=percent)
+
+
+@router.patch("/company/branding", response_model=CompanyBranding)
+def update_company_branding(
+    body: CompanyBrandingUpdate,
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> CompanyBranding:
+    company = db.get(Company, user.company_id)
+    if not company:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Company not found")
+    company.settings = merge_branding(company.settings, body.model_dump(exclude_unset=True))
+    db.commit()
+    db.refresh(company)
+    return CompanyBranding(**branding_from_settings(company.settings))
