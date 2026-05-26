@@ -11,13 +11,15 @@ import {
   IconForm,
   IconTemplates,
   IconBell,
+  IconChartBar,
 } from "../components/icons";
 import { UserMenu } from "../components/UserMenu";
 import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
+import { canAccessReports } from "../lib/roles";
 import { THEME_META } from "../lib/themes";
 
-const nav = [
+const baseNav = [
   { to: "/", label: "Home", end: true, Icon: IconHome },
   { to: "/submit", label: "New request", Icon: IconPlusCircle },
   { to: "/requests", label: "My Requests", Icon: IconClipboardList },
@@ -28,6 +30,14 @@ const nav = [
   { to: "/form-designer", label: "Form Designer", Icon: IconForm },
   { to: "/custom-workflow", label: "Custom workflow", Icon: IconWorkflow },
   { to: "/ai", label: "AI creator", Icon: IconSparkles },
+] as const;
+
+const analyticsNav = [
+  { to: "/analytics", label: "Analytics", Icon: IconChartBar },
+  { to: "/reports", label: "Reports", Icon: IconClipboardList },
+] as const;
+
+const tailNav = [
   { to: "/admin", label: "Admin", Icon: IconShield },
   { to: "/settings", label: "Settings", Icon: IconSettings },
 ] as const;
@@ -35,6 +45,12 @@ const nav = [
 export function AppLayout() {
   const { user } = useAuth();
   const { appTheme } = useAppTheme();
+  const showAnalytics = canAccessReports(user?.roles);
+  const nav = [
+    ...baseNav,
+    ...(showAnalytics ? analyticsNav : []),
+    ...tailNav,
+  ];
 
   return (
     <div className="min-h-screen flex flex-col">

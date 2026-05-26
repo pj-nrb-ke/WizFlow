@@ -18,6 +18,8 @@ import { PublicApprovePage } from "../pages/PublicApprovePage";
 import { NotificationsPage } from "../pages/NotificationsPage";
 import { SetupWizardPage } from "../pages/SetupWizardPage";
 import { TemplatesPage } from "../pages/TemplatesPage";
+import { AnalyticsPage } from "../pages/AnalyticsPage";
+import { ReportsPage } from "../pages/ReportsPage";
 
 function LoadingScreen() {
   return (
@@ -78,6 +80,8 @@ export function AppRoutes() {
           <Route path="templates" element={<TemplatesPage />} />
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="setup" element={<SetupWizardPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="reports" element={<ReportsPage />} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>

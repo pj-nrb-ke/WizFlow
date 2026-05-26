@@ -283,7 +283,88 @@ http://localhost:5200  — admin@demo.wizflow.biz / changeme
 
 ---
 
-## Phase 2 & Phase 3
+## Phase 2 — Implementation Progress
 
-**Not started.** All features in the Phase 2 and Phase 3 tables above remain **📋 planned** for future work after Phase 1 is closed out.
+**Started:** 2026-05-26  
+**Last updated:** 2026-05-26  
+**Current sprint:** Phase 2 Sprint 1 **complete** (foundation shipped locally; deploy when committed)  
+**Goal:** Enterprise-grade KPI/reporting UX — simple, clean, thorough process visibility.
+
+### Executive summary (Phase 2)
+
+| Metric | Count |
+|--------|-------|
+| Phase 2 features (total) | 39 |
+| Delivered in Sprint 1 | 12 |
+| Partially delivered | 5 |
+| Sprint 2+ (planned) | 22 |
+
+**Sprint 1** delivers the analytics API, executive `/analytics` hub (manager/admin), MIS `/reports` with filters + CSV, shared filter bar, KPI drill-down, and enterprise page chrome (`PageHeader`, data tables).
+
+### Phase 2 Sprint 1 — feature status
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| 1 | Executive KPI Dashboard | ✅ | Overview tab: volume, pending, overdue, avg approval time, rejection %, SLA % |
+| 2 | Department KPI Dashboard | ✅ | Departments table on Overview; `GET /analytics/departments` |
+| 3 | User Performance Dashboard | ✅ | People tab: pending, completed, avg response, overdue per approver |
+| 4 | Workflow Performance Dashboard | ✅ | Workflows tab: volume, completion time, rejection/return rates |
+| 5 | SLA Configuration by Workflow and Step | 🔶 | Workflow-level `sla_hours` in settings (default 48h); **per-step SLA** → Sprint 2 |
+| 6 | SLA Breach Alerts | 🔶 | Overdue counts in KPIs + inbox/requests; **proactive alerts** → Sprint 2 |
+| 7 | Bottleneck Analytics | ✅ | Slowest steps and approvers (`/analytics/bottlenecks`) |
+| 8 | Workload Analytics | 🔶 | Pending-by-user on People tab; **historical workload** → Sprint 2 |
+| 9 | Financial Value Analytics | ✅ | Financial tab: requested/approved/rejected/pending by amount |
+| 10 | Exception Analytics | ✅ | Exceptions tab: rejected, returned, overdue, corrections |
+| 11 | Compliance Dashboard | ⏳ | Sprint 2 |
+| 12 | AI KPI Summary | ⏳ | Sprint 2+ |
+| 13 | AI Management Insights | ⏳ | Sprint 2+ |
+| 14 | Scheduled Reports | ⏳ | Sprint 2+ |
+| 15 | PDF Report Builder | ⏳ | Sprint 2 |
+| 16 | Advanced Excel Reports | 🔶 | MIS **CSV** export on `/reports`; true `.xlsx` → Sprint 2 |
+| 17 | Report Filter Builder | ✅ | `AnalyticsFilterBar`: date range, workflow, status |
+| 18 | Saved Report Views | ⏳ | Sprint 2 |
+| 19 | Report Subscription | ⏳ | Sprint 2+ |
+| 20 | KPI Targets | ⏳ | Sprint 2+ |
+| 21 | Scorecards | ⏳ | Sprint 2+ |
+| 22 | Trend Charts | ✅ | 30-day volume trend (`TrendSparkline` + `/analytics/trends`) |
+| 23 | Drill-Down Analytics | ✅ | KPI cards link to filtered `/requests` or `/inbox` |
+| 24–39 | Journey, heatmap, personalization, scheduler, escalation, etc. | ⏳ | Phase 2 Sprint 2+ |
+
+### Sprint 1 — technical deliverables
+
+**API**
+- `app/services/analytics.py` — executive, workflows, users, bottlenecks, financial, exceptions, trends, departments
+- `app/schemas/analytics.py`, `app/routers/analytics.py` — `GET /api/v1/analytics/{executive,workflows,users,bottlenecks,financial,exceptions,trends,departments}` (manager + company_admin)
+- `app/routers/reports.py` — MIS actions filters: `workflow_id`, `status`
+- Test: `python -m scripts.test_phase2_api` ✅
+
+**Web**
+- `pages/AnalyticsPage.tsx` — `/analytics` (Overview, Workflows, People, Financial, Exceptions)
+- `pages/ReportsPage.tsx` — `/reports` (MIS actions table + CSV download)
+- `components/analytics/` — `KpiCard`, `AnalyticsFilterBar`, `SimpleBarChart`, `TrendSparkline`
+- `components/PageHeader.tsx` — shared enterprise page header
+- `lib/roles.ts` — `canAccessReports` for manager/admin nav
+- Styles: `.wf-analytics-*`, `.wf-data-table` in `index.css`
+- Nav: Analytics + Reports in shell; dashboard promo card for managers
+
+**Verify locally**
+```text
+http://localhost:5200 — admin@demo.wizflow.biz / changeme
+/analytics · /reports
+docker compose -p wizflow exec -T api python -m scripts.test_phase2_api
+cd apps/web && npm run build
+```
+
+### Changelog (Phase 2)
+
+| Date | Update |
+|------|--------|
+| 2026-05-26 | Phase 2 Sprint 1 started; parallel agents (API analytics, UI dashboards, reports UX). |
+| 2026-05-26 | Sprint 1 foundation verified: `test_phase2_api` + web `npm run build` pass; feature table updated above. |
+
+---
+
+## Phase 2 & Phase 3 (reference)
+
+Phase 3 features remain **📋 planned** after Phase 2.
 

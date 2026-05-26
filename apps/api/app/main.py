@@ -5,6 +5,7 @@ from app.config import settings
 from app.routers import (
     admin,
     ai,
+    analytics,
     auth,
     health,
     inbox,
@@ -45,6 +46,7 @@ v1.include_router(inbox.router)
 v1.include_router(notifications.router)
 v1.include_router(public_approval.router)
 v1.include_router(reports.router)
+v1.include_router(analytics.router)
 v1.include_router(templates.router)
 v1.include_router(users.router)
 app.include_router(v1)

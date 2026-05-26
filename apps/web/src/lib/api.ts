@@ -380,5 +380,184 @@ export function markNotificationRead(notificationId: string, token?: string | nu
   );
 }
 
+export type MisActionRow = {
+  reference_number: string | null;
+  workflow_name: string;
+  request_status: string;
+  event_type: string;
+  event_label: string;
+  action_at: string;
+  actor_name: string | null;
+  step_id: string | null;
+  comment: string | null;
+};
+
 export type Department = { id: string; name: string; code: string | null; created_at: string };
 export type UserRow = { id: string; email: string; full_name: string; is_active: boolean; roles: string[] };
+
+/** Shared query params for analytics endpoints. */
+export type AnalyticsFilterParams = {
+  from?: string;
+  to?: string;
+  workflow_id?: string;
+};
+
+export type ExecutiveSummary = {
+  total_requests: number;
+  in_progress: number;
+  approved: number;
+  rejected: number;
+  returned: number;
+  overdue_count: number;
+  avg_cycle_hours: number | null;
+  rejection_rate: number;
+  sla_compliance_pct: number;
+};
+
+export type WorkflowPerformanceRow = {
+  workflow_id: string;
+  workflow_name: string;
+  total_count: number;
+  in_progress: number;
+  approved: number;
+  rejected: number;
+  returned: number;
+  overdue_count: number;
+  avg_cycle_hours: number | null;
+  rejection_rate: number;
+};
+
+export type UserPerformanceRow = {
+  user_id: string;
+  full_name: string;
+  email?: string | null;
+  approvals_count: number;
+  rejections_count: number;
+  avg_response_hours: number | null;
+  pending_inbox: number;
+};
+
+export type BottleneckStepRow = {
+  step_id: string;
+  step_name: string;
+  workflow_name: string;
+  avg_hours: number;
+  event_count: number;
+};
+
+export type BottleneckApproverRow = {
+  user_id: string;
+  full_name: string;
+  avg_response_hours: number;
+  action_count: number;
+};
+
+export type BottlenecksSummary = {
+  slowest_steps: BottleneckStepRow[];
+  slowest_approvers: BottleneckApproverRow[];
+};
+
+export type FinancialSummary = {
+  approved_total: number;
+  rejected_total: number;
+  in_progress_total: number;
+  pending_total: number;
+  currency?: string | null;
+};
+
+export type ExceptionsSummary = {
+  rejected_count: number;
+  returned_count: number;
+  overdue_count: number;
+};
+
+export type TrendPoint = {
+  date: string;
+  count: number;
+};
+
+export type TrendsSummary = {
+  points: TrendPoint[];
+};
+
+export type DepartmentPerformanceRow = {
+  department: string;
+  total_count: number;
+  approved: number;
+  overdue_count: number;
+  avg_cycle_hours: number | null;
+};
+
+function analyticsQuery(params?: AnalyticsFilterParams): string {
+  const search = new URLSearchParams();
+  if (params?.from) search.set("from", params.from);
+  if (params?.to) search.set("to", params.to);
+  if (params?.workflow_id) search.set("workflow_id", params.workflow_id);
+  const qs = search.toString();
+  return qs ? `?${qs}` : "";
+}
+
+export function getExecutiveSummary(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<ExecutiveSummary>(
+    `/api/v1/analytics/executive${analyticsQuery(params)}`,
+    {},
+    token
+  );
+}
+
+export function getWorkflowPerformance(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<WorkflowPerformanceRow[]>(
+    `/api/v1/analytics/workflows${analyticsQuery(params)}`,
+    {},
+    token
+  );
+}
+
+export function getUserPerformance(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<UserPerformanceRow[]>(
+    `/api/v1/analytics/users${analyticsQuery(params)}`,
+    {},
+    token
+  );
+}
+
+export function getBottlenecks(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<BottlenecksSummary>(
+    `/api/v1/analytics/bottlenecks${analyticsQuery(params)}`,
+    {},
+    token
+  );
+}
+
+export function getFinancialSummary(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<FinancialSummary>(
+    `/api/v1/analytics/financial${analyticsQuery(params)}`,
+    {},
+    token
+  );
+}
+
+export function getExceptionsSummary(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<ExceptionsSummary>(
+    `/api/v1/analytics/exceptions${analyticsQuery(params)}`,
+    {},
+    token
+  );
+}
+
+export function getAnalyticsTrends(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<TrendsSummary>(
+    `/api/v1/analytics/trends${analyticsQuery(params)}`,
+    {},
+    token
+  );
+}
+
+export function getDepartmentPerformance(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<DepartmentPerformanceRow[]>(
+    `/api/v1/analytics/departments${analyticsQuery(params)}`,
+    {},
+    token
+  );
+}
+

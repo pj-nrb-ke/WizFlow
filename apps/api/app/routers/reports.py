@@ -1,6 +1,7 @@
 """MIS-style action history (timestamped audit trail)."""
 
 from datetime import datetime
+from uuid import UUID
 
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import PlainTextResponse
@@ -8,24 +9,24 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, require_roles
-from app.db.models import User, WorkflowEvent, WorkflowInstance
+from app.db.models import User, WorkflowDefinition, WorkflowEvent, WorkflowInstance
 from app.db.session import get_db
 from app.schemas.request import MisActionRow
 from app.services.event_labels import label_for_event
 from app.services.request_serial import backfill_reference_for_instance
-from app.db.models import WorkflowDefinition
 
 router = APIRouter(prefix="/reports", tags=["Reports"])
 
 ADMIN_ROLES = ("company_admin", "manager")
 
 
-@router.get("/mis/actions", response_model=list[MisActionRow])
-def mis_actions(
-    from_date: datetime | None = Query(None, alias="from"),
-    to_date: datetime | None = Query(None, alias="to"),
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
-    db: Session = Depends(get_db),
+def _fetch_mis_actions(
+    db: Session,
+    user: CurrentUser,
+    from_date: datetime | None,
+    to_date: datetime | None,
+    workflow_id: UUID | None,
+    status: str | None,
 ) -> list[MisActionRow]:
     q = (
         select(WorkflowEvent, WorkflowInstance)
@@ -40,6 +41,10 @@ def mis_actions(
         q = q.where(WorkflowEvent.created_at >= from_date)
     if to_date:
         q = q.where(WorkflowEvent.created_at <= to_date)
+    if workflow_id:
+        q = q.where(WorkflowInstance.workflow_definition_id == workflow_id)
+    if status:
+        q = q.where(WorkflowInstance.status == status)
 
     rows: list[MisActionRow] = []
     for ev, inst in db.execute(q):
@@ -70,14 +75,28 @@ def mis_actions(
     return rows
 
 
+@router.get("/mis/actions", response_model=list[MisActionRow])
+def mis_actions(
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    workflow_id: UUID | None = Query(None),
+    status: str | None = Query(None),
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> list[MisActionRow]:
+    return _fetch_mis_actions(db, user, from_date, to_date, workflow_id, status)
+
+
 @router.get("/mis/actions.csv", response_class=PlainTextResponse)
 def mis_actions_csv(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
+    workflow_id: UUID | None = Query(None),
+    status: str | None = Query(None),
     user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
     db: Session = Depends(get_db),
 ) -> str:
-    rows = mis_actions(from_date=from_date, to_date=to_date, user=user, db=db)
+    rows = _fetch_mis_actions(db, user, from_date, to_date, workflow_id, status)
     lines = [
         "reference_number,workflow_name,request_status,event_label,action_at,actor_name,step_id,comment"
     ]

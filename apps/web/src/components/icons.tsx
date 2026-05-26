@@ -143,10 +143,27 @@ export function IconTemplates(props: IconProps) {
   );
 }
 
+export function IconChartBar(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M12 20V10M18 20V4M6 20v-4" />
+    </Icon>
+  );
+}
+
 export function IconChevronDown(props: IconProps) {
   return (
     <Icon {...props}>
       <path d="m6 9 6 6 6-6" />
+    </Icon>
+  );
+}
+
+export function IconChart(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="M3 3v18h18" />
+      <path d="m7 16 4-6 4 3 5-7" />
     </Icon>
   );
 }

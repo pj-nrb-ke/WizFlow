@@ -5,6 +5,7 @@ import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
 import { apiFetch, InboxItem, Notification, RequestSummary, WorkflowSummary } from "../lib/api";
 import { getToken } from "../lib/auth";
+import { canAccessReports } from "../lib/roles";
 import { THEME_META } from "../lib/themes";
 
 export function DashboardPage() {
@@ -47,6 +48,8 @@ export function DashboardPage() {
     { label: "Live workflows", value: published, link: "/workflows", icon: "⚡" },
   ];
 
+  const showAnalytics = canAccessReports(user?.roles);
+
   const actions = [
     { to: "/submit", title: "Submit request", desc: "Start petty cash, purchase, leave…", icon: "＋" },
     { to: "/inbox", title: "Approval inbox", desc: "Review items waiting on you", icon: "✉" },
@@ -57,6 +60,16 @@ export function DashboardPage() {
     { to: "/custom-workflow", title: "Custom workflow", desc: "Approvers, initiators, forms", icon: "⇄" },
     { to: "/ai", title: "AI creator", desc: "Draft a process in plain English", icon: "✦" },
     { to: "/settings", title: "Settings", desc: "Theme and account preferences", icon: "⚙" },
+    ...(showAnalytics
+      ? [
+          {
+            to: "/analytics",
+            title: "Analytics",
+            desc: "KPIs, SLA, bottlenecks & trends",
+            icon: "▥",
+          },
+        ]
+      : []),
   ];
 
   if (loading) {
@@ -89,6 +102,23 @@ export function DashboardPage() {
           </Link>
         )}
       </section>
+
+      {showAnalytics && (
+        <Link to="/analytics" className="wf-analytics-promo wf-card mb-6 block">
+          <div className="flex flex-wrap items-center justify-between gap-4 p-5">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1">
+                Management
+              </p>
+              <h2 className="text-lg font-semibold text-slate-800">Analytics & KPIs</h2>
+              <p className="text-sm text-slate-600 mt-1">
+                Executive summary, workflow performance, financial totals, and exceptions.
+              </p>
+            </div>
+            <span className="wf-btn-primary px-4 py-2 text-sm shrink-0">Open analytics →</span>
+          </div>
+        </Link>
+      )}
 
       <div className="wf-stat-grid">
         {stats.map((s) => (

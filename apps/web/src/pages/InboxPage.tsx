@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { ThemeScope } from "../context/ThemeContext";
 import { ApprovalActions } from "../components/ApprovalActions";
 import { HelpTip } from "../components/HelpTip";
+import { PageHeader } from "../components/PageHeader";
 import { RequestMetaBar } from "../components/RequestMetaBar";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
 import { formatDateTimeShort } from "../lib/datetime";
@@ -162,23 +163,25 @@ export function InboxPage() {
 
   return (
     <div>
-      <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-        <div className="flex items-center gap-2">
-          <h1 className="wf-page-title">Approval inbox</h1>
+      <PageHeader
+        title="Approval inbox"
+        help={
           <HelpTip text="Review items waiting for your approval. Filter by workflow or search by reference; overdue highlights items past the SLA window." />
-        </div>
-        <button
-          type="button"
-          onClick={() =>
-            exportCsv().catch((e) =>
-              setError(e instanceof ApiError ? e.detail ?? e.message : "Export failed")
-            )
-          }
-          className="px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50"
-        >
-          Export CSV
-        </button>
-      </div>
+        }
+        actions={
+          <button
+            type="button"
+            onClick={() =>
+              exportCsv().catch((e) =>
+                setError(e instanceof ApiError ? e.detail ?? e.message : "Export failed")
+              )
+            }
+            className="px-3 py-2 text-sm border border-slate-200 rounded-lg hover:bg-slate-50"
+          >
+            Export CSV
+          </button>
+        }
+      />
 
       <div className="flex flex-col lg:flex-row flex-wrap gap-3 mb-4 p-3 wf-card">
         <select
