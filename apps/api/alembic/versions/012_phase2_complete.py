@@ -5,7 +5,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 revision = "012_phase2_complete"
-down_revision = "011_web_phases_complete"
+down_revision = "011"
 branch_labels = None
 depends_on = None
 
