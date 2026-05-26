@@ -389,8 +389,8 @@ QuickBooks, Zoho, Odoo, Tally, Sage 200, SAP B1, integration mapping, posting ru
 
 | # | Feature | Status | Notes |
 |---|---------|--------|-------|
-| 1–2 | Android / iOS native apps | ⏳ | PWA + responsive web first; React Native/Expo → Sprint 2 |
-| 3 | Push notifications | ⏳ | In-app + email exist; device push → Sprint 2 |
+| 1–2 | Android / iOS native apps | 🔶 | **M1** Expo app in `apps/mobile`; store builds via EAS |
+| 3 | Push notifications | 🔶 | Token registration + in-app; FCM/APNs delivery via EAS |
 | 4 | Mobile document capture | ✅ | `capture="environment"` on submit attachment |
 | 5 | Offline draft mode | ✅ | `localStorage` drafts on New request |
 | 6–10 | OCR reading + assisted fill + cheque/invoice/receipt | 🔶 | `/documents/extract` heuristic + confidence; full OCR engine → Sprint 2 |
@@ -435,4 +435,206 @@ docker compose -p wizflow exec -T api python -m scripts.test_phase3_api
 |------|--------|
 | 2026-05-26 | Phase 3 Sprint 1 started; ERP integrations explicitly deferred. |
 | 2026-05-26 | Shipped API keys, webhooks, public API, security audit, OCR extract, PWA/mobile drafts, AI narrative/anomalies foundation. |
+
+---
+
+## WizFlow Mobile App — Web vs Mobile Gap & Roadmap
+
+**Last updated:** 2026-05-26  
+**Current mobile surface:** Responsive web + PWA (`manifest.webmanifest`, installable browser). **No native Android/iOS app** in the repo yet.  
+**Strategy:** Ship a **React Native (Expo)** app that reuses the existing API; prioritize **daily approver and originator** flows first; keep **configuration and admin** on web.
+
+### What the web app has today (reference)
+
+| Area | Web routes / capability |
+|------|-------------------------|
+| Core daily use | Dashboard, Inbox, My Requests, Request detail, New request, Notifications |
+| Workflow config | Workflows, Form designer, Custom workflow, AI creator, Templates, Setup wizard |
+| Management | Analytics, Reports, Admin, Integrations, Settings |
+| Edge flows | Public email approve (`/approve/:token`) |
+| Mobile-adjacent (web only) | PWA install, `localStorage` offline drafts, camera file input, OCR prefill on submit |
+
+### Gap summary — web ✅ vs native mobile ⏳
+
+| Capability | Web | Native mobile (target) |
+|------------|-----|-------------------------|
+| Login / session | ✅ | ⏳ Secure token + refresh |
+| Approval inbox & actions | ✅ | ⏳ Primary mobile focus |
+| My requests & timeline | ✅ | ⏳ |
+| New request + dynamic forms | ✅ | ⏳ Phase M2 |
+| Attachments / camera | ✅ (browser) | ⏳ Native camera/gallery |
+| Offline drafts | ✅ (`localStorage`) | ⏳ Queued sync (`AsyncStorage`) |
+| OCR-assisted submit | ✅ | ⏳ |
+| Push notifications | ⏳ (in-app + email) | ⏳ FCM / APNs |
+| Notifications center | ✅ | ⏳ |
+| Public approve link | ✅ | ⏳ Deep link |
+| Analytics / reports | ✅ | ⏳ Manager **lite** snapshot only |
+| Workflow design / admin / integrations | ✅ | ❌ Web-only (by design) |
+| Biometric app lock | — | ⏳ Phase M2 |
+| Voice approve / voice form | — | ⏳ Phase M4 |
+
+### Top-level mobile feature groups (product)
+
+1. **Native app shell** — Expo monorepo, Android + iOS, enterprise UI, company branding  
+2. **Auth & security** — Login, refresh tokens, secure storage, optional biometrics  
+3. **Approvals** — Inbox, filters, approve / reject / return, comments, claim task, next-item flow  
+4. **My requests** — List, status, timeline, returned correction, resubmit  
+5. **Submit requests** — Workflow picker, dynamic forms, validation, attachments  
+6. **Notifications** — In-app feed + **push** (pending, returned, overdue)  
+7. **Documents** — Camera/gallery capture, upload, OCR prefill with review  
+8. **Offline** — Draft queue, submit-when-online, optimistic UI  
+9. **Manager insights** — Read-only KPI cards (no full analytics builder)  
+10. **Deep links** — Open inbox item, request, or email-approve token in app  
+11. **Settings** — Profile, notification preferences, theme/branding  
+12. **Advanced** — Voice commands, richer OCR types, tablet layout (later)
+
+### Web-only (not planned for mobile v1)
+
+Form designer, custom 8-step workflow builder, AI workflow wizard, template marketplace admin, company setup wizard, admin panel (users/groups/org), integrations (API keys/webhooks), full analytics tabs, MIS reports export, workflow publish/simulate/health — **remain on web**.
+
+---
+
+## Mobile Phase M1 — Approver essentials (MVP store-ready core)
+
+**Goal:** Approvers can install the app and clear inbox from their phone with push awareness.
+
+| # | Feature | Description |
+|---|---------|-------------|
+| M1.1 | Expo app scaffold | `apps/mobile` — Expo SDK, shared API client, env for `api.wizflow.biz` |
+| M1.2 | Android + iOS builds | EAS Build profiles; dev / preview / production |
+| M1.3 | Login & session | Email/password, JWT refresh, secure store (`expo-secure-store`) |
+| M1.4 | Home dashboard | Pending count, overdue badge, shortcuts to Inbox / My requests |
+| M1.5 | Inbox list | Pending approvals with workflow name, ref#, amount preview, overdue |
+| M1.6 | Approval detail | Full request summary, timeline, approve / reject / return + comment |
+| M1.7 | Claim & act | Claim pooled tasks; same rules as web inbox |
+| M1.8 | In-app notifications | List, mark read, tap-through to request/inbox |
+| M1.9 | Push notifications | Device registration; notify on assign, return, overdue (API + FCM/APNs) |
+| M1.10 | Enterprise UI | Clean native chrome, status badges, haptic on action, company logo/colors |
+
+**Outcome:** “Approve from your phone” parity with web inbox for standard users.
+
+---
+
+## Mobile Phase M2 — Originator & field capture
+
+**Goal:** Staff can submit and fix requests in the field without a laptop.
+
+| # | Feature | Description |
+|---|---------|-------------|
+| M2.1 | My requests list | Tabs/filters: in progress, returned, approved, rejected |
+| M2.2 | Request detail | Status panel, events timeline, attachments list |
+| M2.3 | Returned correction | Highlight fields to fix; resubmit |
+| M2.4 | New request flow | Published workflow picker + dynamic form renderer (shared field types with web) |
+| M2.5 | Native camera & gallery | Receipt/invoice photos; multi-attach |
+| M2.6 | OCR prefill | Call `POST /documents/extract`; confidence + human review before submit |
+| M2.7 | Offline draft queue | Save draft locally; auto-sync on reconnect |
+| M2.8 | Biometric unlock | Optional Face ID / fingerprint to open app |
+| M2.9 | Attachment on approval | Approver can add supporting photo from mobile |
+
+**Outcome:** End-to-end **submit → approve** loop on mobile without web.
+
+---
+
+## Mobile Phase M3 — Manager visibility & polish
+
+**Goal:** Managers stay informed; app feels production-grade.
+
+| # | Feature | Description |
+|---|---------|-------------|
+| M3.1 | Inbox filters | Workflow, overdue, search by ref# / originator |
+| M3.2 | Manager KPI snapshot | Executive summary cards (read-only); link to web analytics for depth |
+| M3.3 | Anomaly alerts | Surface rule-based anomaly count; tap for list |
+| M3.4 | Deep linking | `wizflow://` + universal links: inbox item, request, `/approve/:token` |
+| M3.5 | Email approve in app | Open magic link in native approve screen |
+| M3.6 | Settings screen | Notification prefs (in-app / push), profile, sign out |
+| M3.7 | Pull-to-refresh & empty states | Enterprise empty/error patterns |
+| M3.8 | Tablet layout | Two-pane inbox + detail on large screens |
+
+**Outcome:** Managers and power approvers can monitor and act without opening the browser.
+
+---
+
+## Mobile Phase M4 — Intelligent & advanced mobile
+
+**Goal:** Differentiate on automation while API already supports insights.
+
+| # | Feature | Description |
+|---|---------|-------------|
+| M4.1 | Push action buttons | Approve / reject from notification (where OS allows) |
+| M4.2 | AI narrative snippet | Short KPI summary on manager home (from `/analytics/narrative`) |
+| M4.3 | Voice — “show inbox” | Navigate by voice |
+| M4.4 | Voice-assisted approval | Dictate comment; confirm before submit |
+| M4.5 | Voice-to-form | Speak amount/purpose for petty-cash style forms |
+| M4.6 | Document types | Cheque / invoice / receipt extraction UX (typed OCR flows) |
+| M4.7 | Background sync | Retry failed uploads; sync badge |
+| M4.8 | App Store / Play release | Store listings, screenshots, privacy policy |
+
+**Outcome:** Mobile matches Phase 3 “intelligent automation” vision for field users.
+
+---
+
+## Mobile Phase M5 — Optional parity (low priority)
+
+| # | Feature | Description |
+|---|---------|-------------|
+| M5.1 | Templates browse | View/clone templates (manager); publish still on web |
+| M5.2 | Workflow list (read-only) | See published workflows, no designer |
+| M5.3 | Share/export | Share request summary PDF/link |
+| M5.4 | WhatsApp notification hook | When channel available |
+
+---
+
+## Mobile — implementation progress
+
+| Mobile phase | Status | Notes |
+|--------------|--------|-------|
+| M1 Approver essentials | ✅ | `apps/mobile` Expo app; see M1 deliverables below |
+| M2 Originator & capture | 📋 Planned | Depends on M1 |
+| M3 Manager & polish | 📋 Planned | |
+| M4 Intelligent mobile | 📋 Planned | |
+| M5 Optional parity | 📋 Planned | |
+
+### Mobile Phase M1 — delivered (foundation)
+
+| # | Feature | Status | Notes |
+|---|---------|--------|-------|
+| M1.1 | Expo app scaffold | ✅ | `apps/mobile` — Expo Router, TypeScript |
+| M1.2 | Android + iOS builds | 🔶 | `eas.json` profiles; run `eas init` + build for store binaries |
+| M1.3 | Login & session | ✅ | SecureStore tokens, `/auth/login` + `/auth/me` |
+| M1.4 | Home dashboard | ✅ | Pending inbox + unread counts, recent items |
+| M1.5 | Inbox list | ✅ | `/inbox` + client search |
+| M1.6 | Approval detail | ✅ | Request detail, timeline, approve/reject/return |
+| M1.7 | Claim & act | ✅ | Auto-claim on open when `needs_claim` |
+| M1.8 | In-app notifications | ✅ | List, mark read, tap → approval |
+| M1.9 | Push notifications | 🔶 | Token register `POST /users/push-token` (migration 010); EAS project for delivery |
+| M1.10 | Enterprise UI | ✅ | Indigo brand shell, cards, haptics on actions |
+
+**API (migration `010_device_push_tokens`)**
+- `device_push_tokens` table; `POST /api/v1/users/push-token`
+- `NotificationOut.instance_id` for mobile deep navigation
+
+**Run locally**
+```text
+cd apps/mobile && cp .env.example .env && npm install && npx expo start
+EXPO_PUBLIC_API_URL=http://localhost:8010  # or LAN IP on device
+```
+
+### Alignment with product Phase 3 (table above)
+
+| Phase 3 item | Mobile phase |
+|--------------|--------------|
+| Android / iOS apps | **M1** |
+| Push notifications | **M1** |
+| Mobile document capture | **M2** (native); web has browser capture |
+| Offline draft mode | **M2** (queued sync) |
+| OCR + assisted fill + review | **M2** |
+| Voice features | **M4** |
+| AI narrative / anomaly | **M3–M4** (read-only / snippet) |
+
+### Changelog (Mobile roadmap)
+
+| Date | Update |
+|------|--------|
+| 2026-05-26 | Mobile gap analysis and phased roadmap (M1–M5) added; web PWA documented as interim. |
+| 2026-05-26 | **M1 shipped:** `apps/mobile` Expo app (login, home, inbox, approval, notifications); push token API migration 010. |
 

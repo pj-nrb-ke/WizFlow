@@ -119,6 +119,12 @@ class NotificationOut(BaseModel):
     title: str
     body: str
     read: bool
+    instance_id: UUID | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class PushTokenRegister(BaseModel):
+    token: str = Field(..., min_length=8, max_length=512)
+    platform: str = Field(..., max_length=20)
