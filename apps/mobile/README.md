@@ -26,11 +26,10 @@ eas build --profile preview --platform android
 
 Configure `extra.eas.projectId` in `app.json` after `eas init`.
 
-## M1 scope
+## M1–M3 scope
 
-- Login with secure token storage
-- Home dashboard (pending counts)
-- Inbox list + search
-- Approval detail (claim, approve, reject, return, timeline)
-- Notifications list
-- Expo push token registration (`POST /api/v1/users/push-token`)
+- **M1:** Login, home, inbox, approval actions, notifications, push token registration
+- **M2:** My requests (tabs), request detail, returned resubmit, new request + OCR camera, offline submit queue, biometric unlock, approval attachments
+- **M3:** Inbox workflow/overdue filters, manager KPI + anomalies on home, settings (notification prefs), deep links (`wizflow://approval/{id}`, `wizflow://public-approve/{token}`), tablet split inbox
+
+**API:** `GET /api/v1/requests/{id}/attachments` for attachment lists.

@@ -11,9 +11,11 @@ import {
 } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import * as Haptics from "expo-haptics";
+import * as ImagePicker from "expo-image-picker";
 import { useAuth } from "../../src/auth/AuthContext";
 import {
   apiFetch,
+  apiUpload,
   type RequestDetail,
   type WorkflowEvent,
 } from "../../src/api/client";
@@ -139,8 +141,31 @@ export default function ApprovalScreen() {
         </View>
       ))}
 
-      {detail.can_act || detail.can_approve ? (
+      {(detail.can_act || detail.can_approve) ? (
         <>
+          <Pressable style={styles.attachBtn} onPress={async () => {
+            if (!token || !id) return;
+            const perm = await ImagePicker.requestCameraPermissionsAsync();
+            if (!perm.granted) return;
+            const result = await ImagePicker.launchCameraAsync({ quality: 0.8 });
+            if (result.canceled) return;
+            const asset = result.assets[0];
+            try {
+              await apiUpload(
+                `/api/v1/requests/${id}/attachments`,
+                asset.uri,
+                asset.fileName || "supporting.jpg",
+                asset.mimeType || "image/jpeg",
+                token
+              );
+              void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+              Alert.alert("Uploaded", "Supporting photo attached.");
+            } catch (e) {
+              Alert.alert("Upload failed", e instanceof Error ? e.message : "Error");
+            }
+          }}>
+            <Text style={styles.attachBtnText}>Add supporting photo</Text>
+          </Pressable>
           <Text style={styles.section}>Your decision</Text>
           <TextInput
             style={styles.comment}
@@ -244,4 +269,13 @@ const styles = StyleSheet.create({
   btnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
   returnText: { color: colors.warning, fontSize: 16, fontWeight: "600" },
   error: { color: colors.danger, marginBottom: 12 },
+  attachBtn: {
+    marginTop: 12,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.primary,
+    alignItems: "center",
+  },
+  attachBtnText: { color: colors.primary, fontWeight: "600" },
 });

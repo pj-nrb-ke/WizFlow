@@ -10,6 +10,8 @@ import {
 import { apiFetch, type TokenResponse, type UserProfile } from "../api/client";
 import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from "./storage";
 import { registerPushToken } from "../notifications/push";
+import { isBiometricEnabled, requireBiometric } from "../lib/biometrics";
+import { AppState } from "react-native";
 
 type AuthState = {
   user: UserProfile | null;
@@ -69,6 +71,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setUser(null);
     setToken(null);
   }, []);
+
+  useEffect(() => {
+    const sub = AppState.addEventListener("change", async (state) => {
+      if (state !== "active" || !user) return;
+      const enabled = await isBiometricEnabled();
+      if (!enabled) return;
+      const ok = await requireBiometric();
+      if (!ok) await logout();
+    });
+    return () => sub.remove();
+  }, [user, logout]);
 
   const value = useMemo(
     () => ({ user, token, loading, login, logout, refreshProfile }),

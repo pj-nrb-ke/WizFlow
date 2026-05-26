@@ -6,9 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, require_company
-from app.db.models import User, WorkflowDefinition, WorkflowEvent, WorkflowInstance
+from app.db.models import Attachment, User, WorkflowDefinition, WorkflowEvent, WorkflowInstance
 from app.db.session import get_db
 from app.schemas.request import (
+    AttachmentOut,
     RequestUpdate,
     WorkflowEventOut,
     WorkflowInstanceOut,
@@ -117,6 +118,22 @@ def update_returned_request(
     db.commit()
     db.refresh(inst)
     return to_out(db, inst, defn, user.id)
+
+
+@router.get("/{request_id}/attachments", response_model=list[AttachmentOut])
+def list_attachments(
+    request_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> list[Attachment]:
+    inst = get_instance(db, request_id, user.company_id)
+    return list(
+        db.scalars(
+            select(Attachment)
+            .where(Attachment.instance_id == inst.id)
+            .order_by(Attachment.created_at.desc())
+        )
+    )
 
 
 @router.get("/{request_id}/events", response_model=list[WorkflowEventOut])

@@ -2,24 +2,44 @@ import { useCallback, useState } from "react";
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from "react-native";
 import { Link, useFocusEffect } from "expo-router";
 import { useAuth } from "../../src/auth/AuthContext";
-import { apiFetch, type InboxItem, type NotificationCount } from "../../src/api/client";
+import {
+  apiFetch,
+  type AnomalyFinding,
+  type ExecutiveSummary,
+  type InboxItem,
+  type NotificationCount,
+} from "../../src/api/client";
+import { canAccessAnalytics } from "../../src/lib/roles";
 import { colors } from "../../src/theme/colors";
 
 export default function HomeScreen() {
-  const { user, token, logout } = useAuth();
+  const { user, token } = useAuth();
   const [counts, setCounts] = useState<NotificationCount>({ unread: 0, inbox: 0 });
   const [inbox, setInbox] = useState<InboxItem[]>([]);
+  const [kpi, setKpi] = useState<ExecutiveSummary | null>(null);
+  const [anomalies, setAnomalies] = useState<AnomalyFinding[]>([]);
   const [refreshing, setRefreshing] = useState(false);
+
+  const showManager = canAccessAnalytics(user?.roles);
 
   const load = useCallback(async () => {
     if (!token) return;
-    const [c, items] = await Promise.all([
+    const tasks: Promise<unknown>[] = [
       apiFetch<NotificationCount>("/api/v1/notifications/unread-count", {}, token),
       apiFetch<InboxItem[]>("/api/v1/inbox", {}, token),
-    ]);
-    setCounts(c);
-    setInbox(items.slice(0, 5));
-  }, [token]);
+    ];
+    if (showManager) {
+      tasks.push(apiFetch<ExecutiveSummary>("/api/v1/analytics/executive", {}, token));
+      tasks.push(apiFetch<{ findings: AnomalyFinding[] }>("/api/v1/analytics/anomalies", {}, token));
+    }
+    const results = await Promise.all(tasks);
+    setCounts(results[0] as NotificationCount);
+    setInbox((results[1] as InboxItem[]).slice(0, 5));
+    if (showManager) {
+      setKpi(results[2] as ExecutiveSummary);
+      setAnomalies((results[3] as { findings: AnomalyFinding[] }).findings.slice(0, 3));
+    }
+  }, [token, showManager]);
 
   useFocusEffect(
     useCallback(() => {
@@ -27,21 +47,15 @@ export default function HomeScreen() {
     }, [load])
   );
 
-  async function onRefresh() {
-    setRefreshing(true);
-    try {
-      await load();
-    } finally {
-      setRefreshing(false);
-    }
-  }
-
   const brand = user?.company_branding?.brand_color || colors.primary;
 
   return (
     <ScrollView
       style={styles.root}
-      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+      refreshControl={<RefreshControl refreshing={refreshing} onRefresh={async () => {
+        setRefreshing(true);
+        try { await load(); } finally { setRefreshing(false); }
+      }} />}
     >
       <View style={[styles.banner, { backgroundColor: brand }]}>
         <Text style={styles.greeting}>Hello, {user?.full_name?.split(" ")[0]}</Text>
@@ -63,6 +77,53 @@ export default function HomeScreen() {
         </Link>
       </View>
 
+      <View style={styles.quickRow}>
+        <Link href="/submit" asChild>
+          <Pressable style={styles.quick}>
+            <Text style={styles.quickText}>＋ New request</Text>
+          </Pressable>
+        </Link>
+        <Link href="/requests" asChild>
+          <Pressable style={styles.quick}>
+            <Text style={styles.quickText}>My requests</Text>
+          </Pressable>
+        </Link>
+      </View>
+
+      {showManager && kpi ? (
+        <View style={styles.kpiPanel}>
+          <Text style={styles.section}>Manager snapshot</Text>
+          <View style={styles.kpiRow}>
+            <View style={styles.kpiCell}>
+              <Text style={styles.kpiVal}>{kpi.total_requests}</Text>
+              <Text style={styles.kpiLbl}>Total</Text>
+            </View>
+            <View style={styles.kpiCell}>
+              <Text style={styles.kpiVal}>{kpi.in_progress}</Text>
+              <Text style={styles.kpiLbl}>In progress</Text>
+            </View>
+            <View style={styles.kpiCell}>
+              <Text style={styles.kpiVal}>{kpi.overdue_count}</Text>
+              <Text style={styles.kpiLbl}>Overdue</Text>
+            </View>
+            <View style={styles.kpiCell}>
+              <Text style={styles.kpiVal}>{Math.round(kpi.sla_compliance_pct)}%</Text>
+              <Text style={styles.kpiLbl}>SLA</Text>
+            </View>
+          </View>
+          {anomalies.length > 0 ? (
+            <View style={styles.anomalyBox}>
+              <Text style={styles.anomalyTitle}>{anomalies.length} anomaly signal(s)</Text>
+              {anomalies.map((a, i) => (
+                <Text key={i} style={styles.anomalyLine}>
+                  {a.message}
+                </Text>
+              ))}
+            </View>
+          ) : null}
+        </View>
+      ) : null}
+
       <Text style={styles.section}>Recent inbox</Text>
       {inbox.length === 0 ? (
         <Text style={styles.empty}>Inbox cleared — great work.</Text>
@@ -72,17 +133,10 @@ export default function HomeScreen() {
             <Pressable style={styles.row}>
               <Text style={styles.ref}>{item.reference_number || "—"}</Text>
               <Text style={styles.wf}>{item.workflow_name}</Text>
-              <Text style={styles.meta}>
-                {item.step_name} · {item.originator_name}
-              </Text>
             </Pressable>
           </Link>
         ))
       )}
-
-      <Pressable style={styles.signOut} onPress={() => logout()}>
-        <Text style={styles.signOutText}>Sign out</Text>
-      </Pressable>
     </ScrollView>
   );
 }
@@ -98,19 +152,48 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     borderRadius: 12,
     padding: 16,
-    shadowColor: "#000",
-    shadowOpacity: 0.06,
-    shadowRadius: 8,
     elevation: 2,
   },
   statValue: { fontSize: 28, fontWeight: "700", color: colors.primary },
   statLabel: { fontSize: 13, color: colors.muted, marginTop: 4 },
+  quickRow: { flexDirection: "row", gap: 10, paddingHorizontal: 16, marginBottom: 8 },
+  quick: {
+    flex: 1,
+    backgroundColor: colors.card,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+    alignItems: "center",
+  },
+  quickText: { fontWeight: "600", color: colors.primary },
+  kpiPanel: { marginHorizontal: 16, marginBottom: 16 },
+  kpiRow: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  kpiCell: {
+    width: "47%",
+    backgroundColor: colors.card,
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: colors.border,
+  },
+  kpiVal: { fontSize: 22, fontWeight: "700", color: colors.text },
+  kpiLbl: { fontSize: 12, color: colors.muted },
+  anomalyBox: {
+    marginTop: 12,
+    backgroundColor: "#fffbeb",
+    padding: 12,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "#fde68a",
+  },
+  anomalyTitle: { fontWeight: "600", color: colors.warning, marginBottom: 6 },
+  anomalyLine: { fontSize: 13, color: colors.text, marginBottom: 4 },
   section: {
-    fontSize: 13,
-    fontWeight: "600",
+    fontSize: 12,
+    fontWeight: "700",
     color: colors.muted,
     textTransform: "uppercase",
-    letterSpacing: 0.5,
     marginHorizontal: 16,
     marginBottom: 8,
   },
@@ -125,8 +208,5 @@ const styles = StyleSheet.create({
   },
   ref: { fontSize: 12, fontWeight: "600", color: colors.primary },
   wf: { fontSize: 16, fontWeight: "600", color: colors.text, marginTop: 4 },
-  meta: { fontSize: 13, color: colors.muted, marginTop: 4 },
-  empty: { marginHorizontal: 16, color: colors.muted, fontSize: 15 },
-  signOut: { margin: 24, alignItems: "center" },
-  signOutText: { color: colors.danger, fontSize: 15 },
+  empty: { marginHorizontal: 16, color: colors.muted },
 });

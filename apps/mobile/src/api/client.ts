@@ -43,6 +43,11 @@ export type TokenResponse = {
   expires_in: number;
 };
 
+export type NotificationPreferences = {
+  email: boolean;
+  in_app: boolean;
+};
+
 export type UserProfile = {
   id: string;
   email: string;
@@ -51,6 +56,7 @@ export type UserProfile = {
   company_name: string | null;
   roles: string[];
   company_branding?: { logo_url?: string | null; brand_color?: string | null };
+  notification_preferences?: NotificationPreferences;
 };
 
 export type InboxItem = {
@@ -69,6 +75,7 @@ export type RequestDetail = {
   id: string;
   reference_number: string | null;
   workflow_name: string;
+  workflow_definition_id: string;
   status: string;
   current_step: string | null;
   current_step_name: string | null;
@@ -79,6 +86,7 @@ export type RequestDetail = {
   needs_claim?: boolean;
   can_act?: boolean;
   can_approve?: boolean;
+  is_originator?: boolean;
   step_sequence: string[];
 };
 
@@ -101,3 +109,101 @@ export type NotificationItem = {
 };
 
 export type NotificationCount = { unread: number; inbox: number };
+
+export type RequestSummary = {
+  id: string;
+  reference_number: string | null;
+  workflow_name: string;
+  status: string;
+  current_step_name: string | null;
+  submitted_at: string | null;
+  amount_preview?: string | null;
+};
+
+export type WorkflowDefinition = {
+  id: string;
+  name: string;
+  status: string;
+  form_schema: { fields?: import("../lib/formUtils").FormField[] };
+  settings?: Record<string, unknown>;
+};
+
+export type Attachment = {
+  id: string;
+  filename: string;
+  content_type: string | null;
+  size_bytes: number;
+  created_at: string;
+};
+
+export type ExecutiveSummary = {
+  total_requests: number;
+  in_progress: number;
+  overdue_count: number;
+  rejection_rate: number;
+  sla_compliance_pct: number;
+};
+
+export type AnomalyFinding = {
+  type: string;
+  severity: string;
+  message: string;
+  reference_number: string | null;
+};
+
+export type PublicApprovalView = {
+  reference_number: string | null;
+  workflow_name: string;
+  step_name: string;
+  originator_name: string;
+  submitted_at: string | null;
+  request_preview: Record<string, unknown>;
+  can_approve: boolean;
+  can_reject: boolean;
+};
+
+export async function apiUpload(
+  path: string,
+  uri: string,
+  filename: string,
+  mime: string,
+  token?: string | null
+): Promise<void> {
+  const formData = new FormData();
+  formData.append("file", { uri, name: filename, type: mime } as unknown as Blob);
+  const headers: Record<string, string> = {};
+  if (token) headers.Authorization = `Bearer ${token}`;
+  const res = await fetch(`${API_BASE}${path}`, { method: "POST", headers, body: formData });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try {
+      const err = (await res.json()) as { detail?: string };
+      detail = err.detail ?? detail;
+    } catch {
+      /* ignore */
+    }
+    throw new ApiError(detail, res.status);
+  }
+}
+
+export async function extractDocument(
+  uri: string,
+  filename: string,
+  mime: string,
+  token: string
+): Promise<{
+  fields: { key: string; value: string; confidence: number }[];
+  message: string;
+  requires_review: boolean;
+}> {
+  const formData = new FormData();
+  formData.append("file", { uri, name: filename, type: mime } as unknown as Blob);
+  formData.append("doc_type", "auto");
+  const res = await fetch(`${API_BASE}/api/v1/documents/extract`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData,
+  });
+  if (!res.ok) throw new ApiError("OCR failed", res.status);
+  return res.json();
+}

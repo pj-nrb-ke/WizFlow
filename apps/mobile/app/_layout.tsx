@@ -19,6 +19,8 @@ export default function RootLayout() {
         <Stack.Screen name="login" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="approval/[id]" options={{ title: "Approval" }} />
+        <Stack.Screen name="request/[id]" options={{ title: "My request" }} />
+        <Stack.Screen name="public-approve/[token]" options={{ title: "Email approval" }} />
       </Stack>
     </AuthProvider>
   );

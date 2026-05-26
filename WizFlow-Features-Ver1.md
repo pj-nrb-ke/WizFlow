@@ -589,8 +589,8 @@ Form designer, custom 8-step workflow builder, AI workflow wizard, template mark
 | Mobile phase | Status | Notes |
 |--------------|--------|-------|
 | M1 Approver essentials | ✅ | `apps/mobile` Expo app; see M1 deliverables below |
-| M2 Originator & capture | 📋 Planned | Depends on M1 |
-| M3 Manager & polish | 📋 Planned | |
+| M2 Originator & capture | ✅ | Submit, my requests, OCR, offline queue, biometrics |
+| M3 Manager & polish | ✅ | Inbox filters, KPI snapshot, deep links, settings, tablet inbox |
 | M4 Intelligent mobile | 📋 Planned | |
 | M5 Optional parity | 📋 Planned | |
 
@@ -637,4 +637,32 @@ EXPO_PUBLIC_API_URL=http://localhost:8010  # or LAN IP on device
 |------|--------|
 | 2026-05-26 | Mobile gap analysis and phased roadmap (M1–M5) added; web PWA documented as interim. |
 | 2026-05-26 | **M1 shipped:** `apps/mobile` Expo app (login, home, inbox, approval, notifications); push token API migration 010. |
+| 2026-05-26 | **M2 + M3 shipped:** My requests, submit + OCR, offline queue, settings, manager KPI, inbox filters, email approve deep link, tablet split inbox. |
+
+### Mobile Phase M2 — delivered
+
+| # | Feature | Status |
+|---|---------|--------|
+| M2.1 | My requests list | ✅ |
+| M2.2 | Request detail + timeline | ✅ |
+| M2.3 | Returned correction | ✅ |
+| M2.4 | New request flow | ✅ |
+| M2.5 | Native camera | ✅ |
+| M2.6 | OCR prefill | ✅ |
+| M2.7 | Offline draft queue | ✅ |
+| M2.8 | Biometric unlock | ✅ |
+| M2.9 | Attachment on approval | ✅ |
+
+### Mobile Phase M3 — delivered
+
+| # | Feature | Status |
+|---|---------|--------|
+| M3.1 | Inbox filters | ✅ |
+| M3.2 | Manager KPI snapshot | ✅ |
+| M3.3 | Anomaly alerts | ✅ |
+| M3.4 | Deep linking | ✅ |
+| M3.5 | Email approve in app | ✅ |
+| M3.6 | Settings screen | ✅ |
+| M3.7 | Pull-to-refresh & empty states | ✅ |
+| M3.8 | Tablet layout | ✅ |
 

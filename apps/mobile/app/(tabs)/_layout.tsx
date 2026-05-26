@@ -30,8 +30,20 @@ export default function TabsLayout() {
         options={{ title: "Inbox", tabBarIcon: () => <TabIcon label="✉" /> }}
       />
       <Tabs.Screen
+        name="requests"
+        options={{ title: "My requests", tabBarIcon: () => <TabIcon label="☰" /> }}
+      />
+      <Tabs.Screen
+        name="submit"
+        options={{ title: "Submit", tabBarIcon: () => <TabIcon label="＋" /> }}
+      />
+      <Tabs.Screen
         name="notifications"
         options={{ title: "Alerts", tabBarIcon: () => <TabIcon label="◉" /> }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{ title: "Settings", tabBarIcon: () => <TabIcon label="⚙" /> }}
       />
     </Tabs>
   );
