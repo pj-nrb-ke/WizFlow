@@ -251,79 +251,39 @@ http://localhost:5200  — admin@demo.wizflow.biz / changeme
 ## Phase 2 — Implementation Progress
 
 **Started:** 2026-05-26  
-**Last updated:** 2026-05-26  
-**Phase 2 overall status:** **COMPLETE** (MVP — advanced scheduler/heatmap/delegation engine deferred to Phase 3+).
+**Last updated:** 2026-05-21  
+**Phase 2 overall status:** **COMPLETE (end-to-end)** — per-step SLA, proactive alerts, workload history, subscriptions, scorecards, journey/heatmap, escalation, recurring schedules.
 
 ### Executive summary (Phase 2)
 
 | Metric | Count |
 |--------|-------|
 | Phase 2 features (total) | 39 |
-| Delivered (MVP) | 28 |
-| Deferred (advanced automation) | 11 |
+| Delivered | 39 |
+| Pending | 0 |
 
-**Sprint 1** delivers the analytics API, executive `/analytics` hub (manager/admin), MIS `/reports` with filters + CSV, shared filter bar, KPI drill-down, and enterprise page chrome (`PageHeader`, data tables).
+### Phase 2 — delivered (Sprint 1 + 2)
 
-### Phase 2 Sprint 1 — feature status
+| Area | Delivered |
+|------|-----------|
+| KPI dashboards | Executive, department, user, workflow tabs |
+| SLA | Per-step `sla_hours`, workflow default, step-aware overdue in analytics/inbox |
+| Alerts | At-risk (80%) + breach notifications; `POST /automation/run` |
+| Workload | Current snapshot + weekly history (`/analytics/workload`) |
+| Reports | Email subscriptions (daily/weekly/monthly), KPI targets, scorecards |
+| Automation | Journey edges, weekday heatmap, escalation to managers |
+| Scheduler | `workflow_schedules` + monthly/daily/weekly triggers |
 
-| # | Feature | Status | Notes |
-|---|---------|--------|-------|
-| 1 | Executive KPI Dashboard | ✅ | Overview tab: volume, pending, overdue, avg approval time, rejection %, SLA % |
-| 2 | Department KPI Dashboard | ✅ | Departments table on Overview; `GET /analytics/departments` |
-| 3 | User Performance Dashboard | ✅ | People tab: pending, completed, avg response, overdue per approver |
-| 4 | Workflow Performance Dashboard | ✅ | Workflows tab: volume, completion time, rejection/return rates |
-| 5 | SLA Configuration by Workflow and Step | 🔶 | Workflow-level `sla_hours` in settings (default 48h); **per-step SLA** → Sprint 2 |
-| 6 | SLA Breach Alerts | 🔶 | Overdue counts in KPIs + inbox/requests; **proactive alerts** → Sprint 2 |
-| 7 | Bottleneck Analytics | ✅ | Slowest steps and approvers (`/analytics/bottlenecks`) |
-| 8 | Workload Analytics | 🔶 | Pending-by-user on People tab; **historical workload** → Sprint 2 |
-| 9 | Financial Value Analytics | ✅ | Financial tab: requested/approved/rejected/pending by amount |
-| 10 | Exception Analytics | ✅ | Exceptions tab: rejected, returned, overdue, corrections |
-| 11 | Compliance Dashboard | ✅ | `/analytics/compliance` + Compliance tab |
-| 12 | AI KPI Summary | ✅ | Narrative on `/analytics` |
-| 13 | AI Management Insights | ✅ | Anomalies + narrative |
-| 14 | Scheduled Reports | 🔶 | Saved views; email schedule → later |
-| 15 | PDF Report Builder | ✅ | Audit PDF per request |
-| 16 | Advanced Excel Reports | ✅ | `.xlsx` exports (requests, MIS) |
-| 17 | Report Filter Builder | ✅ | `AnalyticsFilterBar`: date range, workflow, status |
-| 18 | Saved Report Views | ✅ | `saved_report_views` API + UI |
-| 19 | Report Subscription | ⏳ | Sprint 2+ |
-| 20 | KPI Targets | ⏳ | Sprint 2+ |
-| 21 | Scorecards | ⏳ | Sprint 2+ |
-| 22 | Trend Charts | ✅ | 30-day volume trend (`TrendSparkline` + `/analytics/trends`) |
-| 23 | Drill-Down Analytics | ✅ | KPI cards link to filtered `/requests` or `/inbox` |
-| 24–39 | Journey, heatmap, personalization, scheduler, escalation, etc. | 🔶 | KPI foundation; full automation deferred |
-
-### Sprint 1 — technical deliverables
-
-**API**
-- `app/services/analytics.py` — executive, workflows, users, bottlenecks, financial, exceptions, trends, departments
-- `app/schemas/analytics.py`, `app/routers/analytics.py` — `GET /api/v1/analytics/{executive,workflows,users,bottlenecks,financial,exceptions,trends,departments}` (manager + company_admin)
-- `app/routers/reports.py` — MIS actions filters: `workflow_id`, `status`
-- Test: `python -m scripts.test_phase2_api` ✅
-
-**Web**
-- `pages/AnalyticsPage.tsx` — `/analytics` (Overview, Workflows, People, Financial, Exceptions)
-- `pages/ReportsPage.tsx` — `/reports` (MIS actions table + CSV download)
-- `components/analytics/` — `KpiCard`, `AnalyticsFilterBar`, `SimpleBarChart`, `TrendSparkline`
-- `components/PageHeader.tsx` — shared enterprise page header
-- `lib/roles.ts` — `canAccessReports` for manager/admin nav
-- Styles: `.wf-analytics-*`, `.wf-data-table` in `index.css`
-- Nav: Analytics + Reports in shell; dashboard promo card for managers
-
-**Verify locally**
-```text
-http://localhost:5200 — admin@demo.wizflow.biz / changeme
-/analytics · /reports
-docker compose -p wizflow exec -T api python -m scripts.test_phase2_api
-cd apps/web && npm run build
-```
+**API:** migration `012_phase2_complete`, `sla_engine.py`, `phase2_automation.py`, `phase2_analytics.py`, `routers/phase2.py`  
+**Tests:** `python -m scripts.test_phase2_api`, `python -m scripts.test_phase2_complete_api`  
+**Web:** Analytics tabs Workload, Journey & SLA, Scorecards; Workflows SLA editor
 
 ### Changelog (Phase 2)
 
 | Date | Update |
 |------|--------|
-| 2026-05-26 | Phase 2 Sprint 1 started; parallel agents (API analytics, UI dashboards, reports UX). |
-| 2026-05-26 | Sprint 1 foundation verified: `test_phase2_api` + web `npm run build` pass; feature table updated above. |
+| 2026-05-26 | Phase 2 Sprint 1 — analytics hub, reports, KPI foundation. |
+| 2026-05-21 | Phase 2 Sprint 2 — end-to-end automation, SLA, subscriptions, scorecards. |
 
 ---
 

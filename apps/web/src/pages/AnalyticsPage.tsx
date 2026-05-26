@@ -9,6 +9,7 @@ import {
 import { KpiCard } from "../components/analytics/KpiCard";
 import { SimpleBarChart } from "../components/analytics/SimpleBarChart";
 import { TrendSparkline } from "../components/analytics/TrendSparkline";
+import { Phase2AnalyticsTabs } from "../components/Phase2AnalyticsTabs";
 import { HelpTip } from "../components/HelpTip";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../context/AuthContext";
@@ -38,12 +39,15 @@ import {
 import { getToken } from "../lib/auth";
 import { canAccessReports } from "../lib/roles";
 
-type TabId = "overview" | "workflows" | "people" | "financial" | "exceptions" | "compliance";
+type TabId = "overview" | "workflows" | "people" | "financial" | "exceptions" | "compliance" | "workload" | "automation" | "scorecards";
 
 const TABS: { id: TabId; label: string }[] = [
   { id: "overview", label: "Overview" },
   { id: "workflows", label: "Workflows" },
   { id: "people", label: "People" },
+  { id: "workload", label: "Workload" },
+  { id: "automation", label: "Journey & SLA" },
+  { id: "scorecards", label: "Scorecards" },
   { id: "financial", label: "Financial" },
   { id: "exceptions", label: "Exceptions" },
   { id: "compliance", label: "Compliance" },
@@ -126,6 +130,9 @@ export function AnalyticsPage() {
         setUserRows(await getUserPerformance(params, token));
       } else if (tab === "financial") {
         setFinancial(await getFinancialSummary(params, token));
+      } else if (tab === "workload" || tab === "automation" || tab === "scorecards") {
+        setLoading(false);
+        return;
       } else if (tab === "compliance") {
         setCompliance(await getCompliance(params, token));
       } else {
@@ -280,6 +287,14 @@ export function AnalyticsPage() {
           )}
           {tab === "compliance" && compliance && (
             <ComplianceTab summary={compliance} />
+          )}
+          {(tab === "workload" || tab === "automation" || tab === "scorecards") && (
+            <Phase2AnalyticsTabs
+              tab={tab}
+              params={params}
+              workflows={workflows}
+              isAdmin={user?.roles?.includes("company_admin") ?? false}
+            />
           )}
         </>
       )}

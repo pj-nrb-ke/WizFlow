@@ -21,6 +21,14 @@ from app.schemas.analytics import (
     UserPerformanceOut,
     WorkflowPerformanceOut,
 )
+from app.schemas.phase2 import (
+    HeatmapOut,
+    JourneyOut,
+    ScorecardsOut,
+    WorkloadHistoryOut,
+    WorkloadOut,
+)
+from app.services import phase2_analytics
 from app.services import ai_insights, anomaly
 from app.services import analytics as analytics_service
 
@@ -153,6 +161,61 @@ def get_narrative(
 ) -> NarrativeOut:
     text = ai_insights.executive_narrative(db, _ctx(user, from_date, to_date, workflow_id))
     return NarrativeOut(narrative=text, generated_at=datetime.now(timezone.utc))
+
+
+@router.get("/workload", response_model=WorkloadOut)
+def get_workload(
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    workflow_id: UUID | None = None,
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> WorkloadOut:
+    return phase2_analytics.workload_snapshot(db, _ctx(user, from_date, to_date, workflow_id))
+
+
+@router.get("/workload/history", response_model=WorkloadHistoryOut)
+def get_workload_history(
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    workflow_id: UUID | None = None,
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> WorkloadHistoryOut:
+    return phase2_analytics.workload_history(db, _ctx(user, from_date, to_date, workflow_id))
+
+
+@router.get("/journey", response_model=JourneyOut)
+def get_journey(
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    workflow_id: UUID | None = None,
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> JourneyOut:
+    return phase2_analytics.journey_analytics(db, _ctx(user, from_date, to_date, workflow_id))
+
+
+@router.get("/heatmap", response_model=HeatmapOut)
+def get_heatmap(
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    workflow_id: UUID | None = None,
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> HeatmapOut:
+    return phase2_analytics.approval_heatmap(db, _ctx(user, from_date, to_date, workflow_id))
+
+
+@router.get("/scorecards", response_model=ScorecardsOut)
+def get_scorecards(
+    from_date: datetime | None = Query(None, alias="from"),
+    to_date: datetime | None = Query(None, alias="to"),
+    workflow_id: UUID | None = None,
+    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    db: Session = Depends(get_db),
+) -> ScorecardsOut:
+    return phase2_analytics.scorecards(db, _ctx(user, from_date, to_date, workflow_id))
 
 
 @router.get("/compliance", response_model=ComplianceOut)

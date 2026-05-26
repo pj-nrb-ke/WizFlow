@@ -16,6 +16,7 @@ from app.routers import (
     integrations,
     master_data,
     notifications,
+    phase2,
     public_approval,
     reports,
     requests,
@@ -63,6 +64,7 @@ v1.include_router(master_data.router)
 v1.include_router(drafts.router)
 v1.include_router(saved_views.router)
 v1.include_router(delegations.router)
+v1.include_router(phase2.router)
 app.include_router(v1)
 
 

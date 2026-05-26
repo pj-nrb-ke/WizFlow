@@ -274,3 +274,32 @@ View your request:
     if errors:
         logger.warning("Status email failed for %s: %s", to_email, errors)
     return False
+
+
+def send_plain_email(to_email: str, subject: str, text_body: str) -> bool:
+    """Simple text email for scheduled reports."""
+    cfg = _mail_settings()
+    if not cfg["api_key"] and not cfg["host"]:
+        logger.info("Email skipped (no mail config): %s", subject)
+        return False
+    html_body = f"<pre style='font-family:system-ui;white-space:pre-wrap'>{text_body}</pre>"
+    if cfg["api_key"]:
+        try:
+            _send_via_api(
+                cfg,
+                to_email=to_email,
+                to_name=to_email.split("@")[0],
+                subject=subject,
+                text_body=text_body,
+                html_body=html_body,
+            )
+            return True
+        except Exception as e:
+            logger.warning("Plain email API failed: %s", e)
+    if cfg["host"]:
+        try:
+            _send_via_smtp(cfg, to_email=to_email, subject=subject, text_body=text_body, html_body=html_body)
+            return True
+        except Exception as e:
+            logger.warning("Plain email SMTP failed: %s", e)
+    return False

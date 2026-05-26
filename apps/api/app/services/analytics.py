@@ -120,6 +120,17 @@ def _load_instances(db: Session, ctx: AnalyticsContext) -> list[WorkflowInstance
     return list(db.scalars(_instance_query(ctx)))
 
 
+def _instance_overdue(db: Session, inst: WorkflowInstance, sla_map: dict, now: datetime) -> bool:
+    defn = db.get(WorkflowDefinition, inst.workflow_definition_id)
+    if inst.status != "in_progress":
+        return False
+    from app.services.sla_engine import is_step_overdue
+
+    if defn and is_step_overdue(db, inst, defn, now=now):
+        return True
+    return is_overdue(inst, sla_hours=_sla_for(inst, sla_map), now=now)
+
+
 def _sla_for(inst: WorkflowInstance, sla_map: dict[UUID, int]) -> int:
     return sla_map.get(inst.workflow_definition_id, DEFAULT_SLA_HOURS)
 
@@ -174,7 +185,7 @@ def executive_summary(db: Session, ctx: AnalyticsContext) -> ExecutiveSummaryOut
         counts[inst.status] += 1
         counts["total"] += 1
         sla = _sla_for(inst, sla_map)
-        if is_overdue(inst, sla_hours=sla, now=now):
+        if _instance_overdue(db, inst, sla_map, now):
             counts["overdue"] += 1
         if inst.submitted_at:
             sla_total += 1
@@ -228,7 +239,7 @@ def workflow_performance(db: Session, ctx: AnalyticsContext) -> WorkflowPerforma
         if status in ("in_progress", "approved", "rejected", "returned"):
             row[status] += 1
         sla = _sla_for(inst, sla_map)
-        if is_overdue(inst, sla_hours=sla, now=now):
+        if _instance_overdue(db, inst, sla_map, now):
             row["overdue"] += 1
         if status in TERMINAL_STATUSES:
             row["decided_n"] += 1
@@ -438,7 +449,7 @@ def exceptions_summary(db: Session, ctx: AnalyticsContext) -> ExceptionsOut:
             rejected += 1
         elif inst.status == "returned":
             returned += 1
-        if is_overdue(inst, sla_hours=_sla_for(inst, sla_map), now=now):
+        if _instance_overdue(db, inst, sla_map, now):
             overdue += 1
     return ExceptionsOut(
         rejected_count=rejected,
@@ -504,7 +515,7 @@ def department_performance(db: Session, ctx: AnalyticsContext) -> DepartmentPerf
         status = inst.status
         if status in ("in_progress", "approved", "rejected", "returned"):
             row[status] += 1
-        if is_overdue(inst, sla_hours=_sla_for(inst, sla_map), now=now):
+        if _instance_overdue(db, inst, sla_map, now):
             row["overdue"] += 1
         row["amount"] += _amount(inst.request_data)
 

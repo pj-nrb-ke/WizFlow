@@ -73,7 +73,7 @@ def _build_inbox_items(
             continue
         defn = db.get(WorkflowDefinition, inst.workflow_definition_id)
         sla = int((defn.settings or {}).get("sla_hours", 48)) if defn else 48
-        if overdue_only and not analytics_service.is_overdue(inst, sla_hours=sla, now=now):
+        if overdue_only and not analytics_service._instance_overdue(db, inst, analytics_service._load_sla_map(db, user.company_id), now):
             continue
         inst_priority = str(
             (inst.request_data or {}).get("priority")

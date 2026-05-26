@@ -359,13 +359,21 @@ export function WorkflowsPage() {
                         : a.type === "role"
                           ? `role: ${a.value}${a.mode ? ` · ${a.mode}` : ""}`
                           : "—";
+                    const slaH = (s as { sla_hours?: number }).sla_hours;
                     return (
                       <li key={String(s.id)}>
                         {String(s.name)} → {label}
+                        {slaH != null ? ` · SLA ${slaH}h` : ""}
                       </li>
                     );
                   })}
                 </ol>
+                {selected.status === "draft" && (
+                  <SlaStepEditor
+                    workflow={selected}
+                    onSaved={(updated) => setSelected(updated)}
+                  />
+                )}
                 {selected.status === "draft" && (
                   <div className="mb-4">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
@@ -597,6 +605,86 @@ export function WorkflowsPage() {
           ← Dashboard
         </Link>
       </p>
+    </div>
+  );
+}
+
+function SlaStepEditor({
+  workflow,
+  onSaved,
+}: {
+  workflow: WorkflowDefinition;
+  onSaved: (w: WorkflowDefinition) => void;
+}) {
+  const [wfSla, setWfSla] = useState(String((workflow.settings as { sla_hours?: number })?.sla_hours ?? 48));
+  const [steps, setSteps] = useState(
+    workflow.steps.map((s) => ({
+      ...(s as Record<string, unknown>),
+      sla_hours: String((s as { sla_hours?: number }).sla_hours ?? ""),
+    }))
+  );
+  const [msg, setMsg] = useState("");
+
+  async function save() {
+    const nextSteps = workflow.steps.map((orig, i) => {
+      const patch = steps[i] as { sla_hours?: string | number };
+      const hours = patch.sla_hours === "" || patch.sla_hours == null ? undefined : Number(patch.sla_hours);
+      const out = { ...orig } as Record<string, unknown>;
+      if (hours != null && !Number.isNaN(hours)) out.sla_hours = hours;
+      else delete out.sla_hours;
+      return out;
+    });
+    const settings = {
+      ...(workflow.settings || {}),
+      sla_hours: Number(wfSla) || 48,
+      escalation: { enabled: true, escalate_to_role: "manager" },
+    };
+    const updated = await apiFetch<WorkflowDefinition>(
+      `/api/v1/workflows/${workflow.id}`,
+      {
+        method: "PATCH",
+        body: JSON.stringify({ steps: nextSteps, settings }),
+      },
+      getToken()
+    );
+    onSaved(updated);
+    setMsg("SLA settings saved.");
+  }
+
+  return (
+    <div className="mb-4 p-3 border border-slate-200 rounded-lg bg-white">
+      <p className="text-sm font-medium text-slate-800 mb-2">SLA by step</p>
+      <label className="text-xs text-slate-600 block mb-2">
+        Workflow default (hours)
+        <input
+          type="number"
+          className="wf-input block mt-0.5 w-24"
+          value={wfSla}
+          onChange={(e) => setWfSla(e.target.value)}
+        />
+      </label>
+      <ul className="space-y-2 mb-2">
+        {steps.map((s, i) => (
+          <li key={String((s as { id?: string }).id ?? i)} className="flex items-center gap-2 text-sm">
+            <span className="flex-1 truncate">{String((s as { name?: string }).name ?? `Step ${i + 1}`)}</span>
+            <input
+              type="number"
+              placeholder="hrs"
+              className="wf-input w-20 text-xs"
+              value={(s as { sla_hours?: string | number }).sla_hours ?? ""}
+              onChange={(e) => {
+                const next = [...steps];
+                next[i] = { ...next[i], sla_hours: e.target.value };
+                setSteps(next);
+              }}
+            />
+          </li>
+        ))}
+      </ul>
+      <button type="button" onClick={() => void save()} className="wf-btn-secondary text-sm px-3 py-1.5">
+        Save SLA
+      </button>
+      {msg && <p className="text-xs text-green-700 mt-1">{msg}</p>}
     </div>
   );
 }

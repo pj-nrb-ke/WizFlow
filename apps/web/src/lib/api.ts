@@ -838,3 +838,153 @@ export function getDepartmentPerformance(params?: AnalyticsFilterParams, token?:
   );
 }
 
+export type WorkloadRow = {
+  user_id: string;
+  full_name: string;
+  pending_count: number;
+  approvals_in_period: number;
+  avg_response_hours: number | null;
+};
+
+export type WorkloadHistoryRow = {
+  week_start: string;
+  user_id: string;
+  full_name: string;
+  actions_count: number;
+};
+
+export type JourneyEdge = {
+  from_step: string;
+  to_step: string;
+  avg_hours: number;
+  sample_count: number;
+};
+
+export type HeatmapCell = { day_of_week: number; hour: number; count: number };
+
+export type ScorecardRow = {
+  entity_type: string;
+  entity_id: string;
+  entity_name: string;
+  metric_key: string;
+  actual_value: number;
+  target_value: number;
+  score_pct: number;
+  grade: string;
+};
+
+export type KpiTarget = {
+  id: string;
+  metric_key: string;
+  label: string;
+  target_value: number;
+  unit: string;
+};
+
+export type ReportSubscription = {
+  id: string;
+  name: string;
+  report_type: string;
+  frequency: string;
+  filters: Record<string, unknown>;
+  is_active: boolean;
+  last_sent_at: string | null;
+  created_at: string;
+};
+
+export type WorkflowSchedule = {
+  id: string;
+  workflow_definition_id: string;
+  name: string;
+  frequency: string;
+  initiator_user_id: string | null;
+  default_data: Record<string, unknown>;
+  is_active: boolean;
+  last_run_at: string | null;
+  created_at: string;
+};
+
+export function getWorkload(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<{ users: WorkloadRow[] }>(`/api/v1/analytics/workload${analyticsQuery(params)}`, {}, token);
+}
+
+export function getWorkloadHistory(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<{ weeks: WorkloadHistoryRow[] }>(
+    `/api/v1/analytics/workload/history${analyticsQuery(params)}`,
+    {},
+    token
+  );
+}
+
+export function getJourneyAnalytics(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<{ edges: JourneyEdge[] }>(`/api/v1/analytics/journey${analyticsQuery(params)}`, {}, token);
+}
+
+export function getApprovalHeatmap(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<{ cells: HeatmapCell[] }>(`/api/v1/analytics/heatmap${analyticsQuery(params)}`, {}, token);
+}
+
+export function getScorecards(params?: AnalyticsFilterParams, token?: string | null) {
+  return apiFetch<{ rows: ScorecardRow[] }>(`/api/v1/analytics/scorecards${analyticsQuery(params)}`, {}, token);
+}
+
+export function listKpiTargets(token?: string | null) {
+  return apiFetch<KpiTarget[]>("/api/v1/kpi-targets", {}, token);
+}
+
+export function createKpiTarget(
+  body: { metric_key: string; label: string; target_value: number; unit?: string },
+  token?: string | null
+) {
+  return apiFetch<KpiTarget>("/api/v1/kpi-targets", { method: "POST", body: JSON.stringify(body) }, token);
+}
+
+export function listReportSubscriptions(token?: string | null) {
+  return apiFetch<ReportSubscription[]>("/api/v1/report-subscriptions", {}, token);
+}
+
+export function createReportSubscription(
+  body: { name: string; report_type?: string; frequency?: string; filters?: Record<string, unknown> },
+  token?: string | null
+) {
+  return apiFetch<ReportSubscription>(
+    "/api/v1/report-subscriptions",
+    { method: "POST", body: JSON.stringify(body) },
+    token
+  );
+}
+
+export function deleteReportSubscription(id: string, token?: string | null) {
+  return apiFetch<void>(`/api/v1/report-subscriptions/${id}`, { method: "DELETE" }, token);
+}
+
+export function listWorkflowSchedules(token?: string | null) {
+  return apiFetch<WorkflowSchedule[]>("/api/v1/workflow-schedules", {}, token);
+}
+
+export function createWorkflowSchedule(
+  body: {
+    workflow_definition_id: string;
+    name: string;
+    frequency?: string;
+    default_data?: Record<string, unknown>;
+  },
+  token?: string | null
+) {
+  return apiFetch<WorkflowSchedule>(
+    "/api/v1/workflow-schedules",
+    { method: "POST", body: JSON.stringify(body) },
+    token
+  );
+}
+
+export function runAutomation(token?: string | null) {
+  return apiFetch<{
+    sla_warnings: number;
+    sla_breaches: number;
+    escalations: number;
+    reports_sent: number;
+    schedules_run: number;
+  }>("/api/v1/automation/run", { method: "POST" }, token);
+}
+
