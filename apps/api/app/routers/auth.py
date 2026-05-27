@@ -1,11 +1,12 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, Body, Cookie, Depends, HTTPException, Request, Response, status
 from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
+from app.core.cookies import REFRESH_COOKIE, clear_auth_cookies, set_auth_cookies
 from app.core.deps import CurrentUser, get_current_user
 from app.core.security import (
     REFRESH_TYPE,
@@ -43,7 +44,12 @@ def _client_ip(request: Request) -> str | None:
 
 
 @router.post("/login", response_model=TokenResponse)
-def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)) -> TokenResponse:
+def login(
+    body: LoginRequest,
+    request: Request,
+    response: Response,
+    db: Session = Depends(get_db),
+) -> TokenResponse:
     email = body.email.strip().lower()
     user = db.scalar(
         select(User)
@@ -72,6 +78,7 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)) -
     roles = [ur.role.slug for ur in user.user_roles if ur.role]
     access = create_access_token(str(user.id), user.company_id, roles)
     refresh = create_refresh_token(str(user.id), user.company_id, roles)
+    set_auth_cookies(response, access, refresh)
     return TokenResponse(
         access_token=access,
         refresh_token=refresh,
@@ -79,10 +86,23 @@ def login(body: LoginRequest, request: Request, db: Session = Depends(get_db)) -
     )
 
 
+@router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
+def logout(response: Response) -> None:
+    clear_auth_cookies(response)
+
+
 @router.post("/refresh", response_model=TokenResponse)
-def refresh(body: RefreshRequest, db: Session = Depends(get_db)) -> TokenResponse:
+def refresh(
+    response: Response,
+    body: RefreshRequest | None = Body(None),
+    refresh_cookie: str | None = Cookie(None, alias=REFRESH_COOKIE),
+    db: Session = Depends(get_db),
+) -> TokenResponse:
+    raw_refresh = (body.refresh_token if body else None) or refresh_cookie
+    if not raw_refresh:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Refresh token required")
     try:
-        payload = decode_token(body.refresh_token)
+        payload = decode_token(raw_refresh)
         if payload.get("type") != REFRESH_TYPE:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
         user_id = UUID(payload["sub"])
@@ -94,9 +114,12 @@ def refresh(body: RefreshRequest, db: Session = Depends(get_db)) -> TokenRespons
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
     roles = _user_roles(db, user)
+    access = create_access_token(str(user.id), user.company_id, roles)
+    refresh = create_refresh_token(str(user.id), user.company_id, roles)
+    set_auth_cookies(response, access, refresh)
     return TokenResponse(
-        access_token=create_access_token(str(user.id), user.company_id, roles),
-        refresh_token=create_refresh_token(str(user.id), user.company_id, roles),
+        access_token=access,
+        refresh_token=refresh,
         expires_in=settings.jwt_expire_minutes * 60,
     )
 

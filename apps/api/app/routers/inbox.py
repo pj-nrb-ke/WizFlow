@@ -39,6 +39,8 @@ def _build_inbox_items(
     department: str | None = None,
     overdue_only: bool = False,
     priority: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
 ) -> list[InboxItem]:
     q = select(WorkflowInstance).where(
         WorkflowInstance.company_id == user.company_id,
@@ -123,7 +125,8 @@ def _build_inbox_items(
             )
         )
     db.commit()
-    return items
+    end = offset + max(1, min(limit, 200))
+    return items[offset:end]
 
 
 @router.get("/inbox", response_model=list[InboxItem])
@@ -137,6 +140,8 @@ def get_inbox(
     department: str | None = None,
     overdue_only: bool = False,
     priority: str | None = None,
+    limit: int = Query(100, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> list[InboxItem]:
@@ -152,6 +157,8 @@ def get_inbox(
         department=department,
         overdue_only=overdue_only,
         priority=priority,
+        limit=limit,
+        offset=offset,
     )
 
 

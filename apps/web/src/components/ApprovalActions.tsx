@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 type Props = {
   needsClaim: boolean;
   canApprove: boolean;
+  busy?: boolean;
   onClaim?: () => void;
   onApprove: () => void;
   onReject: () => void;
@@ -15,6 +16,7 @@ type Props = {
 export function ApprovalActions({
   needsClaim,
   canApprove,
+  busy = false,
   onClaim,
   onApprove,
   onReject,
@@ -28,8 +30,9 @@ export function ApprovalActions({
       {needsClaim && onClaim && (
         <button
           type="button"
+          disabled={busy}
           onClick={onClaim}
-          className="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
+          className="px-4 py-2 bg-amber-500 text-white text-sm font-medium rounded-lg disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
         >
           Claim this task
         </button>
@@ -37,7 +40,7 @@ export function ApprovalActions({
       <div className="flex flex-wrap gap-3">
         <button
           type="button"
-          disabled={!canApprove || needsClaim}
+          disabled={!canApprove || needsClaim || busy}
           onClick={onApprove}
           className="px-6 py-2.5 bg-green-600 hover:bg-green-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50 uppercase tracking-wide focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-green-800"
         >
@@ -45,7 +48,7 @@ export function ApprovalActions({
         </button>
         <button
           type="button"
-          disabled={!canApprove || needsClaim}
+          disabled={!canApprove || needsClaim || busy}
           onClick={onReject}
           className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold rounded-lg disabled:opacity-50 uppercase tracking-wide focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-red-800"
         >
@@ -54,7 +57,7 @@ export function ApprovalActions({
         {showReturn && onReturn && (
           <button
             type="button"
-            disabled={!canApprove || needsClaim}
+            disabled={!canApprove || needsClaim || busy}
             onClick={onReturn}
             className="px-4 py-2 bg-amber-500 text-white text-sm rounded-lg disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
           >

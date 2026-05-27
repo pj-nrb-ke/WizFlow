@@ -21,7 +21,11 @@ export async function apiFetch<T>(
   };
   if (token) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, { ...options, headers });
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...options,
+    headers,
+    credentials: "include",
+  });
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -45,7 +49,12 @@ export async function apiUpload<T>(
   form.append("file", file);
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { method: "POST", headers, body: form });
+  const res = await fetch(`${API_BASE}${path}`, {
+    method: "POST",
+    headers,
+    body: form,
+    credentials: "include",
+  });
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -389,7 +398,7 @@ export async function apiDownload(
 ): Promise<void> {
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
-  const res = await fetch(`${API_BASE}${path}`, { headers });
+  const res = await fetch(`${API_BASE}${path}`, { headers, credentials: "include" });
   if (!res.ok) {
     let detail = res.statusText;
     try {
@@ -418,6 +427,8 @@ export type RequestListParams = {
   min_amount?: number;
   max_amount?: number;
   department?: string;
+  limit?: number;
+  offset?: number;
 };
 
 function requestListQuery(params?: RequestListParams): string {
@@ -430,6 +441,8 @@ function requestListQuery(params?: RequestListParams): string {
   if (params?.min_amount != null) search.set("min_amount", String(params.min_amount));
   if (params?.max_amount != null) search.set("max_amount", String(params.max_amount));
   if (params?.department?.trim()) search.set("department", params.department.trim());
+  if (params?.limit != null) search.set("limit", String(params.limit));
+  if (params?.offset != null) search.set("offset", String(params.offset));
   const qs = search.toString();
   return qs ? `?${qs}` : "";
 }
@@ -448,6 +461,8 @@ export type InboxListParams = {
   department?: string;
   overdue_only?: boolean;
   priority?: string;
+  limit?: number;
+  offset?: number;
 };
 
 function inboxListQuery(params?: InboxListParams): string {
@@ -461,6 +476,8 @@ function inboxListQuery(params?: InboxListParams): string {
   if (params?.department?.trim()) search.set("department", params.department.trim());
   if (params?.overdue_only) search.set("overdue_only", "true");
   if (params?.priority?.trim()) search.set("priority", params.priority.trim());
+  if (params?.limit != null) search.set("limit", String(params.limit));
+  if (params?.offset != null) search.set("offset", String(params.offset));
   const qs = search.toString();
   return qs ? `?${qs}` : "";
 }

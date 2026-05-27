@@ -1,5 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
+import { ColorSchemeSwitcher } from "../components/ColorSchemeSwitcher";
 import { AppThemeSwitcher } from "../components/ThemeSwitcher";
 import { HelpTip } from "../components/HelpTip";
 import { useAuth } from "../context/AuthContext";
@@ -394,6 +395,13 @@ export function SettingsPage() {
           Changes fonts, navigation style, and home layout across the app. Current:{" "}
           <strong>{meta.label}</strong> — {meta.tagline}.
         </p>
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-4 mb-2">
+          Light / dark
+        </h3>
+        <ColorSchemeSwitcher />
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mt-6 mb-2">
+          Brand theme
+        </h3>
         <AppThemeSwitcher />
       </section>
 

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { ThemeScope } from "../context/ThemeContext";
 import { ApprovalActions } from "../components/ApprovalActions";
 import { HelpTip } from "../components/HelpTip";
+import { CardSkeleton } from "../components/LoadingSkeleton";
 import { PageHeader } from "../components/PageHeader";
 import { RequestMetaBar } from "../components/RequestMetaBar";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
@@ -45,6 +46,8 @@ export function InboxPage() {
   const [comment, setComment] = useState("");
   const [error, setError] = useState("");
   const [msg, setMsg] = useState("");
+  const [acting, setActing] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   const uiTheme = APP_THEMES.includes((detail?.ui_theme ?? "") as AppTheme)
     ? (detail!.ui_theme as AppTheme)
@@ -69,14 +72,17 @@ export function InboxPage() {
   );
 
   const loadInbox = useCallback(() => {
-    return listInbox(inboxParams(), getToken()).then((data) => {
+    return listInbox({ ...inboxParams(), limit: 100 }, getToken()).then((data) => {
       setItems(data);
       return data;
     });
   }, [inboxParams]);
 
   useEffect(() => {
-    loadInbox().catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed"));
+    setLoading(true);
+    loadInbox()
+      .catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed"))
+      .finally(() => setLoading(false));
     apiFetch<WorkflowSummary[]>("/api/v1/workflows", {}, getToken())
       .then(setWorkflows)
       .catch(() => {});
@@ -128,10 +134,11 @@ export function InboxPage() {
   }
 
   async function act(action: "approve" | "reject" | "return") {
-    if (!selectedId) return;
+    if (!selectedId || acting) return;
     const actedRef = detail?.reference_number;
     const actedName = detail?.workflow_name;
     setError("");
+    setActing(true);
     try {
       await apiFetch(
         `/api/v1/requests/${selectedId}/${action}`,
@@ -152,6 +159,8 @@ export function InboxPage() {
       }
     } catch (e) {
       setError(e instanceof ApiError ? e.detail ?? e.message : "Action failed");
+    } finally {
+      setActing(false);
     }
   }
 
@@ -314,7 +323,12 @@ export function InboxPage() {
 
       <div className="grid max-md:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6 min-w-0">
         <div className="lg:col-span-1 wf-card divide-y min-w-0 max-h-[70vh] overflow-y-auto order-1">
-          {filteredItems.length === 0 ? (
+          {loading ? (
+            <div className="p-4 space-y-3">
+              <CardSkeleton />
+              <CardSkeleton />
+            </div>
+          ) : filteredItems.length === 0 ? (
             <p className="p-4 text-sm text-slate-500">
               {items.length === 0
                 ? "No pending approvals."
@@ -408,6 +422,7 @@ export function InboxPage() {
                   <ApprovalActions
                     needsClaim={!!detail.needs_claim}
                     canApprove={!!detail.can_approve}
+                    busy={acting}
                     onClaim={() => selectedId && claimTask(selectedId)}
                     onApprove={() => act("approve")}
                     onReject={() => act("reject")}

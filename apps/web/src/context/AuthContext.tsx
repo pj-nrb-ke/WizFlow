@@ -24,7 +24,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   const refreshUser = useCallback(async () => {
-    if (!auth.isAuthenticated()) {
+    if (!auth.USE_AUTH_COOKIES && !auth.isAuthenticated()) {
       setUser(null);
       setLoading(false);
       return;
@@ -47,8 +47,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser();
   }, [refreshUser]);
 
-  const signOut = useCallback(() => {
-    auth.clearToken();
+  const signOut = useCallback(async () => {
+    await auth.logout();
     setUser(null);
     applyBrandColor(null);
     setLoading(false);

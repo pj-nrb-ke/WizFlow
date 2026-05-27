@@ -1,5 +1,6 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import type { FormField } from "./formUtils";
+import { secureGet, secureRemove, secureSet } from "./secureStorage";
 
 const DRAFT_PREFIX = "wf_draft_";
 const QUEUE_KEY = "wf_submit_queue";
@@ -37,10 +38,15 @@ export async function clearDraft(workflowId: string): Promise<void> {
 }
 
 export async function loadQueue(): Promise<QueuedSubmit[]> {
-  const raw = await AsyncStorage.getItem(QUEUE_KEY);
+  const raw = (await secureGet(QUEUE_KEY)) ?? (await AsyncStorage.getItem(QUEUE_KEY));
   if (!raw) return [];
   try {
-    return JSON.parse(raw) as QueuedSubmit[];
+    const parsed = JSON.parse(raw) as QueuedSubmit[];
+    if (!(await secureGet(QUEUE_KEY)) && parsed.length) {
+      await secureSet(QUEUE_KEY, raw);
+      await AsyncStorage.removeItem(QUEUE_KEY);
+    }
+    return parsed;
   } catch {
     return [];
   }
@@ -54,12 +60,12 @@ export async function enqueueSubmit(workflowId: string, data: Record<string, unk
     data,
     createdAt: new Date().toISOString(),
   });
-  await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  await secureSet(QUEUE_KEY, JSON.stringify(q));
 }
 
 export async function dequeueSubmit(id: string): Promise<void> {
   const q = (await loadQueue()).filter((x) => x.id !== id);
-  await AsyncStorage.setItem(QUEUE_KEY, JSON.stringify(q));
+  await secureSet(QUEUE_KEY, JSON.stringify(q));
 }
 
 export function draftFromFields(

@@ -1,12 +1,13 @@
 from dataclasses import dataclass
 from uuid import UUID
 
-from fastapi import Depends, HTTPException, Header, status
+from fastapi import Cookie, Depends, HTTPException, Header, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core.cookies import ACCESS_COOKIE
 from app.core.security import ACCESS_TYPE, decode_token
 from app.db.models import ApiKey, User, UserRole
 from app.db.session import get_db
@@ -24,14 +25,25 @@ class CurrentUser:
     roles: list[str]
 
 
+def _resolve_access_token(
+    creds: HTTPAuthorizationCredentials | None,
+    cookie_token: str | None,
+) -> str:
+    if creds and creds.credentials:
+        return creds.credentials
+    if cookie_token:
+        return cookie_token
+    raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+
 def get_current_user(
     creds: HTTPAuthorizationCredentials | None = Depends(bearer_scheme),
+    access_cookie: str | None = Cookie(None, alias=ACCESS_COOKIE),
     db: Session = Depends(get_db),
 ) -> CurrentUser:
-    if not creds or not creds.credentials:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
     try:
-        payload = decode_token(creds.credentials)
+        raw = _resolve_access_token(creds, access_cookie)
+        payload = decode_token(raw)
         if payload.get("type") != ACCESS_TYPE:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token type")
         user_id = UUID(payload["sub"])

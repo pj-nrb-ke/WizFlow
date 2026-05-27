@@ -35,6 +35,10 @@ apps/api/.venv/
 uploads/
 apps/api/uploads/
 
+# Mobile native build output (local APK builds)
+apps/mobile/android/
+apps/mobile/ios/
+
 # Deploy sync artifacts
 wizflow-*.tgz
 docs/_test_run_output.json

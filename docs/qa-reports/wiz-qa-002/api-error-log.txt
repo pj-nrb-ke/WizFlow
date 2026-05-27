@@ -1,0 +1,10 @@
+WIZ-QA-002 API Error Log
+Generated: 2026-05-27
+
+No server 5xx errors captured during production probe run.
+
+Failed test cases:
+- SEC-007: POST /auth/login with ~500KB body returned 401 (expected 413/422/400) — classify as validation gap not server error.
+
+Regression (local only):
+- pytest tests/api: 7 failed, 11 errors — sqlalchemy OperationalError (PostgreSQL not available on host)

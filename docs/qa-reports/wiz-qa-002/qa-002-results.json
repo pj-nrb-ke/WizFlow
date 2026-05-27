@@ -1,0 +1,220 @@
+{
+  "generated_at": "2026-05-27T07:57:14.979293+00:00",
+  "cases": [
+    {
+      "test_id": "API-001",
+      "module": "API",
+      "feature": "Health",
+      "use_case": "Health endpoint responds",
+      "steps": "GET /api/v1/health x5",
+      "expected": "200, status ok",
+      "actual": "200 avg 613.1ms",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "SEC-001",
+      "module": "Auth",
+      "feature": "Protected route",
+      "use_case": "Unauthenticated /me rejected",
+      "steps": "GET /api/v1/auth/me without token",
+      "expected": "401",
+      "actual": "401",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "SEC-002",
+      "module": "Auth",
+      "feature": "Invalid JWT",
+      "use_case": "Invalid token rejected",
+      "steps": "GET /me with garbage JWT",
+      "expected": "401",
+      "actual": "401",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "SEC-003",
+      "module": "Auth",
+      "feature": "SQL injection login",
+      "use_case": "SQLi in email field",
+      "steps": "POST login email=\"admin' OR '1'='1\"",
+      "expected": "401/422, no bypass",
+      "actual": "401",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "AUTH-001",
+      "module": "Auth",
+      "feature": "Demo login",
+      "use_case": "Admin and originator login",
+      "steps": "POST login demo users",
+      "expected": "200 both",
+      "actual": "admin=True originator=True",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "API-002",
+      "module": "API",
+      "feature": "Malformed JSON",
+      "use_case": "Invalid JSON body",
+      "steps": "POST login with broken JSON",
+      "expected": "422",
+      "actual": "422",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "SEC-004",
+      "module": "Auth",
+      "feature": "Privilege escalation",
+      "use_case": "Originator blocked from admin API",
+      "steps": "GET /admin/departments as originator",
+      "expected": "403",
+      "actual": "403",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "FUNC-001",
+      "module": "Workflows",
+      "feature": "List workflows",
+      "use_case": "Admin lists workflows",
+      "steps": "GET /workflows",
+      "expected": "200, non-empty demo data",
+      "actual": "200 count=18",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "PERF-001",
+      "module": "Inbox",
+      "feature": "List performance",
+      "use_case": "Inbox returns without server error",
+      "steps": "GET /inbox",
+      "expected": "200",
+      "actual": "200 items=36 698ms",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "FUNC-002",
+      "module": "Submit",
+      "feature": "Negative amount",
+      "use_case": "Reject or sanitize negative currency",
+      "steps": "POST submit amount=-99999",
+      "expected": "400/422 rejection",
+      "actual": "400 {\"detail\":\"'Amount' must be a non-negative number\"}",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "SEC-005",
+      "module": "Submit",
+      "feature": "XSS in text field",
+      "use_case": "Stored text handled safely",
+      "steps": "Submit purpose with HTML/script",
+      "expected": "201 or 400; API must not reflect unsanitized in errors",
+      "actual": "400",
+      "status": "PASS",
+      "severity": "MEDIUM",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "SEC-006",
+      "module": "Public approval",
+      "feature": "Invalid token",
+      "use_case": "Invalid magic link",
+      "steps": "GET /public/approval/bad",
+      "expected": "404",
+      "actual": "404",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "REG-001",
+      "module": "Phase2",
+      "feature": "Workload analytics",
+      "use_case": "Phase 2 endpoint available",
+      "steps": "GET /analytics/workload",
+      "expected": "200",
+      "actual": "200",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "REG-002",
+      "module": "Phase2",
+      "feature": "KPI targets",
+      "use_case": "KPI targets CRUD route",
+      "steps": "GET /kpi-targets",
+      "expected": "200",
+      "actual": "200",
+      "status": "PASS",
+      "severity": "\u2014",
+      "agent": "QA-002",
+      "retest": "No"
+    },
+    {
+      "test_id": "SEC-007",
+      "module": "API",
+      "feature": "Oversized payload",
+      "use_case": "Large JSON rejected or handled",
+      "steps": "POST login ~500KB body",
+      "expected": "413/422/400, not 500",
+      "actual": "401",
+      "status": "FAIL",
+      "severity": "MEDIUM",
+      "agent": "QA-002",
+      "retest": "No"
+    }
+  ],
+  "findings": [],
+  "perf_metrics": [
+    {
+      "endpoint": "GET /api/v1/health",
+      "samples": 5,
+      "avg_ms": 613.1,
+      "max_ms": 689.6
+    },
+    {
+      "endpoint": "GET /workflows",
+      "ms": 582.6,
+      "count": 18
+    },
+    {
+      "endpoint": "GET /inbox",
+      "ms": 698.0,
+      "items": 36
+    }
+  ],
+  "api_errors": []
+}

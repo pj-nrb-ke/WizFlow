@@ -1113,3 +1113,26 @@
 [data-theme="executive"] .wf-user-trigger:hover {
   background-color: rgb(51 65 85);
 }
+
+/* System / user dark mode (Settings → Light / dark) */
+html.dark {
+  color-scheme: dark;
+  --wf-page-bg: 15 23 42;
+  --wf-card-bg: 30 41 59;
+  --wf-card-border: 51 65 85;
+  --wf-header-bg: 15 23 42;
+  --wf-accent-muted: 30 41 59;
+}
+
+html.dark .text-slate-800 {
+  color: rgb(248 250 252);
+}
+html.dark .text-slate-700,
+html.dark .text-slate-600,
+html.dark .text-slate-500 {
+  color: rgb(148 163 184);
+}
+html.dark .wf-card {
+  background-color: rgb(var(--wf-card-bg));
+  border-color: rgb(var(--wf-card-border));
+}

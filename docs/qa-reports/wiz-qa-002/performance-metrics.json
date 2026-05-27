@@ -1,0 +1,10 @@
+{
+  "cycle": "WIZ-QA-002",
+  "source": "scripts/qa_wiz_qa_002.py production probes",
+  "metrics": [
+    {"endpoint": "GET /api/v1/health", "avg_ms": 640.1, "max_ms": 865.1, "samples": 5},
+    {"endpoint": "GET /api/v1/workflows", "ms": 617.4, "count": 18},
+    {"endpoint": "GET /api/v1/inbox", "ms": 753.6, "items": 36}
+  ],
+  "notes": "Health latency includes network RTT to VPS. Inbox acceptable at 36 items; risk at 1000+ without pagination."
+}

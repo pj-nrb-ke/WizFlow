@@ -1,6 +1,6 @@
 import { Navigate, Outlet, Route, Routes } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { isAuthenticated } from "../lib/auth";
+import { USE_AUTH_COOKIES, isAuthenticated } from "../lib/auth";
 import { AppLayout } from "../layouts/AppLayout";
 import { AdminPage } from "../pages/AdminPage";
 import { DashboardPage } from "../pages/DashboardPage";
@@ -33,7 +33,9 @@ function LoadingScreen() {
 
 /** Logged-out users only (login). */
 export function LoginRoute() {
-  if (isAuthenticated()) {
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  if (user || (!USE_AUTH_COOKIES && isAuthenticated())) {
     return <Navigate to="/" replace />;
   }
   return <LoginPage />;
@@ -41,14 +43,17 @@ export function LoginRoute() {
 
 /** Redirect unknown paths based on session. */
 function CatchAllRoute() {
-  return <Navigate to={isAuthenticated() ? "/" : "/login"} replace />;
+  const { user, loading } = useAuth();
+  if (loading) return <LoadingScreen />;
+  const authed = Boolean(user) || (!USE_AUTH_COOKIES && isAuthenticated());
+  return <Navigate to={authed ? "/" : "/login"} replace />;
 }
 
 /** Requires a valid session. */
 export function RequireAuth() {
   const { user, loading } = useAuth();
 
-  if (!isAuthenticated()) {
+  if (!USE_AUTH_COOKIES && !isAuthenticated()) {
     return <Navigate to="/login" replace />;
   }
 

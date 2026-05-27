@@ -69,6 +69,8 @@ def list_my_requests(
     min_amount: float | None = None,
     max_amount: float | None = None,
     department: str | None = None,
+    limit: int = 100,
+    offset: int = 0,
 ) -> list[WorkflowInstance]:
     q = apply_request_filters(
         select(WorkflowInstance),
@@ -83,4 +85,5 @@ def list_my_requests(
         max_amount=max_amount,
         department=department,
     )
-    return list(db.scalars(q.order_by(WorkflowInstance.created_at.desc())))
+    cap = max(1, min(limit, 200))
+    return list(db.scalars(q.order_by(WorkflowInstance.created_at.desc()).limit(cap).offset(offset)))

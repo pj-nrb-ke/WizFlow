@@ -15,7 +15,7 @@ from app.db.models import ApprovalToken, User, WorkflowDefinition, WorkflowInsta
 from app.services.instance_engine import _step_name
 from app.services.ui_settings import strip_ui_keys
 
-TOKEN_TTL_DAYS = 7
+TOKEN_TTL_DAYS = 3
 
 
 def _hash_token(raw: str) -> str:

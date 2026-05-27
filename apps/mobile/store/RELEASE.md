@@ -9,7 +9,9 @@ eas login
 eas init
 ```
 
-After `eas init`, copy the real **project ID** into `app.json` → `extra.eas.projectId` (replace the placeholder).
+After `eas init`, copy the real **project ID** into `app.json` → `extra.eas.projectId` (replace `wizflow-mobile-placeholder`).
+
+> **Required before cloud builds:** `eas login` then `eas init` in `apps/mobile`. Local APK builds via `expo prebuild` + Gradle do not need a real project ID.
 
 ## Build binaries
 

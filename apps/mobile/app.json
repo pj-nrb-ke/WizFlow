@@ -41,7 +41,9 @@
           "color": "#4f46e5"
         }
       ],
-      "expo-speech-recognition"
+      "expo-speech-recognition",
+      "expo-asset",
+      "expo-font"
     ],
     "experiments": {
       "typedRoutes": true

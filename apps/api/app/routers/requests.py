@@ -47,6 +47,8 @@ def list_my_requests(
     min_amount: float | None = None,
     max_amount: float | None = None,
     department: str | None = None,
+    limit: int = Query(100, ge=1, le=200),
+    offset: int = Query(0, ge=0),
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> list[WorkflowInstanceSummary]:
@@ -62,6 +64,8 @@ def list_my_requests(
         min_amount=min_amount,
         max_amount=max_amount,
         department=department,
+        limit=limit,
+        offset=offset,
     )
     return _summaries_for_instances(db, rows)
 
