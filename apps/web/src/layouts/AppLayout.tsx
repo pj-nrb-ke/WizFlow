@@ -13,6 +13,7 @@ import {
   IconBell,
   IconChartBar,
 } from "../components/icons";
+import { NetworkStatusBanner } from "../components/NetworkStatusBanner";
 import { UserMenu } from "../components/UserMenu";
 import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
@@ -89,6 +90,7 @@ export function AppLayout() {
           <UserMenu />
         </div>
       </header>
+      <NetworkStatusBanner />
       <main className="flex-1 w-full mx-auto px-4 py-8 wf-shell">
         <Outlet />
       </main>

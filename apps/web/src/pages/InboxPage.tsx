@@ -188,6 +188,7 @@ export function InboxPage() {
     <div>
       <PageHeader
         title="Approval inbox"
+        subtitle={!loading ? `${filteredItems.length} pending` : undefined}
         help={
           <HelpTip text="Review items waiting for your approval. Filter by workflow or search by reference; overdue highlights items past the SLA window." />
         }
@@ -322,7 +323,11 @@ export function InboxPage() {
       {msg && <p className="text-sm text-green-700 mb-2">{msg}</p>}
 
       <div className="grid max-md:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6 min-w-0">
-        <div className="lg:col-span-1 wf-card divide-y min-w-0 max-h-[70vh] overflow-y-auto order-1">
+        <div
+          className="lg:col-span-1 wf-card divide-y min-w-0 max-h-[70vh] overflow-y-auto order-1"
+          data-testid="inbox-list"
+          data-inbox-count={loading ? "" : String(filteredItems.length)}
+        >
           {loading ? (
             <div className="p-4 space-y-3">
               <CardSkeleton />
@@ -341,6 +346,7 @@ export function InboxPage() {
                 <button
                   key={item.request_id}
                   type="button"
+                  data-testid="inbox-list-item"
                   onClick={() => openItem(item.request_id)}
                   className={`w-full text-left p-4 hover:bg-slate-50/80 ${
                     selectedId === item.request_id ? "bg-[rgb(var(--wf-accent-muted))]" : ""

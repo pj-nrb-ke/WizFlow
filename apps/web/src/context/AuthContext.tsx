@@ -47,6 +47,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     refreshUser();
   }, [refreshUser]);
 
+  useEffect(() => {
+    const onOnline = () => {
+      setLoading(true);
+      void refreshUser();
+    };
+    window.addEventListener("online", onOnline);
+    return () => window.removeEventListener("online", onOnline);
+  }, [refreshUser]);
+
   const signOut = useCallback(async () => {
     await auth.logout();
     setUser(null);

@@ -282,7 +282,11 @@ export function WorkflowsPage() {
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       <div className="grid lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-1 wf-card divide-y max-h-[70vh] overflow-y-auto">
+        <div
+          className="lg:col-span-1 wf-card divide-y max-h-[70vh] overflow-y-auto"
+          data-testid="workflow-list"
+          data-workflow-count={loading ? "" : String(workflows.length)}
+        >
           {workflows.length === 0 ? (
             <p className="p-4 text-sm text-slate-500">No workflows yet.</p>
           ) : (
@@ -290,6 +294,7 @@ export function WorkflowsPage() {
               <button
                 key={w.id}
                 type="button"
+                data-testid="workflow-list-item"
                 onClick={() => openWorkflow(w.id)}
                 className={`w-full text-left p-4 hover:bg-slate-50/80 ${
                   selected?.id === w.id ? "bg-[rgb(var(--wf-accent-muted))]" : ""
