@@ -5,6 +5,21 @@ import { ApiError, apiFetch, markNotificationRead, Notification } from "../lib/a
 import { formatDateTimeShort } from "../lib/datetime";
 import { getToken } from "../lib/auth";
 
+const BellIcon = () => (
+  <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M18 8a6 6 0 1 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+    <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+  </svg>
+);
+
+const NOTIFICATION_LEGEND: { type: string; hint: string }[] = [
+  { type: "Approval", hint: "Items waiting for your action" },
+  { type: "Approved", hint: "A request you follow was approved" },
+  { type: "Returned", hint: "Sent back for edits" },
+  { type: "Rejected", hint: "A request was declined" },
+  { type: "Updates", hint: "Other activity on your requests" },
+];
+
 function inferNotificationType(n: Notification): string {
   if (n.notification_type) return n.notification_type;
   const t = n.title.toLowerCase();
@@ -113,13 +128,33 @@ export function NotificationsPage() {
         <p className="text-slate-500 text-sm">Loading…</p>
       ) : visible.length === 0 ? (
         <div className="wf-card p-8 text-center">
-          <p className="font-medium text-slate-800">
-            {unreadOnly ? "No unread notifications" : "No notifications yet"}
+          <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-[rgb(var(--wf-accent-muted))] text-[rgb(var(--wf-brand-600))]">
+            <BellIcon />
+          </div>
+          <p className="mt-4 font-semibold text-slate-800">
+            {unreadOnly ? "No unread notifications" : "You're all caught up"}
           </p>
-          <p className="text-sm text-slate-500 mt-1">
+          <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
             {unreadOnly
-              ? "You are up to date."
-              : "Activity on your requests and inbox will appear here."}
+              ? "You've read everything. Uncheck “Unread only” to see your full history."
+              : "Approvals, returns, and outcomes for your requests will show up here as they happen."}
+          </p>
+          <dl className="mx-auto mt-6 max-w-sm space-y-1.5 text-left">
+            {NOTIFICATION_LEGEND.map((item) => (
+              <div key={item.type} className="flex items-baseline gap-2 text-xs">
+                <dt className="w-20 shrink-0 font-semibold uppercase tracking-wide text-slate-500">
+                  {item.type}
+                </dt>
+                <dd className="text-slate-400">{item.hint}</dd>
+              </div>
+            ))}
+          </dl>
+          <p className="mt-6 text-sm text-slate-500">
+            Manage email and push preferences in{" "}
+            <Link to="/settings" className="wf-link font-medium">
+              Settings
+            </Link>
+            .
           </p>
         </div>
       ) : (

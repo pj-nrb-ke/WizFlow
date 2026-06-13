@@ -242,21 +242,36 @@ export function RequestDetailPage() {
 
             <div id="timeline" className="wf-card p-4">
             <h2 className="font-semibold mb-3">Timeline</h2>
-            <ul className="space-y-3 text-sm">
-              {events.map((ev) => (
-                <li key={ev.id} className="border-l-2 wf-timeline-border pl-3">
-                  <p className="font-medium text-slate-800">
-                    {eventLabel(ev.event_type, ev.event_label)}
-                  </p>
-                  <p className="text-xs text-slate-500">
-                    {ev.actor_name ?? "System"} · {new Date(ev.created_at).toLocaleString()}
-                  </p>
-                  {ev.payload?.comment != null && String(ev.payload.comment) !== "" && (
-                    <p className="text-slate-600 mt-1">{String(ev.payload.comment)}</p>
-                  )}
-                </li>
-              ))}
-            </ul>
+            {events.length === 0 ? (
+              <p className="text-sm text-slate-500">
+                No activity recorded yet. Events appear here as the request is submitted and reviewed.
+              </p>
+            ) : (
+              <ul className="space-y-3 text-sm">
+                {events.map((ev) => (
+                  <li key={ev.id} className="border-l-2 wf-timeline-border pl-3">
+                    <p className="font-medium text-slate-800">
+                      {eventLabel(ev.event_type, ev.event_label)}
+                    </p>
+                    <p className="text-xs text-slate-500">
+                      {ev.actor_name ?? "System"} · {new Date(ev.created_at).toLocaleString()}
+                    </p>
+                    {ev.payload?.comment != null && String(ev.payload.comment) !== "" && (
+                      <p className="text-slate-600 mt-1">{String(ev.payload.comment)}</p>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            )}
+            {request.status === "in_progress" && (
+              <p className="mt-4 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                What happens next:{" "}
+                {request.current_step_name
+                  ? `awaiting “${request.current_step_name}”. `
+                  : "awaiting approval. "}
+                You'll be notified when an approver acts and the request moves to the next step.
+              </p>
+            )}
             </div>
           </div>
         </div>

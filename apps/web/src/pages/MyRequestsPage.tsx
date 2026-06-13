@@ -70,6 +70,71 @@ function buildExportQuery(
   return params;
 }
 
+function humanDuration(ms: number): string {
+  const mins = Math.max(0, Math.round(ms / 60000));
+  if (mins < 60) return `${mins}m`;
+  const hours = Math.round(mins / 60);
+  if (hours < 48) return `${hours}h`;
+  return `${Math.round(hours / 24)}d`;
+}
+
+function relTime(iso: string): string {
+  return `${humanDuration(Date.now() - new Date(iso).getTime())} ago`;
+}
+
+function fmtAmount(s?: string | null): string {
+  if (!s) return "—";
+  const t = String(s).trim();
+  const compact = t.replace(/[\s,]/g, "");
+  if (/^\d+(\.\d+)?$/.test(compact)) {
+    const n = Number(compact);
+    if (Number.isFinite(n)) return n.toLocaleString();
+  }
+  return t;
+}
+
+const STATUS_ACCENT: Record<string, string> = {
+  in_progress: "bg-amber-400",
+  approved: "bg-emerald-500",
+  rejected: "bg-red-500",
+  returned: "bg-orange-400",
+};
+
+function stageText(r: RequestSummary): string {
+  if (r.status === "in_progress") return r.current_step_name ?? "In review";
+  if (r.status === "approved") return "Approved";
+  if (r.status === "rejected") return "Rejected";
+  if (r.status === "returned") return "Returned for edits";
+  return r.current_step_name ?? "—";
+}
+
+function timing(r: RequestSummary): { label: string; value: string; danger?: boolean } {
+  if (!r.submitted_at) return { label: "Created", value: "—" };
+  if (r.status !== "in_progress") return { label: "Submitted", value: relTime(r.submitted_at) };
+  const deadline = new Date(r.submitted_at).getTime() + (r.sla_hours ?? 48) * 3600 * 1000;
+  const now = Date.now();
+  if (now > deadline)
+    return { label: "Overdue by", value: humanDuration(now - deadline), danger: true };
+  return { label: "Due in", value: humanDuration(deadline - now) };
+}
+
+function Stat({ label, value, danger }: { label: string; value: string; danger?: boolean }) {
+  return (
+    <div className="text-right">
+      <p className="text-[10px] font-medium uppercase tracking-wide text-slate-400">{label}</p>
+      <p className={`text-sm font-medium whitespace-nowrap ${danger ? "text-red-600" : "text-slate-700"}`}>
+        {value}
+      </p>
+    </div>
+  );
+}
+
+const ChevronRight = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9 6l6 6-6 6" />
+  </svg>
+);
+
 export function MyRequestsPage() {
   const [requests, setRequests] = useState<RequestSummary[]>([]);
   const [drafts, setDrafts] = useState<RequestDraft[]>([]);
@@ -346,43 +411,59 @@ export function MyRequestsPage() {
         ) : (
           filtered.map((r) => {
             const overdue = isRequestOverdue(r.submitted_at, r.sla_hours, r.status);
+            const accent = overdue ? "bg-red-500" : STATUS_ACCENT[r.status] ?? "bg-slate-300";
+            const t = timing(r);
             return (
               <Link
                 key={r.id}
                 to={`/requests/${r.id}`}
-                className="block p-4 hover:bg-slate-50"
+                className="block transition-colors hover:bg-slate-50"
               >
-                <div className="flex justify-between items-start gap-3">
-                  <div className="min-w-0">
-                    {r.reference_number && (
-                      <p className="font-mono text-xs font-semibold text-[rgb(var(--wf-brand-700))]">
-                        {r.reference_number}
+                <div className="flex items-stretch">
+                  <span className={`w-1 shrink-0 ${accent}`} aria-hidden="true" />
+                  <div className="flex min-w-0 flex-1 items-center gap-4 p-4">
+                    <div className="min-w-0 flex-1">
+                      {r.reference_number && (
+                        <p className="font-mono text-xs font-semibold text-[rgb(var(--wf-brand-700))]">
+                          {r.reference_number}
+                        </p>
+                      )}
+                      <p className="truncate font-medium text-slate-800">{r.workflow_name}</p>
+                      <p className="mt-0.5 text-xs text-slate-400">
+                        {r.submitted_at
+                          ? `Submitted ${formatDateTimeShort(r.submitted_at)}`
+                          : "Not yet submitted"}
                       </p>
-                    )}
-                    <p className="font-medium text-slate-800">{r.workflow_name}</p>
-                    {r.submitted_at && (
-                      <p className="text-[10px] text-slate-400">
-                        {formatDateTimeShort(r.submitted_at)}
-                      </p>
-                    )}
-                    <p className="text-xs text-slate-500 mt-1">
-                      {r.current_step_name
-                        ? `Pending: ${r.current_step_name}`
-                        : "Completed"}
-                    </p>
-                    {r.amount_preview && (
-                      <p className="text-xs text-slate-600 mt-0.5 font-medium">
-                        {r.amount_preview}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex flex-col items-end gap-1 shrink-0">
-                    <StatusBadge status={r.status} />
-                    {overdue && (
-                      <span className="text-[10px] font-semibold uppercase tracking-wide text-red-700 bg-red-50 px-1.5 py-0.5 rounded">
-                        Overdue
-                      </span>
-                    )}
+                      <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-slate-500 md:hidden">
+                        <span>
+                          <span className="text-slate-400">Amount </span>
+                          {fmtAmount(r.amount_preview)}
+                        </span>
+                        <span>
+                          <span className="text-slate-400">Stage </span>
+                          {stageText(r)}
+                        </span>
+                        <span className={t.danger ? "font-medium text-red-600" : ""}>
+                          {t.label} {t.value}
+                        </span>
+                      </div>
+                    </div>
+                    <div className="hidden shrink-0 items-center gap-8 md:flex">
+                      <Stat label="Amount" value={fmtAmount(r.amount_preview)} />
+                      <Stat label="Stage" value={stageText(r)} />
+                      <Stat label={t.label} value={t.value} danger={t.danger} />
+                    </div>
+                    <div className="flex w-24 shrink-0 flex-col items-end gap-1">
+                      <StatusBadge status={r.status} />
+                      {overdue && (
+                        <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700">
+                          Overdue
+                        </span>
+                      )}
+                    </div>
+                    <span className="shrink-0 text-slate-300">
+                      <ChevronRight />
+                    </span>
                   </div>
                 </div>
               </Link>

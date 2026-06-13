@@ -321,6 +321,151 @@
     font-variant-numeric: tabular-nums;
   }
 
+  .wf-nav2 {
+    display: flex;
+    align-items: center;
+    gap: 0.1rem;
+    flex-wrap: wrap;
+    min-width: 0;
+  }
+
+  .wf-nav2-link,
+  .wf-nav2-trigger {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    padding: 0.45rem 0.7rem;
+    border-radius: var(--wf-radius);
+    font-family: var(--wf-font-sans, inherit);
+    font-size: 0.9rem;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: 0;
+    text-transform: none;
+    white-space: nowrap;
+    color: rgb(71 85 105);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .wf-nav2-link svg,
+  .wf-nav2-trigger svg {
+    opacity: 0.7;
+  }
+
+  .wf-nav2-link:hover,
+  .wf-nav2-trigger:hover {
+    color: rgb(var(--wf-brand-700));
+    background: rgb(var(--wf-accent-muted));
+  }
+
+  .wf-nav2-link:hover svg,
+  .wf-nav2-trigger:hover svg,
+  .wf-nav2-link.active svg,
+  .wf-nav2-trigger.active svg {
+    opacity: 1;
+  }
+
+  .wf-nav2-link.active,
+  .wf-nav2-trigger.active {
+    color: rgb(var(--wf-brand-700));
+    background: rgb(var(--wf-accent-muted));
+    font-weight: 600;
+  }
+
+  .wf-nav2-link:focus-visible,
+  .wf-nav2-trigger:focus-visible,
+  .wf-iconbtn:focus-visible {
+    outline: 2px solid rgb(var(--wf-brand-500));
+    outline-offset: 2px;
+  }
+
+  .wf-nav2-chevron {
+    opacity: 0.5;
+    margin-left: -0.1rem;
+  }
+
+  .wf-nav2-group {
+    position: relative;
+  }
+
+  .wf-dropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    min-width: 210px;
+    padding: 0.3rem;
+    background: rgb(var(--wf-card-bg));
+    border: 1px solid rgb(var(--wf-card-border));
+    border-radius: var(--wf-radius-lg);
+    box-shadow: var(--wf-shadow-lg);
+    z-index: 60;
+  }
+
+  .wf-dropdown-item {
+    display: flex;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 0.5rem 0.6rem;
+    border-radius: var(--wf-radius);
+    font-size: 0.875rem;
+    white-space: nowrap;
+    color: rgb(51 65 85);
+  }
+
+  .wf-dropdown-item svg {
+    opacity: 0.7;
+  }
+
+  .wf-dropdown-item:hover,
+  .wf-dropdown-item.active {
+    background: rgb(var(--wf-accent-muted));
+    color: rgb(var(--wf-brand-700));
+  }
+
+  .wf-dropdown-item.active {
+    font-weight: 600;
+  }
+
+  .wf-iconbtn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: var(--wf-radius);
+    color: rgb(71 85 105);
+    transition: background-color 0.15s ease, color 0.15s ease;
+  }
+
+  .wf-iconbtn:hover {
+    background: rgb(var(--wf-accent-muted));
+    color: rgb(var(--wf-brand-700));
+  }
+
+  .wf-iconbtn.active {
+    color: rgb(var(--wf-brand-700));
+    background: rgb(var(--wf-accent-muted));
+  }
+
+  [data-theme="executive"] .wf-nav2-link,
+  [data-theme="executive"] .wf-nav2-trigger,
+  [data-theme="executive"] .wf-iconbtn {
+    color: rgb(203 213 225);
+  }
+
+  [data-theme="executive"] .wf-nav2-link:hover,
+  [data-theme="executive"] .wf-nav2-trigger:hover,
+  [data-theme="executive"] .wf-nav2-link.active,
+  [data-theme="executive"] .wf-nav2-trigger.active,
+  [data-theme="executive"] .wf-iconbtn:hover,
+  [data-theme="executive"] .wf-iconbtn.active {
+    color: #fff;
+    background: rgba(255, 255, 255, 0.1);
+  }
+
   .wf-card {
     background-color: rgb(var(--wf-card-bg));
     border: 1px solid rgb(var(--wf-card-border));

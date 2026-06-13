@@ -146,8 +146,13 @@ export function AdminPage() {
 
       {section === "users" && (
         <section className="wf-card p-5">
-          <h2 className="font-semibold text-slate-800">Users</h2>
+          <h2 className="font-semibold text-slate-800">Users ({users.length})</h2>
           <p className="text-sm text-slate-500 mb-4">Active accounts and role assignments.</p>
+          {users.length === 0 && (
+            <p className="text-sm text-slate-500">
+              No users yet. Invite teammates from the setup wizard to populate this list.
+            </p>
+          )}
           <ul className="text-sm space-y-3">
             {users.map((u) => (
               <li key={u.id} className="border-b border-slate-100 pb-3 last:border-0">
@@ -162,7 +167,7 @@ export function AdminPage() {
 
       {section === "groups" && (
         <section className="wf-card p-5">
-          <h2 className="font-semibold text-slate-800">Groups</h2>
+          <h2 className="font-semibold text-slate-800">Groups ({groups.length})</h2>
           <p className="text-sm text-slate-500 mb-4">
             Groups are used in custom workflows for initiators and approvers.
           </p>
@@ -217,6 +222,11 @@ export function AdminPage() {
               Create group
             </button>
           </form>
+          {groups.length === 0 && (
+            <p className="text-sm text-slate-500 mb-3">
+              No groups yet. Create one above to route requests to a team of approvers.
+            </p>
+          )}
           <ul className="text-sm space-y-3">
             {groups.map((g) => (
               <li key={g.id} className="border-b border-slate-100 pb-3 last:border-0">

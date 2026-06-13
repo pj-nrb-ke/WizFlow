@@ -35,6 +35,21 @@ type SecurityLogRow = {
   created_at: string;
 };
 
+const KeyIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <circle cx="7.5" cy="15.5" r="4.5" />
+    <path d="M10.7 12.3 21 2m-4 0 3 3-3 3" />
+  </svg>
+);
+
+const HookIcon = () => (
+  <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M18 6a3 3 0 1 0-4 2.83V14a2 2 0 0 1-4 0" />
+    <circle cx="6" cy="18" r="3" />
+    <path d="M9 18h4a2 2 0 0 0 2-2v-1" />
+  </svg>
+);
+
 const WEBHOOK_EVENTS = [
   "request.submitted",
   "step.approved",
@@ -197,16 +212,33 @@ export function IntegrationsPage() {
             </tr>
           </thead>
           <tbody>
-            {keys.map((k) => (
-              <tr key={k.id}>
-                <td>{k.name}</td>
-                <td>
-                  <code>{k.key_prefix}…</code>
+            {keys.length === 0 ? (
+              <tr>
+                <td colSpan={4} className="wf-data-table-empty">
+                  <div className="flex flex-col items-center py-6 text-center">
+                    <div className="flex h-11 w-11 items-center justify-center rounded-full bg-[rgb(var(--wf-accent-muted))] text-[rgb(var(--wf-brand-600))]">
+                      <KeyIcon />
+                    </div>
+                    <p className="mt-3 font-semibold text-slate-800">No API keys yet</p>
+                    <p className="mt-1 max-w-md text-sm text-slate-500">
+                      API keys let external systems read and create requests on your behalf. Name a
+                      key and pick a service account above to issue one.
+                    </p>
+                  </div>
                 </td>
-                <td>{k.scopes.join(", ")}</td>
-                <td>{k.created_at ? formatDateTime(k.created_at) : "—"}</td>
               </tr>
-            ))}
+            ) : (
+              keys.map((k) => (
+                <tr key={k.id}>
+                  <td>{k.name}</td>
+                  <td>
+                    <code>{k.key_prefix}…</code>
+                  </td>
+                  <td>{k.scopes.join(", ")}</td>
+                  <td>{k.created_at ? formatDateTime(k.created_at) : "—"}</td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </section>
@@ -238,14 +270,42 @@ export function IntegrationsPage() {
           </button>
         </form>
         <p className="text-xs text-slate-500 mb-2">Events: {WEBHOOK_EVENTS.join(", ")}</p>
-        <ul className="text-sm space-y-2">
-          {webhooks.map((w) => (
-            <li key={w.id} className="border-b border-slate-100 pb-2">
-              <strong>{w.name}</strong> → {w.url}
-              <span className="text-slate-500 ml-2">({w.events.join(", ")})</span>
-            </li>
-          ))}
-        </ul>
+        {webhooks.length === 0 ? (
+          <div className="rounded-lg border border-[rgb(var(--wf-card-border))] bg-slate-50/60 p-4">
+            <div className="flex items-start gap-3">
+              <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-[rgb(var(--wf-accent-muted))] text-[rgb(var(--wf-brand-600))]">
+                <HookIcon />
+              </div>
+              <div className="min-w-0">
+                <p className="font-semibold text-slate-800">No webhooks yet</p>
+                <p className="mt-1 text-sm text-slate-500">
+                  Webhooks push a signed JSON event to your server whenever a request moves through
+                  approval — so you can sync WizFlow with an ERP, ledger, or chat tool in real time.
+                  Add a name and an HTTPS endpoint above to start receiving them.
+                </p>
+                <p className="mt-3 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                  Example payload
+                </p>
+                <pre className="mt-1 overflow-x-auto rounded-md bg-slate-900 p-3 text-[11px] leading-relaxed text-slate-100">
+{`{
+  "event": "request.submitted",
+  "request": { "reference": "PCH-1042", "status": "in_progress" },
+  "at": "2026-06-13T09:30:00Z"
+}`}
+                </pre>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <ul className="text-sm space-y-2">
+            {webhooks.map((w) => (
+              <li key={w.id} className="border-b border-slate-100 pb-2">
+                <strong>{w.name}</strong> → {w.url}
+                <span className="text-slate-500 ml-2">({w.events.join(", ")})</span>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
 
       <section className="wf-panel">

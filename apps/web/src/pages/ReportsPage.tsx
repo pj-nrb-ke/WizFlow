@@ -26,6 +26,14 @@ import { canAccessReports } from "../lib/roles";
 
 const REPORT_TYPE = "mis_actions";
 
+const EmptyReportIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 19V5M4 19h16" />
+    <rect x="8" y="11" width="3" height="5" rx="0.5" />
+    <rect x="14" y="8" width="3" height="8" rx="0.5" />
+  </svg>
+);
+
 function misQueryString(filters: AnalyticsFilters): string {
   const p = new URLSearchParams();
   if (filters.from) p.set("from", `${filters.from}T00:00:00`);
@@ -276,7 +284,21 @@ export function ReportsPage() {
               ) : rows.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="wf-data-table-empty">
-                    No actions match your filters.
+                    <div className="flex flex-col items-center py-8 text-center">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgb(var(--wf-accent-muted))] text-[rgb(var(--wf-brand-600))]">
+                        <EmptyReportIcon />
+                      </div>
+                      <p className="mt-3 font-semibold text-slate-800">
+                        No actions match your filters
+                      </p>
+                      <p className="mt-1 max-w-sm text-sm text-slate-500">
+                        Try widening the date range or clearing the workflow and status filters above
+                        to see more events.
+                      </p>
+                      <Link to="/analytics" className="mt-3 text-sm wf-link font-medium">
+                        Open the analytics hub →
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ) : (

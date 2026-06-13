@@ -15,6 +15,28 @@ import {
 import { getToken } from "../lib/auth";
 import { canManageMasterData } from "../lib/roles";
 
+const ListIcon = () => (
+  <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M8 6h13M8 12h13M8 18h13" />
+    <path d="M3 6h.01M3 12h.01M3 18h.01" />
+  </svg>
+);
+
+const CATEGORY_EXAMPLES: Record<string, string> = {
+  department: "e.g. code “FIN”, label “Finance”",
+  departments: "e.g. code “FIN”, label “Finance”",
+  vendor: "e.g. code “ACME-01”, label “Acme Supplies Ltd”",
+  vendors: "e.g. code “ACME-01”, label “Acme Supplies Ltd”",
+  cost_center: "e.g. code “CC-100”, label “Head office”",
+  cost_centers: "e.g. code “CC-100”, label “Head office”",
+  project: "e.g. code “PRJ-2026”, label “Website refresh”",
+  projects: "e.g. code “PRJ-2026”, label “Website refresh”",
+};
+
+function categoryExample(cat: string): string {
+  return CATEGORY_EXAMPLES[cat.toLowerCase()] ?? "Add a short code and a display label using the form above.";
+}
+
 export function MasterDataPage() {
   const { user } = useAuth();
   const [categories, setCategories] = useState<string[]>([]);
@@ -127,6 +149,11 @@ export function MasterDataPage() {
             ))}
           </select>
         </label>
+        {!loading && category && (
+          <span className="self-center rounded-full bg-[rgb(var(--wf-accent-muted))] px-2.5 py-1 text-xs font-medium text-[rgb(var(--wf-brand-700))]">
+            {entries.length} {entries.length === 1 ? "entry" : "entries"}
+          </span>
+        )}
       </div>
 
       <form onSubmit={onCreate} className="wf-card p-4 mb-6 flex flex-wrap gap-3 items-end">
@@ -175,7 +202,16 @@ export function MasterDataPage() {
             ) : entries.length === 0 ? (
               <tr>
                 <td colSpan={4} className="wf-data-table-empty">
-                  No entries in this category yet.
+                  <div className="flex flex-col items-center py-6 text-center">
+                    <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgb(var(--wf-accent-muted))] text-[rgb(var(--wf-brand-600))]">
+                      <ListIcon />
+                    </div>
+                    <p className="mt-3 font-semibold text-slate-800">No entries yet</p>
+                    <p className="mt-1 text-sm text-slate-500">{categoryExample(category)}</p>
+                    <p className="mt-1 text-xs text-slate-400">
+                      Use the “Add entry” form above to create your first value.
+                    </p>
+                  </div>
                 </td>
               </tr>
             ) : (

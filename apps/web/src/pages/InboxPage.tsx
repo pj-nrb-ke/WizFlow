@@ -81,6 +81,9 @@ export function InboxPage() {
   useEffect(() => {
     setLoading(true);
     loadInbox()
+      .then((data) => {
+        if (data.length > 0 && !selectedId) void openItem(data[0].request_id);
+      })
       .catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed"))
       .finally(() => setLoading(false));
     apiFetch<WorkflowSummary[]>("/api/v1/workflows", {}, getToken())
@@ -183,6 +186,16 @@ export function InboxPage() {
   }
 
   const visibleData = detail ? filterRequestData(detail.request_data) : {};
+  const overdueCount = items.filter((i) =>
+    isRequestOverdue(i.submitted_at, null, "in_progress")
+  ).length;
+  const claimCount = items.filter((i) => i.needs_claim).length;
+  const oldest = items.reduce<InboxItem | null>((acc, i) => {
+    if (!i.submitted_at) return acc;
+    if (!acc || (acc.submitted_at && new Date(i.submitted_at) < new Date(acc.submitted_at)))
+      return i;
+    return acc;
+  }, null);
 
   return (
     <div>
@@ -451,7 +464,50 @@ export function InboxPage() {
               <p className="text-sm text-slate-500">No pending approvals in your inbox.</p>
             </div>
           ) : (
-            <p className="text-slate-500 text-sm">Select a request to review.</p>
+            <div className="wf-card p-6">
+              <h2 className="text-base font-semibold text-slate-800">Inbox overview</h2>
+              <p className="mt-0.5 text-sm text-slate-500">
+                Pick a request on the left to review and act — or start with the highlights below.
+              </p>
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <div className="rounded-xl bg-[rgb(var(--wf-accent-muted))] p-4">
+                  <p className="text-2xl font-semibold text-[rgb(var(--wf-brand-700))]">
+                    {items.length}
+                  </p>
+                  <p className="mt-0.5 text-xs text-slate-500">Pending approvals</p>
+                </div>
+                <div className="rounded-xl bg-red-50 p-4">
+                  <p className="text-2xl font-semibold text-red-700">{overdueCount}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">Overdue</p>
+                </div>
+                <div className="rounded-xl bg-amber-50 p-4">
+                  <p className="text-2xl font-semibold text-amber-700">{claimCount}</p>
+                  <p className="mt-0.5 text-xs text-slate-500">Awaiting claim</p>
+                </div>
+              </div>
+              {oldest && (
+                <button
+                  type="button"
+                  onClick={() => void openItem(oldest.request_id)}
+                  className="mt-4 flex w-full items-center justify-between gap-3 rounded-xl border border-slate-200 p-4 text-left hover:border-slate-300 hover:bg-slate-50"
+                >
+                  <div className="min-w-0">
+                    <p className="text-xs text-slate-400">Longest waiting</p>
+                    <p className="truncate font-medium text-slate-800">{oldest.workflow_name}</p>
+                    <p className="text-xs text-slate-500">
+                      {oldest.originator_name} · {oldest.step_name}
+                    </p>
+                  </div>
+                  <span className="shrink-0 text-sm font-medium text-[rgb(var(--wf-brand-700))]">
+                    Review →
+                  </span>
+                </button>
+              )}
+              <div className="mt-4 rounded-lg bg-slate-50 p-3 text-xs text-slate-500">
+                Tip: filter by workflow, amount, department, or overdue items above. Acting on a
+                request automatically opens the next one, so you can clear your inbox in a flow.
+              </div>
+            </div>
           )}
         </div>
       </div>

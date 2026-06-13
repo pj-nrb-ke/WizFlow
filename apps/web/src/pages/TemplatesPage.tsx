@@ -118,7 +118,32 @@ export function TemplatesPage() {
       {loading ? (
         <p className="text-slate-500 py-12 text-center">Loading template library…</p>
       ) : filtered.length === 0 ? (
-        <p className="text-slate-500 py-12 text-center">No templates match your filters.</p>
+        <div className="wf-card flex flex-col items-center p-10 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-[rgb(var(--wf-accent-muted))] text-[rgb(var(--wf-brand-600))]">
+            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+              <rect x="3" y="3" width="7" height="7" rx="1" />
+              <rect x="14" y="3" width="7" height="7" rx="1" />
+              <rect x="3" y="14" width="7" height="7" rx="1" />
+              <path d="M14 17.5h7M17.5 14v7" />
+            </svg>
+          </div>
+          <p className="mt-3 font-semibold text-slate-800">No templates match your filters</p>
+          <p className="mt-1 max-w-sm text-sm text-slate-500">
+            Try a different category or clear your search to browse the full library.
+          </p>
+          {(category !== "All" || query.trim()) && (
+            <button
+              type="button"
+              onClick={() => {
+                setCategory("All");
+                setQuery("");
+              }}
+              className="mt-3 text-sm wf-link font-medium"
+            >
+              Clear filters
+            </button>
+          )}
+        </div>
       ) : (
         <div className="grid sm:grid-cols-2 xl:grid-cols-3 gap-4">
           {filtered.map((tpl) => (
