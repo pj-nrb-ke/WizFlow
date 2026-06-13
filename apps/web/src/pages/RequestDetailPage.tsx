@@ -96,6 +96,24 @@ export function RequestDetailPage() {
   const isOriginator = user?.id === request.originator_user_id;
   const visibleData = filterRequestData(request.request_data);
 
+  const steps = request.step_sequence ?? [];
+  const currentStepIndex = (() => {
+    if (request.status === "approved") return steps.length;
+    if (request.current_step != null) {
+      const byId = steps.indexOf(request.current_step);
+      if (byId >= 0) return byId;
+    }
+    if (request.current_step_name) {
+      const byName = steps.indexOf(request.current_step_name);
+      if (byName >= 0) return byName;
+    }
+    return 0;
+  })();
+
+  function humanStep(s: string): string {
+    return s.replace(/[_-]/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
+  }
+
   async function approvalAction(action: "approve" | "reject") {
     if (!id) return;
     setError("");
@@ -181,7 +199,7 @@ export function RequestDetailPage() {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-2 gap-6">
+        <div className="grid lg:grid-cols-2 gap-6 max-w-6xl">
           <div
             className={`wf-card p-4 ${
               request.status === "returned" && isOriginator
@@ -238,6 +256,55 @@ export function RequestDetailPage() {
           </div>
 
           <div className="space-y-6">
+            {steps.length > 0 && (
+              <div className="wf-card p-4">
+                <h2 className="font-semibold mb-3">Approval chain</h2>
+                <ol className="space-y-3">
+                  {steps.map((step, i) => {
+                    const done = i < currentStepIndex;
+                    const current = i === currentStepIndex && request.status !== "approved";
+                    return (
+                      <li key={`${step}-${i}`} className="flex items-start gap-3">
+                        <span
+                          className={`mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[11px] font-semibold ${
+                            done
+                              ? "bg-[rgb(var(--wf-brand-600))] text-white"
+                              : current
+                                ? "bg-[rgb(var(--wf-accent-muted))] text-[rgb(var(--wf-brand-700))] ring-2 ring-[rgb(var(--wf-brand-600))]"
+                                : "bg-slate-100 text-slate-400"
+                          }`}
+                          aria-hidden="true"
+                        >
+                          {done ? (
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M20 6 9 17l-5-5" />
+                            </svg>
+                          ) : (
+                            i + 1
+                          )}
+                        </span>
+                        <div className="min-w-0">
+                          <p
+                            className={`text-sm ${
+                              current
+                                ? "font-semibold text-[rgb(var(--wf-brand-700))]"
+                                : done
+                                  ? "text-slate-700"
+                                  : "text-slate-500"
+                            }`}
+                          >
+                            {humanStep(step)}
+                          </p>
+                          {current && (
+                            <p className="text-xs text-slate-500">Current step</p>
+                          )}
+                        </div>
+                      </li>
+                    );
+                  })}
+                </ol>
+              </div>
+            )}
             <RequestStatusPanel request={request} events={events} />
 
             <div id="timeline" className="wf-card p-4">

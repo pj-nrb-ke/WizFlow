@@ -46,7 +46,7 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "workflows", label: "Workflows" },
   { id: "people", label: "People" },
   { id: "workload", label: "Workload" },
-  { id: "automation", label: "Journey & SLA" },
+  { id: "automation", label: "Process journey & SLA" },
   { id: "scorecards", label: "Scorecards" },
   { id: "financial", label: "Financial" },
   { id: "exceptions", label: "Exceptions" },
@@ -175,7 +175,7 @@ export function AnalyticsPage() {
         title="Analytics"
         subtitle={`Executive KPIs, workflow performance, approver workload, financial totals, and exceptions for ${user?.company_name ?? "your organization"}.`}
         help={
-          <HelpTip text="Set a date range and optional workflow, then Apply. KPI cards open filtered request lists. Data respects your company and manager permissions." />
+          <HelpTip text="Analytics = KPIs and trends across your processes; Reports = the detailed action log of individual approvals. Set a date range and optional workflow, then Apply. KPI cards open filtered request lists. Data respects your company and manager permissions." />
         }
         actions={
           <Link

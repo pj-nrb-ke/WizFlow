@@ -335,9 +335,9 @@ export function InboxPage() {
       {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
       {msg && <p className="text-sm text-green-700 mb-2">{msg}</p>}
 
-      <div className="grid max-md:grid-cols-1 md:grid-cols-1 lg:grid-cols-3 gap-6 min-w-0">
+      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-6 min-w-0">
         <div
-          className="lg:col-span-1 wf-card divide-y min-w-0 max-h-[70vh] overflow-y-auto order-1"
+          className="md:col-span-1 lg:col-span-1 wf-card divide-y min-w-0 max-h-[70vh] overflow-y-auto order-1"
           data-testid="inbox-list"
           data-inbox-count={loading ? "" : String(filteredItems.length)}
         >
@@ -400,7 +400,7 @@ export function InboxPage() {
           )}
         </div>
 
-        <div className="lg:col-span-2 min-w-0 order-2">
+        <div className="md:col-span-2 lg:col-span-2 min-w-0 order-2">
           {detail ? (
             <ThemeScope theme={uiTheme}>
               <div className="wf-card p-4 space-y-4">

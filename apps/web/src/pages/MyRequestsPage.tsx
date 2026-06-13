@@ -446,6 +446,11 @@ export function MyRequestsPage() {
                         <span className={t.danger ? "font-medium text-red-600" : ""}>
                           {t.label} {t.value}
                         </span>
+                        {overdue && (
+                          <span className="rounded bg-red-50 px-1.5 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-red-700">
+                            Overdue
+                          </span>
+                        )}
                       </div>
                     </div>
                     <div className="hidden shrink-0 items-center gap-8 md:flex">
