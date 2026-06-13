@@ -5,6 +5,9 @@ from pathlib import Path
 import pytest
 from sqlalchemy import create_engine, text
 
+# Keep the background automation loop off during tests.
+os.environ.setdefault("SCHEDULER_ENABLED", "false")
+
 API_ROOT = Path(__file__).resolve().parents[2] / "apps" / "api"
 sys.path.insert(0, str(API_ROOT))
 

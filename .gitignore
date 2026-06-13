@@ -11,7 +11,9 @@ Thumbs.db
 .env.*
 !.env.example
 apps/api/.github-token.local
-config/secrets/brevo.local.txt
+# Never commit anything under config/secrets except *.example.txt templates
+config/secrets/*
+!config/secrets/*.example.txt
 secrets/brevo.local.txt
 
 # Python

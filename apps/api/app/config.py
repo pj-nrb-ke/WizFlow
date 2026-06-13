@@ -1,3 +1,4 @@
+from pydantic import AliasChoices, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -21,10 +22,20 @@ class Settings(BaseSettings):
     smtp_user: str = ""
     smtp_pass: str = ""
     app_url: str = "http://localhost:5200"
-    ai_api_key: str = ""
-    ai_model: str = "gpt-4o-mini"
+    # Accept either AI_API_KEY / AI_MODEL or OPENAI_API_KEY / OPENAI_MODEL so a
+    # server provisioned with the OpenAI-style names still enables live drafting.
+    ai_api_key: str = Field(
+        default="", validation_alias=AliasChoices("ai_api_key", "openai_api_key")
+    )
+    ai_model: str = Field(
+        default="gpt-4o-mini", validation_alias=AliasChoices("ai_model", "openai_model")
+    )
     expo_push_enabled: bool = True
     expo_push_access_token: str = ""
+    # Background automation loop (SLA alerts, escalations, scheduled reports,
+    # recurring workflow triggers). Disabled in tests.
+    scheduler_enabled: bool = True
+    scheduler_interval_seconds: int = 300
 
 
 settings = Settings()

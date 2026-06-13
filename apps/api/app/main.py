@@ -56,6 +56,20 @@ def validate_production_config() -> None:
     if settings.environment.lower() in ("production", "prod") and settings.jwt_secret == "change-me-in-production":
         raise RuntimeError("jwt_secret must be set to a strong value in production")
 
+
+@app.on_event("startup")
+def start_scheduler() -> None:
+    from app.services import scheduler
+
+    scheduler.start()
+
+
+@app.on_event("shutdown")
+async def stop_scheduler() -> None:
+    from app.services import scheduler
+
+    await scheduler.stop()
+
 v1 = APIRouter(prefix="/api/v1")
 v1.include_router(health.router)
 v1.include_router(auth.router)

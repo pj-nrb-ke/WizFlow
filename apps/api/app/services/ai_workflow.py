@@ -221,10 +221,9 @@ def refine_draft(current: dict, instruction: str) -> dict[str, Any]:
                 }
             )
     if "rename" in low or "name" in low:
-        for word in instruction.split():
-            if len(word) > 3 and word[0].isupper():
-                merged["name"] = " ".join(w for w in instruction.split() if w[0].isupper()[:3])
-                break
+        capitalized = [w for w in instruction.split() if w[:1].isupper()]
+        if capitalized:
+            merged["name"] = " ".join(capitalized[:3])
 
     return {
         "draft": merged,
