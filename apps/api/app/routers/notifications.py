@@ -1,7 +1,7 @@
 from uuid import UUID
 
-from fastapi import APIRouter, Depends, status
-from sqlalchemy import func, select, update
+from fastapi import APIRouter, Depends, HTTPException, status
+from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, require_company
@@ -62,12 +62,13 @@ def mark_read(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> None:
-    db.execute(
-        update(Notification)
-        .where(
+    notif = db.scalar(
+        select(Notification).where(
             Notification.id == notification_id,
             Notification.user_id == user.id,
         )
-        .values(read=True)
     )
+    if not notif:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Notification not found")
+    notif.read = True
     db.commit()
