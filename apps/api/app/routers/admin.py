@@ -126,7 +126,7 @@ def list_users(
         .where(User.company_id == user.company_id)
         .options(joinedload(User.user_roles).joinedload(UserRole.role))
         .order_by(User.email)
-    )
+    ).unique()
     return [_user_out(u) for u in users]
 
 
