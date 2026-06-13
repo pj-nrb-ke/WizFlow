@@ -7,9 +7,11 @@
     "scheme": "wizflow",
     "userInterfaceStyle": "light",
     "newArchEnabled": true,
+    "icon": "./assets/icon.png",
     "splash": {
+      "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#4f46e5"
+      "backgroundColor": "#EEEDFE"
     },
     "ios": {
       "supportsTablet": true,
@@ -29,7 +31,8 @@
         "VIBRATE"
       ],
       "adaptiveIcon": {
-        "backgroundColor": "#4f46e5"
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#EEEDFE"
       }
     },
     "plugins": [
@@ -38,7 +41,7 @@
       [
         "expo-notifications",
         {
-          "color": "#4f46e5"
+          "color": "#534AB7"
         }
       ],
       "expo-speech-recognition",
