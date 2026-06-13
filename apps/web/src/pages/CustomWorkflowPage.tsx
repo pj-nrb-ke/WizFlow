@@ -50,19 +50,33 @@ function SortableApprover({
     >
       <button
         type="button"
-        className="text-slate-400 cursor-grab"
+        className="text-slate-400 cursor-grab hover:text-slate-600"
         {...listeners}
         {...attributes}
         aria-label="Reorder"
       >
-        ⋮⋮
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <circle cx="9" cy="6" r="1" />
+          <circle cx="9" cy="12" r="1" />
+          <circle cx="9" cy="18" r="1" />
+          <circle cx="15" cy="6" r="1" />
+          <circle cx="15" cy="12" r="1" />
+          <circle cx="15" cy="18" r="1" />
+        </svg>
       </button>
       <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
         {item.type === "user" ? "User" : "Group"}
       </span>
       <span className="flex-1 text-sm font-medium text-slate-800 truncate">{item.label}</span>
-      <button type="button" className="text-slate-400 hover:text-red-600" onClick={onRemove}>
-        ×
+      <button
+        type="button"
+        className="text-slate-400 hover:text-red-600"
+        onClick={onRemove}
+        aria-label="Remove approver"
+      >
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+          <path d="M18 6 6 18M6 6l12 12" />
+        </svg>
       </button>
     </li>
   );
@@ -222,7 +236,7 @@ export function CustomWorkflowPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
       <div>
-        <h1 className="text-2xl font-bold text-slate-900 flex items-center gap-2">
+        <h1 className="wf-page-title flex items-center gap-2">
           Custom workflow
           <HelpTip text="Build a simple approval chain without the full form designer. Attach an existing form workflow and drag approvers into order." />
         </h1>

@@ -54,7 +54,28 @@ export function PublicApprovePage() {
   if (!view) {
     return (
       <div className="wf-public-approve min-h-screen flex items-center justify-center bg-slate-50 p-6">
-        <p className="text-base text-slate-500">{error || "Loading approval…"}</p>
+        <div className="wf-card max-w-md w-full p-8 sm:p-10 text-center">
+          {error ? (
+            <>
+              <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-600">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 8v4M12 16h.01" />
+                </svg>
+              </span>
+              <p className="text-base font-medium text-slate-800">This link can’t be opened</p>
+              <p className="mt-1 text-sm text-slate-500">{error}</p>
+              <p className="mt-3 text-xs text-slate-400">
+                Approval links are single-use and time-limited. Ask the requester to resend if needed.
+              </p>
+            </>
+          ) : (
+            <>
+              <span className="mx-auto mb-4 flex h-10 w-10 animate-spin items-center justify-center rounded-full border-2 border-slate-200 border-t-[rgb(var(--wf-brand-600))]" aria-hidden="true" />
+              <p className="text-base text-slate-500">Loading approval…</p>
+            </>
+          )}
+        </div>
       </div>
     );
   }

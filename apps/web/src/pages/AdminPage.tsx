@@ -131,7 +131,9 @@ export function AdminPage() {
           </form>
           <ul className="text-sm space-y-2">
             {departments.length === 0 ? (
-              <li className="text-slate-500">No departments yet.</li>
+              <li className="text-slate-500">
+                No departments yet. Add one above so requests can route and report by department.
+              </li>
             ) : (
               departments.map((d) => (
                 <li key={d.id} className="py-2 border-b border-slate-100 last:border-0 text-slate-700">

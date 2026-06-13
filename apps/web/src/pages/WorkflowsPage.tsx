@@ -288,7 +288,22 @@ export function WorkflowsPage() {
           data-workflow-count={loading ? "" : String(workflows.length)}
         >
           {workflows.length === 0 ? (
-            <p className="p-4 text-sm text-slate-500">No workflows yet.</p>
+            <div className="p-6 text-center">
+              <span className="mx-auto mb-3 flex h-10 w-10 items-center justify-center rounded-full bg-[rgb(var(--wf-accent-muted))] text-[rgb(var(--wf-brand-600))]">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect width="8" height="8" x="3" y="3" rx="2" />
+                  <path d="M7 11v4a2 2 0 0 0 2 2h4" />
+                  <rect width="8" height="8" x="13" y="13" rx="2" />
+                </svg>
+              </span>
+              <p className="text-sm font-medium text-slate-800">No workflows yet</p>
+              <p className="mt-1 text-xs text-slate-500">
+                Generate one with the AI creator, or start from a template.
+              </p>
+              <Link to="/ai" className="mt-3 inline-block text-sm wf-link font-medium">
+                Create with AI →
+              </Link>
+            </div>
           ) : (
             workflows.map((w) => (
               <button
@@ -439,7 +454,7 @@ export function WorkflowsPage() {
                           type="number"
                           value={amount}
                           onChange={(e) => setAmount(e.target.value)}
-                          className="border rounded px-2 py-1 w-24"
+                          className="wf-input w-24"
                         />
                       </label>
                       <button
@@ -532,15 +547,36 @@ export function WorkflowsPage() {
               )}
 
               {simResult && (
-                <div className="bg-slate-50 rounded-lg border border-slate-200 p-4 text-sm">
-                  <p className="font-medium mb-1">Test result</p>
-                  <p>Steps: {simResult.steps_traversed.join(" → ")}</p>
-                  <p>Status: {simResult.final_status}</p>
+                <div className="wf-card p-4 text-sm">
+                  <p className="font-medium text-slate-800 mb-1">Test result</p>
+                  <p className="text-slate-600">Steps: {simResult.steps_traversed.join(" → ")}</p>
+                  <p className="text-slate-600">Status: {simResult.final_status}</p>
                 </div>
               )}
             </>
           ) : (
-            <p className="text-slate-500">Select a workflow</p>
+            <div className="wf-card p-10 text-center">
+              <span className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[rgb(var(--wf-accent-muted))] text-[rgb(var(--wf-brand-600))]">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <rect width="8" height="8" x="3" y="3" rx="2" />
+                  <path d="M7 11v4a2 2 0 0 0 2 2h4" />
+                  <rect width="8" height="8" x="13" y="13" rx="2" />
+                </svg>
+              </span>
+              <p className="font-medium text-slate-800">Select a workflow to begin</p>
+              <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500">
+                Choose a workflow from the list to review its steps, edit appearance, run a test
+                simulation, and publish.
+              </p>
+              <div className="mt-5 flex flex-wrap justify-center gap-2">
+                <Link to="/ai" className="px-4 py-2 wf-btn-primary text-sm">
+                  Create with AI
+                </Link>
+                <Link to="/templates" className="px-4 py-2 wf-btn-secondary text-sm">
+                  Browse templates
+                </Link>
+              </div>
+            </div>
           )}
         </div>
       </div>

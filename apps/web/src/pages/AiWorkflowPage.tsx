@@ -15,6 +15,21 @@ import { getToken } from "../lib/auth";
 
 type Step = "describe" | "questions" | "preview";
 
+const EXAMPLE_PROMPTS: { label: string; text: string }[] = [
+  {
+    label: "Purchase request",
+    text: "Purchase request workflow: manager approves under 10k, finance above 10k. Fields: amount, vendor, item description.",
+  },
+  {
+    label: "Leave request",
+    text: "Leave request: employee submits start date, end date, and reason. Their line manager approves, then HR confirms.",
+  },
+  {
+    label: "Petty cash",
+    text: "Petty cash claim: staff enter amount, purpose, and a receipt photo. Manager approves up to 5,000; finance approves anything higher.",
+  },
+];
+
 export function AiWorkflowPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>("describe");
@@ -130,22 +145,71 @@ export function AiWorkflowPage() {
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
       {step === "describe" && (
-        <div className="wf-card p-4">
-          <label className="block text-sm font-medium text-slate-700 mb-2">Description</label>
-          <textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            rows={5}
-            className="wf-input w-full"
-          />
-          <button
-            type="button"
-            disabled={busy || description.length < 10}
-            onClick={() => void loadQuestions()}
-            className="mt-3 px-4 py-2 wf-btn-primary text-sm disabled:opacity-50"
-          >
-            {busy ? "Working…" : "Continue to questions"}
-          </button>
+        <div className="grid items-start gap-6 lg:grid-cols-3">
+          <div className="wf-card p-5 lg:col-span-2">
+            <label className="block text-sm font-medium text-slate-700 mb-2">
+              Describe the process in plain English
+            </label>
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={6}
+              className="wf-input w-full"
+              placeholder="Who submits, what they fill in, who approves, and any amount thresholds…"
+            />
+            <div className="mt-3 mb-4">
+              <p className="text-xs font-medium text-slate-500 mb-2">Need a starting point? Try one:</p>
+              <div className="flex flex-wrap gap-2">
+                {EXAMPLE_PROMPTS.map((ex) => (
+                  <button
+                    key={ex.label}
+                    type="button"
+                    onClick={() => setDescription(ex.text)}
+                    className="rounded-full border border-slate-200 px-3 py-1 text-xs text-slate-600 hover:border-slate-400 hover:bg-slate-50"
+                  >
+                    {ex.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <button
+              type="button"
+              disabled={busy || description.length < 10}
+              onClick={() => void loadQuestions()}
+              className="px-4 py-2 wf-btn-primary text-sm disabled:opacity-50"
+            >
+              {busy ? "Working…" : "Continue to questions"}
+            </button>
+          </div>
+
+          <aside className="space-y-4">
+            <div className="wf-card p-5">
+              <h2 className="text-sm font-semibold text-slate-800 mb-3">How it works</h2>
+              <ol className="space-y-3">
+                {[
+                  "Describe your process — who starts it, who approves, and any rules.",
+                  "Answer a few clarifying questions to fill in the gaps.",
+                  "Review the generated form fields and approval steps.",
+                  "Save as a draft, then test and publish from Workflows.",
+                ].map((tipText, i) => (
+                  <li key={i} className="flex gap-3">
+                    <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[rgb(var(--wf-accent-muted))] text-xs font-semibold text-[rgb(var(--wf-brand-700))]">
+                      {i + 1}
+                    </span>
+                    <p className="text-sm leading-snug text-slate-600">{tipText}</p>
+                  </li>
+                ))}
+              </ol>
+            </div>
+            <div className="wf-card p-5">
+              <p className="text-sm font-medium text-slate-800 mb-1">Tips for better results</p>
+              <ul className="list-disc list-inside text-xs text-slate-500 space-y-1">
+                <li>Name the fields people will fill in.</li>
+                <li>State approval thresholds (e.g. over 10,000).</li>
+                <li>Mention required attachments or documents.</li>
+              </ul>
+            </div>
+          </aside>
         </div>
       )}
 

@@ -170,36 +170,80 @@ export function SettingsPage() {
 
   const colleagues = (directory?.users ?? []).filter((u) => u.id !== user?.id);
 
+  const initials = (user?.full_name ?? "?")
+    .split(" ")
+    .map((p) => p[0])
+    .filter(Boolean)
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+
   return (
-    <div className="max-w-2xl">
+    <div className="max-w-5xl">
       <h1 className="wf-page-title mb-1">Settings</h1>
-      <p className="text-sm text-slate-500 mb-8">Manage your workspace preferences.</p>
+      <p className="text-sm text-slate-500 mb-6">Manage your account, notifications, and workspace preferences.</p>
 
       {error && <p className="text-sm text-red-600 mb-4">{error}</p>}
 
-      <section className="wf-card p-5 mb-6">
-        <h2 className="text-sm font-semibold text-slate-800 mb-3">Account</h2>
-        <dl className="text-sm space-y-2">
-          <div className="flex gap-3">
-            <dt className="text-slate-500 w-24 shrink-0">Name</dt>
-            <dd className="text-slate-800 font-medium">{user?.full_name ?? "—"}</dd>
-          </div>
-          <div className="flex gap-3">
-            <dt className="text-slate-500 w-24 shrink-0">Email</dt>
-            <dd className="text-slate-800">{user?.email ?? "—"}</dd>
-          </div>
-          <div className="flex gap-3">
-            <dt className="text-slate-500 w-24 shrink-0">Company</dt>
-            <dd className="text-slate-800">{user?.company_name ?? "—"}</dd>
-          </div>
-          <div className="flex gap-3">
-            <dt className="text-slate-500 w-24 shrink-0">Roles</dt>
-            <dd className="text-slate-800">{user?.roles?.join(", ") ?? "—"}</dd>
-          </div>
-        </dl>
-      </section>
+      <div className="grid items-start gap-6 lg:grid-cols-3">
+        <aside className="space-y-6 lg:sticky lg:top-6">
+          <section className="wf-card p-5">
+            <div className="flex items-center gap-3 mb-4">
+              <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-[rgb(var(--wf-accent-muted))] text-base font-semibold text-[rgb(var(--wf-brand-700))]">
+                {initials}
+              </span>
+              <div className="min-w-0">
+                <p className="truncate font-semibold text-slate-800">{user?.full_name ?? "—"}</p>
+                <p className="truncate text-xs text-slate-500">{user?.email ?? "—"}</p>
+              </div>
+            </div>
+            <dl className="text-sm space-y-2 border-t border-slate-100 pt-3">
+              <div className="flex gap-3">
+                <dt className="text-slate-500 w-20 shrink-0">Company</dt>
+                <dd className="text-slate-800">{user?.company_name ?? "—"}</dd>
+              </div>
+              <div className="flex gap-3">
+                <dt className="text-slate-500 w-20 shrink-0">Roles</dt>
+                <dd className="flex flex-wrap gap-1">
+                  {user?.roles?.length
+                    ? user.roles.map((r) => (
+                        <span key={r} className="wf-badge">
+                          {r.replace(/_/g, " ")}
+                        </span>
+                      ))
+                    : "—"}
+                </dd>
+              </div>
+            </dl>
+          </section>
 
-      <section className="wf-card p-5 mb-6">
+          <section className="wf-card p-5">
+            <h2 className="text-sm font-semibold text-slate-800 mb-3">Quick links</h2>
+            <ul className="space-y-2 text-sm">
+              <li>
+                <Link to="/notifications" className="wf-link">
+                  Notification history →
+                </Link>
+              </li>
+              <li>
+                <Link to="/workflows" className="wf-link">
+                  Workflow appearance →
+                </Link>
+              </li>
+              {isAdmin && (
+                <li>
+                  <Link to="/setup" className="wf-link">
+                    Company setup wizard →
+                  </Link>
+                </li>
+              )}
+            </ul>
+          </section>
+        </aside>
+
+        <div className="lg:col-span-2 space-y-6">
+
+      <section className="wf-card p-5">
         <div className="flex items-center gap-2 mb-1">
           <h2 className="text-sm font-semibold text-slate-800">Notification preferences</h2>
           <HelpTip text="Choose how WizFlow reaches you — in-app, email, mobile push, and WhatsApp when enabled for your company." />
@@ -248,7 +292,7 @@ export function SettingsPage() {
         </form>
       </section>
 
-      <section className="wf-card p-5 mb-6">
+      <section className="wf-card p-5">
         <div className="flex items-center gap-2 mb-1">
           <h2 className="text-sm font-semibold text-slate-800">Approval delegations</h2>
           <HelpTip text="When you are away, delegate your approval authority to a colleague for a date range. They can act on items assigned to you during that period." />
@@ -323,7 +367,7 @@ export function SettingsPage() {
 
       {isAdmin && (
         <>
-          <section className="wf-card p-5 mb-6">
+          <section className="wf-card p-5">
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-sm font-semibold text-slate-800">Workspace branding</h2>
               <HelpTip text="Set a logo URL and accent color for your company workspace. Shown in the header when configured." />
@@ -363,7 +407,7 @@ export function SettingsPage() {
             </form>
           </section>
 
-          <section className="wf-card p-5 mb-6">
+          <section className="wf-card p-5">
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-sm font-semibold text-slate-800">Data retention</h2>
               <HelpTip text="How long completed requests and audit data are kept before archival. Minimum 30 days." />
@@ -389,7 +433,7 @@ export function SettingsPage() {
         </>
       )}
 
-      <section className="wf-card p-5 mb-6">
+      <section className="wf-card p-5">
         <h2 className="text-sm font-semibold text-slate-800 mb-1">Interface theme</h2>
         <p className="text-sm text-slate-500 mb-4">
           Changes fonts, navigation style, and home layout across the app. Current:{" "}
@@ -422,6 +466,8 @@ export function SettingsPage() {
           </p>
         )}
       </section>
+        </div>
+      </div>
     </div>
   );
 }

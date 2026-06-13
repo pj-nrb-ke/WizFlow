@@ -608,24 +608,95 @@ function FinancialTab({ summary }: { summary: FinancialSummary }) {
 }
 
 function ExceptionsTab({ summary }: { summary: ExceptionsSummary }) {
+  const total = summary.rejected_count + summary.returned_count + summary.overdue_count;
+  const items = [
+    {
+      label: "Rejected",
+      value: summary.rejected_count,
+      hint: "Declined by an approver with a final outcome.",
+      action: "Review rejected requests →",
+      to: "/requests?status=rejected",
+    },
+    {
+      label: "Returned for correction",
+      value: summary.returned_count,
+      hint: "Sent back to the requester for edits before re-submission.",
+      action: "Review returned requests →",
+      to: "/requests?status=returned",
+    },
+    {
+      label: "Overdue (SLA)",
+      value: summary.overdue_count,
+      hint: "Still in progress past the target turnaround deadline.",
+      action: "Open overdue inbox →",
+      to: "/inbox?overdue=1",
+    },
+  ];
   return (
-    <section className="wf-analytics-kpi-grid">
-      <KpiCard
-        label="Rejected"
-        value={fmtNum(summary.rejected_count)}
-        to="/requests?status=rejected"
-      />
-      <KpiCard
-        label="Returned for correction"
-        value={fmtNum(summary.returned_count)}
-        to="/requests?status=returned"
-      />
-      <KpiCard
-        label="Overdue (SLA)"
-        value={fmtNum(summary.overdue_count)}
-        deltaHint="Requires attention"
-        to="/inbox?overdue=1"
-      />
-    </section>
+    <div className="space-y-6">
+      <section className="wf-analytics-kpi-grid">
+        <KpiCard
+          label="Rejected"
+          value={fmtNum(summary.rejected_count)}
+          to="/requests?status=rejected"
+        />
+        <KpiCard
+          label="Returned for correction"
+          value={fmtNum(summary.returned_count)}
+          to="/requests?status=returned"
+        />
+        <KpiCard
+          label="Overdue (SLA)"
+          value={fmtNum(summary.overdue_count)}
+          deltaHint="Requires attention"
+          to="/inbox?overdue=1"
+        />
+        <KpiCard
+          label="Total exceptions"
+          value={fmtNum(total)}
+          deltaHint="Combined in this period"
+          subdued
+        />
+      </section>
+
+      <div className="wf-analytics-panels">
+        <div className="wf-card p-5">
+          <h2 className="font-semibold text-slate-800 mb-1">Exception mix</h2>
+          <p className="text-xs text-slate-500 mb-4">Share of issues by type in this period</p>
+          {total === 0 ? (
+            <p className="text-sm text-slate-500">
+              No exceptions in this period — every request stayed on track.
+            </p>
+          ) : (
+            <SimpleBarChart
+              items={[
+                { label: "Rejected", value: summary.rejected_count },
+                { label: "Returned", value: summary.returned_count },
+                { label: "Overdue", value: summary.overdue_count },
+              ]}
+            />
+          )}
+        </div>
+        <div className="wf-card p-5">
+          <h2 className="font-semibold text-slate-800 mb-3">What needs attention</h2>
+          <ul className="divide-y text-sm">
+            {items.map((it) => (
+              <li key={it.label} className="flex items-start justify-between gap-3 py-3">
+                <div className="min-w-0">
+                  <p className="font-medium text-slate-800">{it.label}</p>
+                  <p className="text-xs text-slate-500">{it.hint}</p>
+                  <Link to={it.to} className="mt-1 inline-block text-xs wf-link font-medium">
+                    {it.action}
+                  </Link>
+                </div>
+                <span className="shrink-0 text-lg font-semibold text-slate-800 wf-analytics-mono">
+                  {fmtNum(it.value)}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
   );
 }

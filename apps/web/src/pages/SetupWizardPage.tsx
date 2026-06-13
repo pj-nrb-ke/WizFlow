@@ -113,9 +113,27 @@ export function SetupWizardPage() {
           <div className="space-y-4">
             <h2 className="text-lg font-semibold text-slate-800">Welcome to WizFlow</h2>
             <p className="text-sm text-slate-600">
-              This wizard walks you through the essentials: organization structure, people, groups,
-              and live workflows. You can return here anytime from Settings or Admin.
+              This wizard walks you through the essentials so your team can submit and approve
+              requests. You can return here anytime from Settings or Admin.
             </p>
+            <ul className="grid gap-3 sm:grid-cols-2">
+              {[
+                { title: "Organization", desc: "Departments and branches for routing." },
+                { title: "Users", desc: "Add colleagues and assign roles." },
+                { title: "Groups", desc: "Shared approval teams for routing." },
+                { title: "Workflows", desc: "Publish your first live process." },
+              ].map((c, i) => (
+                <li key={c.title} className="flex gap-3 rounded-lg border border-slate-200 p-3">
+                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[rgb(var(--wf-accent-muted))] text-xs font-semibold text-[rgb(var(--wf-brand-700))]">
+                    {i + 1}
+                  </span>
+                  <div>
+                    <p className="text-sm font-medium text-slate-800">{c.title}</p>
+                    <p className="text-xs text-slate-500">{c.desc}</p>
+                  </div>
+                </li>
+              ))}
+            </ul>
             <button
               type="button"
               onClick={() => setActiveStep(1)}
@@ -194,9 +212,11 @@ export function SetupWizardPage() {
 
         {step.id === "complete" && (
           <div className="space-y-4 text-center py-4">
-            <p className="text-4xl" aria-hidden>
-              ✓
-            </p>
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-green-50 text-green-700">
+              <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                <path d="M20 6 9 17l-5-5" />
+              </svg>
+            </span>
             <h2 className="text-lg font-semibold text-slate-800">Setup complete</h2>
             <p className="text-sm text-slate-600">
               Your workspace is ready. Team members can submit requests and managers can use the
