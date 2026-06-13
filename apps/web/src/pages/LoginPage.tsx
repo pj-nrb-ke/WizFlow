@@ -32,6 +32,13 @@ export function LoginPage() {
       <div className="flex-1 flex items-center justify-center px-4 py-10">
         <div className="w-full max-w-md">
           <div className="wf-home-hero mb-6 text-center">
+            <img
+              src="/mark.svg"
+              alt="WizFlow"
+              width={56}
+              height={56}
+              className="mx-auto mb-3 h-14 w-14"
+            />
             <h1 className="!text-3xl">WizFlow</h1>
             <p className="!mx-auto">Workflow automation for your team</p>
           </div>

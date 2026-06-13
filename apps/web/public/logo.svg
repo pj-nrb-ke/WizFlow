@@ -1,8 +1,9 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 56 56" width="56" height="56" role="img" aria-label="WizFlow">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 56" width="200" height="56" role="img" aria-label="WizFlow">
   <rect width="56" height="56" rx="14" fill="#EEEDFE"/>
   <line x1="23" y1="20" x2="37.5" y2="28" stroke="#534AB7" stroke-width="3.2" stroke-linecap="round"/>
   <line x1="23" y1="36" x2="37.5" y2="28" stroke="#534AB7" stroke-width="3.2" stroke-linecap="round"/>
   <circle cx="19" cy="19" r="5" fill="#fff" stroke="#534AB7" stroke-width="3.2"/>
   <circle cx="19" cy="37" r="5" fill="#fff" stroke="#534AB7" stroke-width="3.2"/>
   <circle cx="38" cy="28" r="6.5" fill="#534AB7"/>
+  <text x="70" y="36.5" font-family="Inter, system-ui, -apple-system, sans-serif" font-size="25" font-weight="600" letter-spacing="-0.5" fill="#26215C">WizFlow</text>
 </svg>
