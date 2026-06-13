@@ -152,7 +152,61 @@ draft (object with name, form_schema.fields[], steps[], routing_rules[], setting
 explanation (plain business language string),
 gaps (array of strings for missing info).
 Each step needs id, name, type=approval, assignee {type: role, value: manager|company_admin|approver}.
-Form field keys must be snake_case."""
+Form field keys must be snake_case.
+Each routing rule MUST be shaped exactly as:
+{"when": {"field": <form field key>, "op": one of gt|gte|lt|lte|eq|ne, "value": <number>}, "skip_to": <a step id from steps>}.
+Use a step's id (e.g. "step_2"), never its name. Do not use keys like route_to, condition, or operator."""
+
+
+# Map common operator spellings the LLM may emit to the engine's op codes.
+_OP_ALIASES = {
+    ">": "gt", ">=": "gte", "<": "lt", "<=": "lte", "==": "eq", "=": "eq", "!=": "ne", "<>": "ne",
+    "gt": "gt", "gte": "gte", "lt": "lt", "lte": "lte", "eq": "eq", "ne": "ne", "in": "in",
+    "greater_than": "gt", "greater than": "gt", "greater_or_equal": "gte",
+    "less_than": "lt", "less than": "lt", "less_or_equal": "lte",
+    "equals": "eq", "equal": "eq", "not_equals": "ne", "not equal": "ne",
+}
+
+
+def _resolve_step_id(steps: list, target: Any) -> str | None:
+    """Match an LLM-supplied target (id or name) to a real step id."""
+    if not target:
+        return None
+    target_s = str(target).strip()
+    ids = {str(s.get("id")) for s in steps if isinstance(s, dict) and s.get("id")}
+    if target_s in ids:
+        return target_s
+    low = target_s.lower()
+    for s in steps:
+        if isinstance(s, dict) and str(s.get("name", "")).strip().lower() == low:
+            return str(s.get("id"))
+    return None
+
+
+def _normalize_routing_rules(steps: list, rules: Any) -> list[dict]:
+    """Coerce LLM routing rules into the engine format {when:{field,op,value}, skip_to}.
+
+    Handles the common wrong shapes (route_to/condition/operator) and resolves a
+    step name to its id. Rules that cannot be resolved are dropped so they don't
+    sit in the workflow silently doing nothing.
+    """
+    if not isinstance(rules, list):
+        return []
+    out: list[dict] = []
+    for rule in rules:
+        if not isinstance(rule, dict):
+            continue
+        cond = rule.get("when") or rule.get("condition") or rule
+        field = cond.get("field") if isinstance(cond, dict) else None
+        raw_op = cond.get("op") or cond.get("operator") if isinstance(cond, dict) else None
+        value = cond.get("value") if isinstance(cond, dict) else None
+        target = rule.get("skip_to") or rule.get("route_to") or rule.get("target") or rule.get("then")
+        op = _OP_ALIASES.get(str(raw_op).strip().lower()) if raw_op is not None else None
+        skip_to = _resolve_step_id(steps, target)
+        if not field or not op or value is None or not skip_to:
+            continue
+        out.append({"when": {"field": field, "op": op, "value": value}, "skip_to": skip_to})
+    return out
 
 
 def draft_from_description(description: str) -> dict[str, Any]:
@@ -164,6 +218,7 @@ def draft_from_description(description: str) -> dict[str, Any]:
         try:
             result = _call_openai(SYSTEM_PROMPT, f"Create a workflow for: {description}")
             draft = result.get("draft") or result
+            draft["routing_rules"] = _normalize_routing_rules(draft.get("steps") or [], draft.get("routing_rules"))
             workflow_engine.validate_definition(_MockDefn(draft))
             return {
                 "draft": draft,
@@ -191,6 +246,7 @@ def refine_draft(current: dict, instruction: str) -> dict[str, Any]:
                 f"Current workflow JSON:\n{json.dumps(merged)}\n\nApply this change: {instruction}",
             )
             draft = result.get("draft") or result
+            draft["routing_rules"] = _normalize_routing_rules(draft.get("steps") or [], draft.get("routing_rules"))
             return {
                 "draft": draft,
                 "explanation": result.get("explanation", "Workflow updated."),
