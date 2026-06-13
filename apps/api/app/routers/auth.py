@@ -13,11 +13,22 @@ from app.core.security import (
     create_access_token,
     create_refresh_token,
     decode_token,
+    generate_totp_secret,
+    totp_provisioning_uri,
     verify_password,
+    verify_totp,
 )
 from app.db.models import Company, User, UserRole
 from app.db.session import get_db
-from app.schemas.auth import LoginRequest, RefreshRequest, TokenResponse, UserProfile
+from app.schemas.auth import (
+    LoginRequest,
+    RefreshRequest,
+    TokenResponse,
+    TwoFactorCode,
+    TwoFactorSetupOut,
+    TwoFactorStatusOut,
+    UserProfile,
+)
 from app.schemas.phase1 import CompanyBranding, NotificationPreferences
 from app.services.company_settings import branding_from_settings, user_notification_preferences
 from app.services.security_audit import log_security_event
@@ -65,6 +76,19 @@ def login(
         )
         db.commit()
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid email or password")
+
+    if user.totp_enabled:
+        code = (body.code or "").strip()
+        if not code:
+            # Password is correct but a 2FA code is required — client shows the code field.
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="two_factor_required")
+        if not verify_totp(user.totp_secret, code):
+            log_security_event(
+                db, action="auth.2fa_failed", company_id=user.company_id,
+                actor_user_id=user.id, ip_address=_client_ip(request),
+            )
+            db.commit()
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="invalid_code")
 
     log_security_event(
         db,
@@ -142,6 +166,53 @@ def me(user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_
         company_id=user.company_id,
         company_name=company_name,
         roles=user.roles,
+        two_factor_enabled=bool(db_user and db_user.totp_enabled),
         notification_preferences=prefs,
         company_branding=branding,
     )
+
+
+@router.get("/2fa/status", response_model=TwoFactorStatusOut)
+def two_factor_status(user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)) -> TwoFactorStatusOut:
+    db_user = db.get(User, user.id)
+    return TwoFactorStatusOut(enabled=bool(db_user and db_user.totp_enabled))
+
+
+@router.post("/2fa/setup", response_model=TwoFactorSetupOut)
+def two_factor_setup(user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)) -> TwoFactorSetupOut:
+    db_user = db.get(User, user.id)
+    if not db_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    if db_user.totp_enabled:
+        raise HTTPException(status_code=400, detail="Two-factor is already enabled")
+    secret = generate_totp_secret()
+    db_user.totp_secret = secret  # stored pending; only active after /2fa/enable
+    db.commit()
+    return TwoFactorSetupOut(secret=secret, otpauth_uri=totp_provisioning_uri(secret, db_user.email))
+
+
+@router.post("/2fa/enable", response_model=TwoFactorStatusOut)
+def two_factor_enable(body: TwoFactorCode, user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)) -> TwoFactorStatusOut:
+    db_user = db.get(User, user.id)
+    if not db_user or not db_user.totp_secret:
+        raise HTTPException(status_code=400, detail="Start setup first")
+    if not verify_totp(db_user.totp_secret, body.code):
+        raise HTTPException(status_code=400, detail="Invalid code — check your authenticator app")
+    db_user.totp_enabled = True
+    log_security_event(db, action="auth.2fa_enabled", company_id=db_user.company_id, actor_user_id=db_user.id)
+    db.commit()
+    return TwoFactorStatusOut(enabled=True)
+
+
+@router.post("/2fa/disable", response_model=TwoFactorStatusOut)
+def two_factor_disable(body: TwoFactorCode, user: CurrentUser = Depends(get_current_user), db: Session = Depends(get_db)) -> TwoFactorStatusOut:
+    db_user = db.get(User, user.id)
+    if not db_user or not db_user.totp_enabled:
+        return TwoFactorStatusOut(enabled=False)
+    if not verify_totp(db_user.totp_secret, body.code):
+        raise HTTPException(status_code=400, detail="Invalid code")
+    db_user.totp_enabled = False
+    db_user.totp_secret = None
+    log_security_event(db, action="auth.2fa_disabled", company_id=db_user.company_id, actor_user_id=db_user.id)
+    db.commit()
+    return TwoFactorStatusOut(enabled=False)

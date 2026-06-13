@@ -11,12 +11,15 @@ import {
 } from "react-native";
 import { Redirect } from "expo-router";
 import { useAuth } from "../src/auth/AuthContext";
+import { ApiError } from "../src/api/client";
 import { colors } from "../src/theme/colors";
 
 export default function LoginScreen() {
   const { user, login } = useAuth();
   const [email, setEmail] = useState("admin@demo.wizflow.biz");
   const [password, setPassword] = useState("changeme");
+  const [code, setCode] = useState("");
+  const [needsCode, setNeedsCode] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -26,9 +29,16 @@ export default function LoginScreen() {
     setError("");
     setBusy(true);
     try {
-      await login(email, password);
+      await login(email, password, needsCode ? code.trim() : undefined);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Login failed");
+      if (e instanceof ApiError && e.message === "two_factor_required") {
+        setNeedsCode(true);
+      } else if (e instanceof ApiError && e.message === "invalid_code") {
+        setNeedsCode(true);
+        setError("Incorrect code, try again.");
+      } else {
+        setError(e instanceof Error ? e.message : "Login failed");
+      }
     } finally {
       setBusy(false);
     }
@@ -60,6 +70,20 @@ export default function LoginScreen() {
           value={password}
           onChangeText={setPassword}
         />
+        {needsCode ? (
+          <>
+            <Text style={styles.label}>Authentication code</Text>
+            <TextInput
+              style={styles.input}
+              keyboardType="number-pad"
+              maxLength={6}
+              autoFocus
+              value={code}
+              onChangeText={setCode}
+              placeholder="6-digit code"
+            />
+          </>
+        ) : null}
         {error ? <Text style={styles.error}>{error}</Text> : null}
         <Pressable style={styles.btn} onPress={onLogin} disabled={busy}>
           {busy ? (

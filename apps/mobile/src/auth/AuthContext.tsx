@@ -17,7 +17,7 @@ type AuthState = {
   user: UserProfile | null;
   token: string | null;
   loading: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, code?: string) => Promise<void>;
   logout: () => Promise<void>;
   refreshProfile: () => Promise<void>;
 };
@@ -52,10 +52,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [refreshProfile]);
 
   const login = useCallback(
-    async (email: string, password: string) => {
+    async (email: string, password: string, code?: string) => {
       const res = await apiFetch<TokenResponse>("/api/v1/auth/login", {
         method: "POST",
-        body: JSON.stringify({ email: email.trim().toLowerCase(), password }),
+        body: JSON.stringify({
+          email: email.trim().toLowerCase(),
+          password,
+          ...(code ? { code } : {}),
+        }),
       });
       await saveTokens(res.access_token, res.refresh_token);
       setToken(res.access_token);

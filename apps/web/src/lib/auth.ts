@@ -33,10 +33,14 @@ export function isAuthenticated(): boolean {
   return Boolean(getToken());
 }
 
-export async function login(email: string, password: string): Promise<TokenResponse> {
+export async function login(
+  email: string,
+  password: string,
+  code?: string
+): Promise<TokenResponse> {
   const tokens = await apiFetch<TokenResponse>("/api/v1/auth/login", {
     method: "POST",
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify(code ? { email, password, code } : { email, password }),
   });
   setTokens(tokens);
   return tokens;

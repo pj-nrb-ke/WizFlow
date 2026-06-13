@@ -9,6 +9,9 @@ import {
   ApiError,
   apiFetch,
   createDelegation,
+  disable2fa,
+  enable2fa,
+  get2faStatus,
   getCompanyBranding,
   getCompanySettings,
   listDelegations,
@@ -17,6 +20,7 @@ import {
   patchCompanySettings,
   patchNotificationPreferences,
   revokeDelegation,
+  setup2fa,
   type Delegation,
 } from "../lib/api";
 import { getToken } from "../lib/auth";
@@ -46,6 +50,13 @@ export function SettingsPage() {
   const [retentionMsg, setRetentionMsg] = useState("");
   const [error, setError] = useState("");
 
+  const [twoFaEnabled, setTwoFaEnabled] = useState(false);
+  const [twoFaSecret, setTwoFaSecret] = useState("");
+  const [twoFaCode, setTwoFaCode] = useState("");
+  const [twoFaMsg, setTwoFaMsg] = useState("");
+  const [twoFaError, setTwoFaError] = useState("");
+  const [twoFaBusy, setTwoFaBusy] = useState(false);
+
   useEffect(() => {
     const token = getToken();
     const prefs = user?.notification_preferences;
@@ -62,6 +73,9 @@ export function SettingsPage() {
       .catch(() => {});
     apiFetch<OrgDirectory>("/api/v1/workflows/org-directory", {}, token)
       .then(setDirectory)
+      .catch(() => {});
+    get2faStatus(token)
+      .then((s) => setTwoFaEnabled(s.enabled))
       .catch(() => {});
     if (isAdmin) {
       getCompanyBranding(token)
@@ -165,6 +179,64 @@ export function SettingsPage() {
       setDelegations(await listDelegations(getToken()));
     } catch (err) {
       setError(err instanceof ApiError ? err.detail ?? err.message : "Could not revoke");
+    }
+  }
+
+  async function startTwoFaSetup() {
+    setTwoFaError("");
+    setTwoFaMsg("");
+    setTwoFaBusy(true);
+    try {
+      const res = await setup2fa(getToken());
+      setTwoFaSecret(res.secret);
+      setTwoFaCode("");
+    } catch (err) {
+      setTwoFaError(err instanceof ApiError ? err.detail ?? err.message : "Could not start setup");
+    } finally {
+      setTwoFaBusy(false);
+    }
+  }
+
+  async function confirmTwoFaEnable(e: FormEvent) {
+    e.preventDefault();
+    setTwoFaError("");
+    setTwoFaMsg("");
+    setTwoFaBusy(true);
+    try {
+      await enable2fa(twoFaCode.trim(), getToken());
+      setTwoFaEnabled(true);
+      setTwoFaSecret("");
+      setTwoFaCode("");
+      setTwoFaMsg("Two-factor authentication is now on.");
+      await refreshUser();
+    } catch (err) {
+      setTwoFaError(err instanceof ApiError ? err.detail ?? err.message : "Could not enable");
+    } finally {
+      setTwoFaBusy(false);
+    }
+  }
+
+  function cancelTwoFaSetup() {
+    setTwoFaSecret("");
+    setTwoFaCode("");
+    setTwoFaError("");
+  }
+
+  async function turnTwoFaOff(e: FormEvent) {
+    e.preventDefault();
+    setTwoFaError("");
+    setTwoFaMsg("");
+    setTwoFaBusy(true);
+    try {
+      await disable2fa(twoFaCode.trim(), getToken());
+      setTwoFaEnabled(false);
+      setTwoFaCode("");
+      setTwoFaMsg("Two-factor authentication is off.");
+      await refreshUser();
+    } catch (err) {
+      setTwoFaError(err instanceof ApiError ? err.detail ?? err.message : "Could not turn off");
+    } finally {
+      setTwoFaBusy(false);
     }
   }
 
@@ -363,6 +435,122 @@ export function SettingsPage() {
           </button>
           {delegMsg && <p className="text-sm text-green-700">{delegMsg}</p>}
         </form>
+      </section>
+
+      <section className="wf-card p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-sm font-semibold text-slate-800">Two-factor authentication</h2>
+          <HelpTip text="Add a second step at sign-in using a time-based code from an authenticator app such as Google Authenticator." />
+        </div>
+        <p className="text-sm text-slate-500 mb-4">
+          Protect your account with a time-based one-time code from Google Authenticator.
+        </p>
+
+        {twoFaEnabled ? (
+          <div className="space-y-3">
+            <div className="flex items-center gap-2 rounded-md border border-green-200 bg-green-50 px-3 py-2 text-sm text-green-800">
+              <svg
+                width="18"
+                height="18"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="shrink-0"
+                aria-hidden="true"
+              >
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+                <path d="m9 12 2 2 4-4" />
+              </svg>
+              Two-factor is on
+            </div>
+            <form onSubmit={turnTwoFaOff} className="space-y-3">
+              <label className="block text-sm">
+                <span className="text-slate-600">
+                  Enter a current code to turn off two-factor.
+                </span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  pattern="[0-9]{6}"
+                  value={twoFaCode}
+                  onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="123456"
+                  className="wf-input mt-1 w-40 font-mono tracking-[0.3em]"
+                  required
+                />
+              </label>
+              <button
+                type="submit"
+                disabled={twoFaBusy}
+                className="px-4 py-2 wf-btn-secondary text-sm"
+              >
+                Turn off
+              </button>
+            </form>
+          </div>
+        ) : twoFaSecret ? (
+          <div className="space-y-4">
+            <div className="rounded-md border border-slate-200 bg-slate-50 p-4 text-sm text-slate-700">
+              <p className="mb-3">
+                In Google Authenticator, add account → Enter a setup key → Account: your
+                email, Key: the value below, Time based.
+              </p>
+              <code className="block select-all break-all rounded bg-white px-3 py-2 font-mono text-lg tracking-wider text-[rgb(var(--wf-brand-700))] border border-slate-200">
+                {twoFaSecret}
+              </code>
+            </div>
+            <form onSubmit={confirmTwoFaEnable} className="space-y-3">
+              <label className="block text-sm">
+                <span className="text-slate-600">Enter the 6-digit code to confirm.</span>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  maxLength={6}
+                  pattern="[0-9]{6}"
+                  value={twoFaCode}
+                  onChange={(e) => setTwoFaCode(e.target.value.replace(/\D/g, ""))}
+                  placeholder="123456"
+                  className="wf-input mt-1 w-40 font-mono tracking-[0.3em]"
+                  required
+                />
+              </label>
+              <div className="flex gap-2">
+                <button
+                  type="submit"
+                  disabled={twoFaBusy}
+                  className="px-4 py-2 wf-btn-primary text-sm"
+                >
+                  Verify &amp; enable
+                </button>
+                <button
+                  type="button"
+                  onClick={cancelTwoFaSetup}
+                  className="wf-link text-sm"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          </div>
+        ) : (
+          <button
+            type="button"
+            onClick={startTwoFaSetup}
+            disabled={twoFaBusy}
+            className="px-4 py-2 wf-btn-primary text-sm"
+          >
+            Set up
+          </button>
+        )}
+
+        {twoFaError && <p className="mt-3 text-sm text-red-600">{twoFaError}</p>}
+        {twoFaMsg && <p className="mt-3 text-sm text-green-700">{twoFaMsg}</p>}
       </section>
 
       {isAdmin && (

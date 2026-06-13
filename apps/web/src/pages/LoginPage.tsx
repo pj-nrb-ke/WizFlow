@@ -9,6 +9,8 @@ export function LoginPage() {
   const { refreshUser } = useAuth();
   const [email, setEmail] = useState("admin@demo.wizflow.biz");
   const [password, setPassword] = useState("");
+  const [code, setCode] = useState("");
+  const [needsCode, setNeedsCode] = useState(false);
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -17,11 +19,19 @@ export function LoginPage() {
     setError("");
     setSubmitting(true);
     try {
-      await auth.login(email, password);
+      await auth.login(email, password, needsCode ? code.trim() : undefined);
       await refreshUser();
       navigate("/");
     } catch (err) {
-      setError(err instanceof ApiError ? err.detail ?? err.message : "Login failed");
+      if (err instanceof ApiError && err.detail === "two_factor_required") {
+        setNeedsCode(true);
+        setError("");
+      } else if (err instanceof ApiError && err.detail === "invalid_code") {
+        setNeedsCode(true);
+        setError("Incorrect code, try again");
+      } else {
+        setError(err instanceof ApiError ? err.detail ?? err.message : "Login failed");
+      }
     } finally {
       setSubmitting(false);
     }
@@ -73,9 +83,36 @@ export function LoginPage() {
                   className="wf-input"
                 />
               </div>
+              {needsCode && (
+                <div>
+                  <label
+                    className="block text-sm font-medium text-slate-700 mb-1"
+                    htmlFor="code"
+                  >
+                    Authentication code
+                  </label>
+                  <input
+                    id="code"
+                    type="text"
+                    inputMode="numeric"
+                    autoComplete="one-time-code"
+                    autoFocus
+                    required
+                    maxLength={6}
+                    pattern="[0-9]{6}"
+                    value={code}
+                    onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
+                    placeholder="123456"
+                    className="wf-input tracking-[0.4em] font-mono"
+                  />
+                  <p className="mt-1 text-xs text-slate-500">
+                    Enter the 6-digit code from your authenticator app.
+                  </p>
+                </div>
+              )}
               {error && <p className="text-sm text-red-600">{error}</p>}
               <button type="submit" disabled={submitting} className="w-full wf-btn-primary py-2.5 text-sm">
-                {submitting ? "Signing in…" : "Sign in"}
+                {submitting ? "Signing in…" : needsCode ? "Verify & sign in" : "Sign in"}
               </button>
             </form>
             <p className="mt-4 text-xs text-slate-400 text-center">

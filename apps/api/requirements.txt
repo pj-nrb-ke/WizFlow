@@ -13,3 +13,4 @@ openpyxl>=3.1.0,<4
 fpdf2>=2.8.0,<3
 pytest>=8.3.0,<9
 pytest-asyncio>=0.24.0,<0.25
+pyotp>=2.9.0,<3

@@ -3,6 +3,7 @@ from typing import Any
 from uuid import UUID
 
 import bcrypt
+import pyotp
 from jose import JWTError, jwt
 
 from app.config import settings
@@ -62,3 +63,23 @@ def create_refresh_token(subject: str, company_id: UUID | None, roles: list[str]
 
 def decode_token(token: str) -> dict[str, Any]:
     return jwt.decode(token, settings.jwt_secret, algorithms=[ALGORITHM])
+
+
+# ---- TOTP (Google Authenticator) 2FA ----
+
+def generate_totp_secret() -> str:
+    return pyotp.random_base32()
+
+
+def totp_provisioning_uri(secret: str, email: str) -> str:
+    """otpauth:// URI to encode as a QR / enter manually in an authenticator app."""
+    return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name="WizFlow")
+
+
+def verify_totp(secret: str | None, code: str | None) -> bool:
+    if not secret or not code:
+        return False
+    try:
+        return pyotp.TOTP(secret).verify(str(code).strip().replace(" ", ""), valid_window=1)
+    except Exception:
+        return False

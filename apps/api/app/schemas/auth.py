@@ -8,6 +8,20 @@ from app.schemas.phase1 import CompanyBranding, NotificationPreferences
 class LoginRequest(BaseModel):
     email: str = Field(min_length=3)
     password: str
+    code: str | None = None  # TOTP 2FA code, required when the user has 2FA enabled
+
+
+class TwoFactorCode(BaseModel):
+    code: str = Field(min_length=6, max_length=10)
+
+
+class TwoFactorSetupOut(BaseModel):
+    secret: str
+    otpauth_uri: str
+
+
+class TwoFactorStatusOut(BaseModel):
+    enabled: bool
 
 
 class TokenResponse(BaseModel):
@@ -28,6 +42,7 @@ class UserProfile(BaseModel):
     company_id: UUID | None
     company_name: str | None
     roles: list[str]
+    two_factor_enabled: bool = False
     notification_preferences: NotificationPreferences = Field(
         default_factory=lambda: NotificationPreferences()
     )

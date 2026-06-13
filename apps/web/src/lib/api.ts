@@ -90,7 +90,36 @@ export type UserProfile = {
   roles: string[];
   notification_preferences?: NotificationPreferences;
   company_branding?: CompanyBranding;
+  two_factor_enabled?: boolean;
 };
+
+export type TwoFactorStatus = { enabled: boolean };
+
+export type TwoFactorSetup = { secret: string; otpauth_uri: string };
+
+export function get2faStatus(token?: string | null) {
+  return apiFetch<TwoFactorStatus>("/api/v1/auth/2fa/status", {}, token);
+}
+
+export function setup2fa(token?: string | null) {
+  return apiFetch<TwoFactorSetup>("/api/v1/auth/2fa/setup", { method: "POST" }, token);
+}
+
+export function enable2fa(code: string, token?: string | null) {
+  return apiFetch<TwoFactorStatus>(
+    "/api/v1/auth/2fa/enable",
+    { method: "POST", body: JSON.stringify({ code }) },
+    token
+  );
+}
+
+export function disable2fa(code: string, token?: string | null) {
+  return apiFetch<TwoFactorStatus>(
+    "/api/v1/auth/2fa/disable",
+    { method: "POST", body: JSON.stringify({ code }) },
+    token
+  );
+}
 
 export type TokenResponse = {
   access_token: string;

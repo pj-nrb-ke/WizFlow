@@ -14,6 +14,7 @@ import * as Haptics from "expo-haptics";
 import * as ImagePicker from "expo-image-picker";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import { useAuth } from "../../src/auth/AuthContext";
+import { confirmBiometricForAction } from "../../src/lib/biometrics";
 import {
   apiFetch,
   apiUpload,
@@ -72,6 +73,13 @@ export default function ApprovalScreen() {
         text: labels[action],
         style: action === "approve" ? "default" : "destructive",
         onPress: async () => {
+          const verified = await confirmBiometricForAction(
+            `Confirm ${labels[action].toLowerCase()} with biometrics`
+          );
+          if (!verified) {
+            setError("Biometric check failed — action cancelled.");
+            return;
+          }
           setActing(true);
           setError("");
           try {

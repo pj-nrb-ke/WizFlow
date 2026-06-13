@@ -27,3 +27,15 @@ export async function requireBiometric(): Promise<boolean> {
   });
   return result.success;
 }
+
+/** Biometric confirmation for a sensitive action (approve/reject). If the device
+ *  has no biometric hardware/enrollment, returns true (nothing to verify). */
+export async function confirmBiometricForAction(reason: string): Promise<boolean> {
+  const available = await canUseBiometric();
+  if (!available) return true;
+  const result = await LocalAuthentication.authenticateAsync({
+    promptMessage: reason,
+    fallbackLabel: "Use passcode",
+  });
+  return result.success;
+}
