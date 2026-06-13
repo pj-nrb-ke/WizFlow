@@ -4,9 +4,12 @@ from __future__ import annotations
 
 import hashlib
 import hmac
+import ipaddress
 import json
 import secrets
+import socket
 from datetime import datetime, timezone
+from urllib.parse import urlparse
 from uuid import UUID
 
 import httpx
@@ -14,6 +17,37 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.db.models import WebhookDelivery, WebhookEndpoint
+
+
+def is_safe_webhook_url(url: str) -> bool:
+    """Reject SSRF targets: non-http(s) schemes and hosts resolving to private,
+    loopback, link-local (e.g. 169.254.169.254 metadata), or reserved IPs."""
+    try:
+        p = urlparse(url)
+    except Exception:
+        return False
+    if p.scheme not in ("http", "https") or not p.hostname:
+        return False
+    port = p.port or (443 if p.scheme == "https" else 80)
+    try:
+        infos = socket.getaddrinfo(p.hostname, port, proto=socket.IPPROTO_TCP)
+    except Exception:
+        return False
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0])
+        except ValueError:
+            return False
+        if (
+            ip.is_private
+            or ip.is_loopback
+            or ip.is_link_local
+            or ip.is_reserved
+            or ip.is_multicast
+            or ip.is_unspecified
+        ):
+            return False
+    return True
 
 WEBHOOK_EVENTS = (
     "request.submitted",
@@ -70,6 +104,10 @@ def _deliver(
     sig = hmac.new(hook.secret.encode("utf-8"), raw, hashlib.sha256).hexdigest()
     delivery = WebhookDelivery(webhook_id=hook.id, event_type=event_type, payload=body)
     db.add(delivery)
+    if not is_safe_webhook_url(hook.url):
+        delivery.success = False
+        delivery.error_message = "Blocked: webhook URL must resolve to a public address"
+        return delivery
     try:
         with httpx.Client(timeout=5.0) as client:
             resp = client.post(

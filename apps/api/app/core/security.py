@@ -1,9 +1,12 @@
+import base64
+import hashlib
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from uuid import UUID
 
 import bcrypt
 import pyotp
+from cryptography.fernet import Fernet, InvalidToken
 from jose import JWTError, jwt
 
 from app.config import settings
@@ -74,6 +77,26 @@ def generate_totp_secret() -> str:
 def totp_provisioning_uri(secret: str, email: str) -> str:
     """otpauth:// URI to encode as a QR / enter manually in an authenticator app."""
     return pyotp.TOTP(secret).provisioning_uri(name=email, issuer_name="WizFlow")
+
+
+def _fernet() -> Fernet:
+    # Stable key derived from the app's JWT secret — no extra secret to manage.
+    key = base64.urlsafe_b64encode(hashlib.sha256(settings.jwt_secret.encode()).digest())
+    return Fernet(key)
+
+
+def encrypt_secret(plain: str) -> str:
+    return _fernet().encrypt(plain.encode()).decode()
+
+
+def decrypt_secret(stored: str | None) -> str | None:
+    """Decrypt a stored TOTP secret; tolerate legacy plaintext values."""
+    if not stored:
+        return None
+    try:
+        return _fernet().decrypt(stored.encode()).decode()
+    except (InvalidToken, ValueError):
+        return stored  # legacy plaintext (pre-encryption) — still usable
 
 
 def verify_totp(secret: str | None, code: str | None) -> bool:

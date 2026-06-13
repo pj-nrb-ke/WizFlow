@@ -21,7 +21,12 @@ from app.schemas.integrations import (
 )
 from app.services import api_keys as api_key_service
 from app.services.security_audit import list_security_logs, log_security_event
-from app.services.webhooks import WEBHOOK_EVENTS, generate_webhook_secret, send_test_event
+from app.services.webhooks import (
+    WEBHOOK_EVENTS,
+    generate_webhook_secret,
+    is_safe_webhook_url,
+    send_test_event,
+)
 
 router = APIRouter(prefix="/admin/integrations", tags=["Integrations"])
 
@@ -129,6 +134,11 @@ def create_webhook(
     user: CurrentUser = Depends(require_roles(*ADMIN_ONLY)),
     db: Session = Depends(get_db),
 ) -> WebhookCreated:
+    if not is_safe_webhook_url(body.url.strip()):
+        raise HTTPException(
+            status_code=400,
+            detail="Webhook URL must be a public http(s) address (private/internal addresses are not allowed)",
+        )
     secret = generate_webhook_secret()
     row = WebhookEndpoint(
         company_id=user.company_id,
