@@ -1024,6 +1024,33 @@ export function createWorkflowSchedule(
   );
 }
 
+/** Clone a workflow into a new draft copy. */
+export function cloneWorkflow(id: string, token?: string | null) {
+  return apiFetch<WorkflowDefinition>(
+    `/api/v1/workflows/${id}/clone`,
+    { method: "POST" },
+    token
+  );
+}
+
+export type WebhookDelivery = {
+  id: string;
+  event_type: string;
+  status_code: number | null;
+  success: boolean;
+  error_message: string | null;
+  created_at: string;
+};
+
+/** Send a test delivery to a webhook and return the delivery result. */
+export function testWebhook(id: string, token?: string | null) {
+  return apiFetch<WebhookDelivery>(
+    `/api/v1/admin/integrations/webhooks/${id}/test`,
+    { method: "POST" },
+    token
+  );
+}
+
 export function runAutomation(token?: string | null) {
   return apiFetch<{
     sla_warnings: number;

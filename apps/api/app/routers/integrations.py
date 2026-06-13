@@ -21,7 +21,7 @@ from app.schemas.integrations import (
 )
 from app.services import api_keys as api_key_service
 from app.services.security_audit import list_security_logs, log_security_event
-from app.services.webhooks import WEBHOOK_EVENTS, generate_webhook_secret
+from app.services.webhooks import WEBHOOK_EVENTS, generate_webhook_secret, send_test_event
 
 router = APIRouter(prefix="/admin/integrations", tags=["Integrations"])
 
@@ -174,6 +174,29 @@ def delete_webhook(
         raise HTTPException(status_code=404, detail="Webhook not found")
     db.delete(row)
     db.commit()
+
+
+@router.post("/webhooks/{webhook_id}/test", response_model=WebhookDeliveryOut)
+def test_webhook(
+    webhook_id: UUID,
+    user: CurrentUser = Depends(require_roles(*ADMIN_ONLY)),
+    db: Session = Depends(get_db),
+) -> WebhookDelivery:
+    hook = db.get(WebhookEndpoint, webhook_id)
+    if not hook or hook.company_id != user.company_id:
+        raise HTTPException(status_code=404, detail="Webhook not found")
+    delivery = send_test_event(db, hook)
+    log_security_event(
+        db,
+        action="webhook.tested",
+        company_id=user.company_id,
+        actor_user_id=user.id,
+        resource_type="webhook",
+        resource_id=str(webhook_id),
+    )
+    db.commit()
+    db.refresh(delivery)
+    return delivery
 
 
 @router.get("/webhooks/{webhook_id}/deliveries", response_model=list[WebhookDeliveryOut])

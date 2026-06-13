@@ -4,6 +4,7 @@ import {
   ApiError,
   apiDownload,
   apiFetch,
+  cloneWorkflow,
   getWorkflowHealthCheck,
   tuneWorkflow,
   PublishPreview,
@@ -44,6 +45,8 @@ export function WorkflowsPage() {
   const [amount, setAmount] = useState("3000");
   const [tuneText, setTuneText] = useState("");
   const [tuneMsg, setTuneMsg] = useState("");
+  const [cloneMsg, setCloneMsg] = useState("");
+  const [cloning, setCloning] = useState(false);
 
   const loadExtras = useCallback(async (id: string) => {
     const token = getToken();
@@ -86,12 +89,30 @@ export function WorkflowsPage() {
     setError("");
     setSimResult(null);
     setShowPublish(false);
+    setCloneMsg("");
     try {
       const detail = await apiFetch<WorkflowDefinition>(`/api/v1/workflows/${id}`, {}, getToken());
       setSelected(detail);
       await loadExtras(id);
     } catch (e) {
       setError(e instanceof ApiError ? e.detail ?? e.message : "Failed to load workflow");
+    }
+  }
+
+  async function duplicate() {
+    if (!selected) return;
+    setError("");
+    setCloneMsg("");
+    setCloning(true);
+    try {
+      const draft = await cloneWorkflow(selected.id, getToken());
+      await load();
+      await openWorkflow(draft.id);
+      setCloneMsg(`Duplicated as “${draft.name}” (draft).`);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail ?? e.message : "Duplicate failed");
+    } finally {
+      setCloning(false);
     }
   }
 
@@ -434,6 +455,14 @@ export function WorkflowsPage() {
                       {healthLoading ? "Checking…" : "Publish…"}
                     </button>
                   )}
+                  <button
+                    type="button"
+                    onClick={duplicate}
+                    disabled={cloning}
+                    className="px-4 py-2 wf-btn-secondary text-sm disabled:opacity-50"
+                  >
+                    {cloning ? "Duplicating…" : "Duplicate"}
+                  </button>
                   {selected.status === "draft" && (
                     <HelpTip text="Review the preview, run a simulation with sample data, then publish. Health check warns about missing assignees or form gaps before go-live." />
                   )}
@@ -467,6 +496,7 @@ export function WorkflowsPage() {
                     </>
                   )}
                 </div>
+                {cloneMsg && <p className="text-xs text-green-700 mt-2">{cloneMsg}</p>}
                 {selected.status === "draft" && !tested && (
                   <p className="text-xs text-amber-700 mt-2">Run a test before publishing.</p>
                 )}

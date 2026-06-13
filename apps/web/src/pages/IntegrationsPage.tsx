@@ -3,7 +3,7 @@ import { Navigate } from "react-router-dom";
 import { HelpTip } from "../components/HelpTip";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../context/AuthContext";
-import { ApiError, apiFetch, type UserRow } from "../lib/api";
+import { ApiError, apiFetch, testWebhook, type UserRow, type WebhookDelivery } from "../lib/api";
 import { getToken } from "../lib/auth";
 import { formatDateTime } from "../lib/datetime";
 
@@ -73,6 +73,8 @@ export function IntegrationsPage() {
   const [hookSecret, setHookSecret] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [hookResults, setHookResults] = useState<Record<string, WebhookDelivery>>({});
+  const [testingHookId, setTestingHookId] = useState<string | null>(null);
 
   const isAdmin = user?.roles.includes("company_admin");
 
@@ -147,6 +149,19 @@ export function IntegrationsPage() {
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.detail ?? err.message : "Webhook failed");
+    }
+  }
+
+  async function sendTest(id: string) {
+    setError("");
+    setTestingHookId(id);
+    try {
+      const delivery = await testWebhook(id, getToken());
+      setHookResults((prev) => ({ ...prev, [id]: delivery }));
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Test failed");
+    } finally {
+      setTestingHookId(null);
     }
   }
 
@@ -298,12 +313,39 @@ export function IntegrationsPage() {
           </div>
         ) : (
           <ul className="text-sm space-y-2">
-            {webhooks.map((w) => (
-              <li key={w.id} className="border-b border-slate-100 pb-2">
-                <strong>{w.name}</strong> → {w.url}
-                <span className="text-slate-500 ml-2">({w.events.join(", ")})</span>
-              </li>
-            ))}
+            {webhooks.map((w) => {
+              const result = hookResults[w.id];
+              return (
+                <li key={w.id} className="border-b border-slate-100 pb-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="min-w-0">
+                      <strong>{w.name}</strong> → {w.url}
+                      <span className="text-slate-500 ml-2">({w.events.join(", ")})</span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {result &&
+                        (result.success ? (
+                          <span className="text-xs font-medium text-green-700">
+                            Delivered ({result.status_code ?? "200"})
+                          </span>
+                        ) : (
+                          <span className="text-xs font-medium text-red-600">
+                            Failed ({result.status_code ?? result.error_message ?? "error"})
+                          </span>
+                        ))}
+                      <button
+                        type="button"
+                        onClick={() => void sendTest(w.id)}
+                        disabled={testingHookId === w.id}
+                        className="text-xs px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+                      >
+                        {testingHookId === w.id ? "Sending…" : "Send test"}
+                      </button>
+                    </div>
+                  </div>
+                </li>
+              );
+            })}
           </ul>
         )}
       </section>

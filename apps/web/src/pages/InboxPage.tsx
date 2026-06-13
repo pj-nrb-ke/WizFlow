@@ -21,6 +21,20 @@ import { getToken } from "../lib/auth";
 import { getFormFields } from "../lib/formValidation";
 import { isRequestOverdue } from "../lib/sla";
 import {
+  deleteFilter,
+  getSavedFilters,
+  saveFilter,
+  type SavedFilter,
+} from "../lib/savedFilters";
+
+const COMMENT_TEMPLATES = [
+  "Missing attachment",
+  "Needs manager sign-off",
+  "Amount exceeds policy",
+  "Duplicate request",
+  "Incomplete details",
+];
+import {
   APP_THEMES,
   filterRequestData,
   FORM_LAYOUTS,
@@ -48,6 +62,9 @@ export function InboxPage() {
   const [msg, setMsg] = useState("");
   const [acting, setActing] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkRunning, setBulkRunning] = useState(false);
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(() => getSavedFilters("inbox"));
 
   const uiTheme = APP_THEMES.includes((detail?.ui_theme ?? "") as AppTheme)
     ? (detail!.ui_theme as AppTheme)
@@ -166,6 +183,130 @@ export function InboxPage() {
       setActing(false);
     }
   }
+
+  function toggleSelected(requestId: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(requestId)) next.delete(requestId);
+      else next.add(requestId);
+      return next;
+    });
+  }
+
+  async function bulkAct(action: "approve" | "reject") {
+    if (selected.size === 0 || bulkRunning) return;
+    const ids = Array.from(selected);
+    if (
+      !window.confirm(
+        `${action === "approve" ? "Approve" : "Reject"} ${ids.length} selected request${
+          ids.length === 1 ? "" : "s"
+        }?`
+      )
+    )
+      return;
+    setError("");
+    setMsg("");
+    setBulkRunning(true);
+    let ok = 0;
+    let failed = 0;
+    const byId = new Map(items.map((i) => [i.request_id, i]));
+    for (const id of ids) {
+      try {
+        if (byId.get(id)?.needs_claim) {
+          await apiFetch(`/api/v1/requests/${id}/claim`, { method: "POST" }, getToken());
+        }
+        await apiFetch(
+          `/api/v1/requests/${id}/${action}`,
+          { method: "POST", body: JSON.stringify({ comment }) },
+          getToken()
+        );
+        ok += 1;
+      } catch {
+        failed += 1;
+      }
+    }
+    try {
+      await loadInbox();
+    } catch {
+      /* ignore reload failure */
+    }
+    setSelected(new Set());
+    setComment("");
+    setDetail(null);
+    setSelectedId(null);
+    setMsg(
+      `${action === "approve" ? "Approved" : "Rejected"} ${ok}${failed ? ` · ${failed} failed` : ""}`
+    );
+    setBulkRunning(false);
+  }
+
+  function appendTemplate(text: string) {
+    setComment((prev) => (prev.trim() ? `${prev.trim()}. ${text}` : text));
+  }
+
+  function currentFilters(): Record<string, unknown> {
+    return {
+      workflowFilter,
+      search,
+      dateFrom,
+      dateTo,
+      minAmount,
+      maxAmount,
+      department,
+      overdueOnly,
+      priority,
+    };
+  }
+
+  function saveCurrentFilters() {
+    const name = window.prompt("Name this filter set");
+    if (!name?.trim()) return;
+    setSavedFilters(saveFilter("inbox", name, currentFilters()));
+  }
+
+  function applyFilters(f: Record<string, unknown>) {
+    setWorkflowFilter(typeof f.workflowFilter === "string" ? f.workflowFilter : "");
+    setSearch(typeof f.search === "string" ? f.search : "");
+    setDateFrom(typeof f.dateFrom === "string" ? f.dateFrom : "");
+    setDateTo(typeof f.dateTo === "string" ? f.dateTo : "");
+    setMinAmount(typeof f.minAmount === "string" ? f.minAmount : "");
+    setMaxAmount(typeof f.maxAmount === "string" ? f.maxAmount : "");
+    setDepartment(typeof f.department === "string" ? f.department : "");
+    setOverdueOnly(Boolean(f.overdueOnly));
+    setPriority(typeof f.priority === "string" ? f.priority : "");
+  }
+
+  function removeSavedFilter(name: string) {
+    setSavedFilters(deleteFilter("inbox", name));
+  }
+
+  useEffect(() => {
+    function onKeyDown(e: KeyboardEvent) {
+      if (!detail) return;
+      const target = e.target as HTMLElement | null;
+      const tag = target?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT" || target?.isContentEditable)
+        return;
+      const key = e.key.toLowerCase();
+      if (key === "a" && detail.can_approve) {
+        e.preventDefault();
+        void act("approve");
+      } else if (key === "r" && detail.can_approve) {
+        e.preventDefault();
+        void act("reject");
+      } else if (e.key === "ArrowDown" || e.key === "ArrowUp") {
+        const idx = items.findIndex((i) => i.request_id === selectedId);
+        if (idx === -1) return;
+        const nextIdx = e.key === "ArrowDown" ? idx + 1 : idx - 1;
+        if (nextIdx < 0 || nextIdx >= items.length) return;
+        e.preventDefault();
+        void openItem(items[nextIdx].request_id);
+      }
+    }
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [detail, items, selectedId, comment, acting]);
 
   function exportQuery() {
     const p = inboxParams();
@@ -330,7 +471,67 @@ export function InboxPage() {
             Overdue only
           </label>
         </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+          <span className="text-xs font-medium text-slate-500">Saved filters</span>
+          <button
+            type="button"
+            onClick={saveCurrentFilters}
+            className="wf-btn-secondary text-xs px-2 py-1"
+          >
+            Save current filters
+          </button>
+          {savedFilters.map((f) => (
+            <span
+              key={f.name}
+              className="inline-flex items-center gap-1 rounded-full bg-[rgb(var(--wf-accent-muted))] px-2 py-1 text-xs text-[rgb(var(--wf-brand-700))]"
+            >
+              <button type="button" onClick={() => applyFilters(f.filters)} className="font-medium">
+                {f.name}
+              </button>
+              <button
+                type="button"
+                onClick={() => removeSavedFilter(f.name)}
+                aria-label={`Delete saved filter ${f.name}`}
+                className="text-[rgb(var(--wf-brand-700))]/60 hover:text-[rgb(var(--wf-brand-700))]"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </span>
+          ))}
+        </div>
       </div>
+
+      {selected.size > 0 && (
+        <div className="sticky top-0 z-10 mb-3 flex flex-wrap items-center gap-2 rounded-lg border border-slate-200 bg-white/95 p-2 shadow-sm backdrop-blur">
+          <span className="text-sm font-medium text-slate-700">{selected.size} selected</span>
+          <button
+            type="button"
+            disabled={bulkRunning}
+            onClick={() => void bulkAct("approve")}
+            className="wf-btn-primary text-sm px-3 py-1.5 disabled:opacity-50"
+          >
+            Approve selected
+          </button>
+          <button
+            type="button"
+            disabled={bulkRunning}
+            onClick={() => void bulkAct("reject")}
+            className="wf-btn-secondary text-sm px-3 py-1.5 disabled:opacity-50"
+          >
+            Reject selected
+          </button>
+          <button
+            type="button"
+            disabled={bulkRunning}
+            onClick={() => setSelected(new Set())}
+            className="text-sm text-slate-500 hover:text-slate-700 px-2"
+          >
+            Clear
+          </button>
+        </div>
+      )}
 
       {error && <p className="text-sm text-red-600 mb-2">{error}</p>}
       {msg && <p className="text-sm text-green-700 mb-2">{msg}</p>}
@@ -356,14 +557,25 @@ export function InboxPage() {
             filteredItems.map((item) => {
               const overdue = isRequestOverdue(item.submitted_at, null, "in_progress");
               return (
-                <button
+                <div
                   key={item.request_id}
+                  className={`flex items-start gap-2 ${
+                    selectedId === item.request_id ? "bg-[rgb(var(--wf-accent-muted))]" : ""
+                  }`}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selected.has(item.request_id)}
+                    onClick={(e) => e.stopPropagation()}
+                    onChange={() => toggleSelected(item.request_id)}
+                    aria-label={`Select ${item.reference_number ?? item.workflow_name}`}
+                    className="mt-4 ml-3 rounded border-slate-300"
+                  />
+                <button
                   type="button"
                   data-testid="inbox-list-item"
                   onClick={() => openItem(item.request_id)}
-                  className={`w-full text-left p-4 hover:bg-slate-50/80 ${
-                    selectedId === item.request_id ? "bg-[rgb(var(--wf-accent-muted))]" : ""
-                  }`}
+                  className="flex-1 min-w-0 text-left p-4 pl-1 hover:bg-slate-50/80"
                 >
                   {item.reference_number && (
                     <p className="font-mono text-xs font-semibold text-[rgb(var(--wf-brand-700))]">
@@ -395,6 +607,7 @@ export function InboxPage() {
                     )}
                   </div>
                 </button>
+                </div>
               );
             })
           )}
@@ -437,6 +650,18 @@ export function InboxPage() {
                   className="wf-input"
                   rows={2}
                 />
+                <div className="flex flex-wrap gap-1.5">
+                  {COMMENT_TEMPLATES.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      onClick={() => appendTemplate(t)}
+                      className="rounded-full bg-[rgb(var(--wf-accent-muted))] px-2.5 py-1 text-xs text-[rgb(var(--wf-brand-700))] hover:opacity-80"
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
                 {(detail.can_approve || detail.needs_claim) && (
                   <ApprovalActions
                     needsClaim={!!detail.needs_claim}
@@ -449,6 +674,11 @@ export function InboxPage() {
                     onReturn={() => act("return")}
                     requestId={detail.id}
                   />
+                )}
+                {detail.can_approve && (
+                  <p className="text-xs text-slate-400">
+                    Shortcuts: A approve · R reject · ↑↓ navigate
+                  </p>
                 )}
               </div>
             </ThemeScope>

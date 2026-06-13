@@ -11,6 +11,7 @@ import { SimpleBarChart } from "../components/analytics/SimpleBarChart";
 import { TrendSparkline } from "../components/analytics/TrendSparkline";
 import { Phase2AnalyticsTabs } from "../components/Phase2AnalyticsTabs";
 import { HelpTip } from "../components/HelpTip";
+import { InsightsNav } from "../components/InsightsNav";
 import { PageHeader } from "../components/PageHeader";
 import { useAuth } from "../context/AuthContext";
 import {
@@ -171,6 +172,7 @@ export function AnalyticsPage() {
 
   return (
     <div className="wf-analytics-page">
+      <InsightsNav />
       <PageHeader
         title="Analytics"
         subtitle={`Executive KPIs, workflow performance, approver workload, financial totals, and exceptions for ${user?.company_name ?? "your organization"}.`}

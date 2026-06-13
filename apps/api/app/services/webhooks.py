@@ -88,3 +88,17 @@ def _deliver(
     except Exception as e:
         delivery.success = False
         delivery.error_message = str(e)[:500]
+    return delivery
+
+
+def send_test_event(db: Session, hook: WebhookEndpoint) -> WebhookDelivery:
+    """Deliver a one-off test payload to a single webhook and return the result."""
+    body = {
+        "event": "test.ping",
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "data": {"message": "Test webhook from WizFlow", "webhook_name": hook.name},
+    }
+    raw = json.dumps(body, default=str).encode("utf-8")
+    delivery = _deliver(db, hook, "test.ping", body, raw)
+    db.flush()
+    return delivery

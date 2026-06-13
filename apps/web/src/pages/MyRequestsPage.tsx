@@ -15,6 +15,12 @@ import {
 import { formatDateTimeShort } from "../lib/datetime";
 import { getToken } from "../lib/auth";
 import { isRequestOverdue } from "../lib/sla";
+import {
+  deleteFilter,
+  getSavedFilters,
+  saveFilter,
+  type SavedFilter,
+} from "../lib/savedFilters";
 
 type TabKey = "all" | "in_progress" | "returned" | "approved" | "rejected" | "drafts";
 
@@ -148,6 +154,42 @@ export function MyRequestsPage() {
   const [department, setDepartment] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
+  const [savedFilters, setSavedFilters] = useState<SavedFilter[]>(() =>
+    getSavedFilters("myrequests")
+  );
+
+  function currentFilters(): Record<string, unknown> {
+    return { tab, search, dateFrom, dateTo, minAmount, maxAmount, department };
+  }
+
+  function saveCurrentFilters() {
+    const name = window.prompt("Name this filter set");
+    if (!name?.trim()) return;
+    setSavedFilters(saveFilter("myrequests", name, currentFilters()));
+  }
+
+  function applyFilters(f: Record<string, unknown>) {
+    if (
+      f.tab === "all" ||
+      f.tab === "in_progress" ||
+      f.tab === "returned" ||
+      f.tab === "approved" ||
+      f.tab === "rejected" ||
+      f.tab === "drafts"
+    ) {
+      setTab(f.tab);
+    }
+    setSearch(typeof f.search === "string" ? f.search : "");
+    setDateFrom(typeof f.dateFrom === "string" ? f.dateFrom : "");
+    setDateTo(typeof f.dateTo === "string" ? f.dateTo : "");
+    setMinAmount(typeof f.minAmount === "string" ? f.minAmount : "");
+    setMaxAmount(typeof f.maxAmount === "string" ? f.maxAmount : "");
+    setDepartment(typeof f.department === "string" ? f.department : "");
+  }
+
+  function removeSavedFilter(name: string) {
+    setSavedFilters(deleteFilter("myrequests", name));
+  }
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebouncedQ(search), 300);
@@ -330,6 +372,36 @@ export function MyRequestsPage() {
               className="wf-input ml-0 block mt-0.5 w-full max-w-xs"
             />
           </label>
+        </div>
+        <div className="flex flex-wrap items-center gap-2 border-t border-slate-100 pt-3">
+          <span className="text-xs font-medium text-slate-500">Saved filters</span>
+          <button
+            type="button"
+            onClick={saveCurrentFilters}
+            className="wf-btn-secondary text-xs px-2 py-1"
+          >
+            Save current filters
+          </button>
+          {savedFilters.map((f) => (
+            <span
+              key={f.name}
+              className="inline-flex items-center gap-1 rounded-full bg-[rgb(var(--wf-accent-muted))] px-2 py-1 text-xs text-[rgb(var(--wf-brand-700))]"
+            >
+              <button type="button" onClick={() => applyFilters(f.filters)} className="font-medium">
+                {f.name}
+              </button>
+              <button
+                type="button"
+                onClick={() => removeSavedFilter(f.name)}
+                aria-label={`Delete saved filter ${f.name}`}
+                className="text-[rgb(var(--wf-brand-700))]/60 hover:text-[rgb(var(--wf-brand-700))]"
+              >
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6L6 18" />
+                </svg>
+              </button>
+            </span>
+          ))}
         </div>
       </div>
 

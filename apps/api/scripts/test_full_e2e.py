@@ -208,6 +208,16 @@ def main() -> int:
     wh = c.get(f"{BASE}/admin/integrations/webhooks", headers=H)
     check("webhooks list 200", wh.status_code == 200, str(wh.status_code))
 
+    print("UC16 Clone workflow / webhook test")
+    cl = c.post(f"{BASE}/workflows/{wid}/clone", headers=H)
+    check("clone workflow -> draft", cl.status_code in (200, 201) and cl.json().get("status") == "draft", f"{cl.status_code} {cl.text[:120]}")
+    hook = c.post(f"{BASE}/admin/integrations/webhooks", headers=H, json={"name": "E2E hook", "url": "https://example.com/hook", "events": ["request.submitted"]})
+    if check("create webhook 201", hook.status_code in (200, 201), f"{hook.status_code} {hook.text[:120]}"):
+        hid = hook.json()["id"]
+        tw = c.post(f"{BASE}/admin/integrations/webhooks/{hid}/test", headers=H)
+        check("webhook test returns delivery", tw.status_code == 200 and "success" in tw.json(), f"{tw.status_code} {tw.text[:120]}")
+        c.delete(f"{BASE}/admin/integrations/webhooks/{hid}", headers=H)
+
     return summarize()
 
 

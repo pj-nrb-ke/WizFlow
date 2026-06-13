@@ -6,6 +6,7 @@ import {
   type AnalyticsFilters,
 } from "../components/analytics/AnalyticsFilterBar";
 import { HelpTip } from "../components/HelpTip";
+import { InsightsNav } from "../components/InsightsNav";
 import { PageHeader } from "../components/PageHeader";
 import { StatusBadge } from "../components/StatusBadge";
 import { useAuth } from "../context/AuthContext";
@@ -164,6 +165,7 @@ export function ReportsPage() {
 
   return (
     <div>
+      <InsightsNav />
       <PageHeader
         title="Actions report"
         subtitle="Timestamped audit trail of workflow events for management and MIS export."

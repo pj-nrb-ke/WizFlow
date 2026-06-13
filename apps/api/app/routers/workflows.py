@@ -402,6 +402,48 @@ def list_versions(
     return versioning.list_versions(db, defn.family_id, user.company_id)
 
 
+@router.post("/{workflow_id}/clone", response_model=WorkflowDefinitionOut, status_code=status.HTTP_201_CREATED)
+def clone_workflow(
+    workflow_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> WorkflowDefinition:
+    if not any(r in MANAGER_ROLES for r in user.roles):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
+    import copy
+    import uuid as _uuid
+
+    src = _get_definition(db, workflow_id, user.company_id)
+    base = (src.name or "Workflow").strip()
+    name = f"{base} (copy)"
+    i = 2
+    while workflow_name_taken(db, user.company_id, name):
+        name = f"{base} (copy {i})"
+        i += 1
+    new_settings = copy.deepcopy(src.settings or {})
+    new_settings.pop("published_at", None)
+    new_settings.pop("last_simulated_at", None)
+    defn = WorkflowDefinition(
+        company_id=user.company_id,
+        family_id=_uuid.uuid4(),
+        name=name[:200],
+        form_schema=copy.deepcopy(src.form_schema),
+        steps=copy.deepcopy(src.steps),
+        routing_rules=copy.deepcopy(src.routing_rules),
+        settings=new_settings,
+        status="draft",
+        version=1,
+        ai_generated=src.ai_generated,
+        ai_prompt=src.ai_prompt,
+    )
+    db.add(defn)
+    db.flush()
+    defn.family_id = defn.id
+    db.commit()
+    db.refresh(defn)
+    return defn
+
+
 @router.post("/{workflow_id}/new-version", response_model=WorkflowDefinitionOut, status_code=status.HTTP_201_CREATED)
 def new_version(
     workflow_id: UUID,
