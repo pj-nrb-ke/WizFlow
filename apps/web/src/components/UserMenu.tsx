@@ -59,8 +59,8 @@ export function UserMenu() {
         aria-haspopup="true"
         aria-label="User menu"
       >
-        <span className="relative wf-user-avatar flex items-center justify-center w-9 h-9 rounded-full bg-[rgb(var(--wf-brand-600))] text-white shrink-0">
-          <IconUser size={20} strokeWidth={2} className="text-white" />
+        <span className="relative wf-user-avatar flex items-center justify-center w-11 h-11 rounded-full bg-[rgb(var(--wf-brand-600))] text-white shrink-0">
+          <IconUser size={24} strokeWidth={2} className="text-white" />
           {badge > 0 && (
             <span
               className="absolute -top-0.5 -right-0.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-red-500 text-white text-[10px] font-bold leading-none"
@@ -70,13 +70,13 @@ export function UserMenu() {
             </span>
           )}
         </span>
-        <span className="hidden sm:flex flex-col items-start text-left max-w-[120px]">
-          <span className="text-xs font-semibold text-slate-800 truncate w-full">
+        <span className="hidden sm:flex flex-col items-start text-left max-w-[150px]">
+          <span className="text-sm font-semibold text-slate-800 truncate w-full">
             {user?.full_name ?? "User"}
           </span>
-          <span className="text-[10px] text-slate-500 truncate w-full">{user?.email}</span>
+          <span className="text-xs text-slate-500 truncate w-full">{user?.email}</span>
         </span>
-        <IconChevronDown size={14} className="text-slate-400 hidden sm:block" />
+        <IconChevronDown size={16} className="text-slate-400 hidden sm:block" />
       </button>
 
       {open && (
