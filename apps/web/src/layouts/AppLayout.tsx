@@ -13,6 +13,7 @@ import {
   IconTemplates,
   IconBell,
   IconChartBar,
+  IconHelp,
 } from "../components/icons";
 import { NetworkStatusBanner } from "../components/NetworkStatusBanner";
 import { UserMenu } from "../components/UserMenu";
@@ -176,6 +177,13 @@ export function AppLayout() {
             <NavGroup label="Build" Icon={IconWorkflow} items={buildItems} />
             <NavGroup label="Insights" Icon={IconChartBar} items={insightItems} />
             <NavGroup label="Manage" Icon={IconSettings} items={manageItems} />
+            <NavLink
+              to="/help"
+              className={({ isActive }) => `wf-nav2-link${isActive ? " active" : ""}`}
+            >
+              <IconHelp size={16} />
+              <span>Help</span>
+            </NavLink>
           </nav>
 
           <div className="flex items-center gap-1 shrink-0">

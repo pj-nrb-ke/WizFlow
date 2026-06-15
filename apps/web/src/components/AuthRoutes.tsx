@@ -22,6 +22,7 @@ import { AnalyticsPage } from "../pages/AnalyticsPage";
 import { ReportsPage } from "../pages/ReportsPage";
 import { IntegrationsPage } from "../pages/IntegrationsPage";
 import { MasterDataPage } from "../pages/MasterDataPage";
+import { HelpPage } from "../pages/HelpPage";
 
 function LoadingScreen() {
   return (
@@ -93,6 +94,7 @@ export function AppRoutes() {
           <Route path="integrations" element={<IntegrationsPage />} />
           <Route path="master-data" element={<MasterDataPage />} />
           <Route path="settings" element={<SettingsPage />} />
+          <Route path="help" element={<HelpPage />} />
         </Route>
       </Route>
       <Route path="*" element={<CatchAllRoute />} />
