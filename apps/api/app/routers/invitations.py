@@ -12,6 +12,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.db.models import Company, Role, User, UserRole
+from app.config import settings
 from app.db.session import get_db
 from app.routers.admin import ADMIN_ROLES, _user_out
 from app.schemas.org import UserOut
@@ -68,10 +69,14 @@ def create_invitation(
     if existing:
         raise HTTPException(status_code=409, detail="This email already has an account.")
 
+    # Look up company name
+    company = db.scalar(select(Company).where(Company.id == current_user.company_id))
+    company_name = company.name if company else "WizFlow"
+
     # Expire any previous pending invites for this email in this company
-    for token, rec in list(_invites.items()):
+    for tok, rec in list(_invites.items()):
         if rec["company_id"] == str(current_user.company_id) and rec["email"] == email:
-            del _invites[token]
+            del _invites[tok]
 
     token = secrets.token_urlsafe(48)
     expires_at = datetime.now(timezone.utc) + timedelta(hours=INVITE_TTL_HOURS)
@@ -83,18 +88,17 @@ def create_invitation(
         "email": email,
         "role_slugs": body.role_slugs,
         "invited_by_name": current_user.full_name,
-        "company_name": current_user.company.name if current_user.company else "WizFlow",
+        "company_name": company_name,
         "expires_at": expires_at,
         "accepted_at": None,
     }
 
-    from app.config import settings
     invite_url = f"{settings.app_url}/invite/{token}"
 
     sent = send_invite_email(
         to_email=email,
         invited_by_name=current_user.full_name,
-        company_name=current_user.company.name if current_user.company else "WizFlow",
+        company_name=company_name,
         invite_url=invite_url,
     )
     if not sent:
