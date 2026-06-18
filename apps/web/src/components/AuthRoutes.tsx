@@ -23,6 +23,7 @@ import { ReportsPage } from "../pages/ReportsPage";
 import { IntegrationsPage } from "../pages/IntegrationsPage";
 import { MasterDataPage } from "../pages/MasterDataPage";
 import { HelpPage } from "../pages/HelpPage";
+import { AcceptInvitePage } from "../pages/AcceptInvitePage";
 
 function LoadingScreen() {
   return (
@@ -74,6 +75,7 @@ export function AppRoutes() {
     <Routes>
       <Route path="/login" element={<LoginRoute />} />
       <Route path="/approve/:token" element={<PublicApprovePage />} />
+      <Route path="/invite/:token" element={<AcceptInvitePage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />

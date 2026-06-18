@@ -276,6 +276,68 @@ View your request:
     return False
 
 
+def send_invite_email(
+    *,
+    to_email: str,
+    invited_by_name: str,
+    company_name: str,
+    invite_url: str,
+) -> bool:
+    """Send a user invitation email with a secure accept link."""
+    cfg = _mail_settings()
+    if not cfg["api_key"] and not cfg["host"]:
+        logger.info("Invite email skipped (no mail config): %s", to_email)
+        return False
+
+    subject = f"You've been invited to join {company_name} on WizFlow"
+    text_body = f"""Hello,
+
+{invited_by_name} has invited you to join {company_name} on WizFlow — a workflow approval platform.
+
+Click the link below to set up your account (link expires in 72 hours):
+{invite_url}
+
+If you weren't expecting this invitation, you can ignore this email.
+
+— WizFlow
+"""
+    html_body = f"""<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;color:#1e293b;max-width:480px;margin:0 auto;padding:24px">
+<div style="text-align:center;margin-bottom:32px">
+  <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:#4f46e5;border-radius:14px;margin-bottom:12px">
+    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/></svg>
+  </div>
+  <h1 style="font-size:20px;font-weight:700;margin:0">WizFlow</h1>
+</div>
+<h2 style="font-size:18px;font-weight:600;margin:0 0 8px">You've been invited</h2>
+<p style="color:#475569;margin:0 0 24px"><strong>{invited_by_name}</strong> has invited you to join <strong>{company_name}</strong> on WizFlow.</p>
+<a href="{invite_url}" style="display:block;background:#4f46e5;color:#fff;text-align:center;padding:14px 24px;text-decoration:none;border-radius:10px;font-weight:600;font-size:15px;margin-bottom:20px">Accept invitation &amp; set up account</a>
+<p style="font-size:12px;color:#94a3b8;text-align:center">This link expires in 72 hours. If you weren't expecting this, ignore this email.</p>
+<hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+<p style="font-size:12px;color:#94a3b8;text-align:center">WizFlow · Workflow automation for your team</p>
+</body></html>"""
+
+    errors: list[str] = []
+    if cfg["api_key"]:
+        try:
+            _send_via_api(cfg, to_email=to_email, to_name=to_email.split("@")[0],
+                          subject=subject, text_body=text_body, html_body=html_body)
+            logger.info("Sent invite email via Brevo API to %s", to_email)
+            return True
+        except Exception as e:
+            errors.append(str(e))
+    if cfg["host"]:
+        try:
+            _send_via_smtp(cfg, to_email=to_email, subject=subject,
+                           text_body=text_body, html_body=html_body)
+            logger.info("Sent invite email via SMTP to %s", to_email)
+            return True
+        except Exception as e:
+            errors.append(str(e))
+    if errors:
+        logger.error("Invite email failed for %s: %s", to_email, errors)
+    return False
+
+
 def send_plain_email(to_email: str, subject: str, text_body: str) -> bool:
     """Simple text email for scheduled reports."""
     cfg = _mail_settings()

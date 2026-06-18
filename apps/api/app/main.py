@@ -18,6 +18,7 @@ from app.routers import (
     health,
     inbox,
     integrations,
+    invitations,
     master_data,
     notifications,
     phase2,
@@ -89,6 +90,7 @@ v1.include_router(integrations.router)
 v1.include_router(external_api.router)
 v1.include_router(documents.router)
 v1.include_router(master_data.router)
+v1.include_router(invitations.router)
 v1.include_router(drafts.router)
 v1.include_router(saved_views.router)
 v1.include_router(delegations.router)

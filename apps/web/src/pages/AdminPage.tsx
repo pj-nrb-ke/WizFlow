@@ -50,19 +50,15 @@ function UserInitials({ name }: { name: string }) {
 function InviteModal({
   users,
   onClose,
-  onCreated,
 }: {
   users: UserRow[];
   onClose: () => void;
-  onCreated: (u: UserRow) => void;
 }) {
-  const [email, setEmail]       = useState("");
-  const [fullName, setFullName] = useState("");
-  const [password, setPassword] = useState("changeme");
-  const [roles, setRoles]       = useState<string[]>(["originator"]);
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
-  const [success, setSuccess]   = useState("");
+  const [email, setEmail]   = useState("");
+  const [roles, setRoles]   = useState<string[]>(["originator"]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError]   = useState("");
+  const [success, setSuccess] = useState("");
 
   function toggleRole(slug: string) {
     setRoles((prev) =>
@@ -72,27 +68,19 @@ function InviteModal({
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!email.trim() || !fullName.trim() || roles.length === 0) return;
+    if (!email.trim() || roles.length === 0) return;
     setLoading(true);
     setError("");
     try {
-      const created = await apiFetch<UserRow>("/api/v1/admin/users", {
+      await apiFetch("/api/v1/admin/invitations", {
         method: "POST",
-        body: JSON.stringify({
-          email: email.trim().toLowerCase(),
-          full_name: fullName.trim(),
-          password,
-          role_slugs: roles,
-        }),
+        body: JSON.stringify({ email: email.trim().toLowerCase(), role_slugs: roles }),
       }, getToken());
-      onCreated(created);
-      setSuccess(`${fullName.trim()} has been added. They can log in with the password you set.`);
+      setSuccess(`Invitation sent to ${email.trim()}. They will receive an email with a link to set up their account.`);
       setEmail("");
-      setFullName("");
-      setPassword("changeme");
       setRoles(["originator"]);
     } catch (err) {
-      setError(err instanceof ApiError ? err.detail ?? err.message : "Failed to create user");
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Failed to send invitation");
     } finally {
       setLoading(false);
     }
@@ -112,7 +100,7 @@ function InviteModal({
         <div className="flex items-center justify-between px-6 py-4 border-b border-slate-100">
           <div>
             <h2 className="text-base font-semibold text-slate-900">Invite user</h2>
-            <p className="text-xs text-slate-500 mt-0.5">Create an account and assign roles</p>
+            <p className="text-xs text-slate-500 mt-0.5">An email invitation will be sent to them</p>
           </div>
           <button
             type="button"
@@ -138,39 +126,17 @@ function InviteModal({
           )}
 
           <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Full name</label>
-            <input
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              placeholder="Jane Smith"
-              className="wf-input w-full"
-              required
-              autoFocus
-            />
-          </div>
-
-          <div className="space-y-1">
             <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Email address</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="jane@company.com"
-              className={`wf-input w-full ${emailTaken ? "border-red-400 focus:border-red-500" : ""}`}
+              className={`wf-input w-full ${emailTaken ? "border-red-400" : ""}`}
               required
+              autoFocus
             />
-            {emailTaken && <p className="text-xs text-red-600">This email is already registered.</p>}
-          </div>
-
-          <div className="space-y-1">
-            <label className="text-xs font-semibold text-slate-600 uppercase tracking-wide">Temporary password</label>
-            <input
-              type="text"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="wf-input w-full font-mono"
-            />
-            <p className="text-xs text-slate-400">Share this with the user — they should change it after first login.</p>
+            {emailTaken && <p className="text-xs text-red-600">This email already has an account.</p>}
           </div>
 
           <div className="space-y-2">
@@ -187,12 +153,7 @@ function InviteModal({
                         : "border-slate-200 hover:border-slate-300 bg-white"
                     }`}
                   >
-                    <input
-                      type="checkbox"
-                      className="sr-only"
-                      checked={checked}
-                      onChange={() => toggleRole(r.slug)}
-                    />
+                    <input type="checkbox" className="sr-only" checked={checked} onChange={() => toggleRole(r.slug)} />
                     <span className="text-sm font-semibold text-slate-800">{r.label}</span>
                     <span className="text-[11px] text-slate-500 leading-tight">{r.desc}</span>
                     {checked && (
@@ -204,10 +165,12 @@ function InviteModal({
                 );
               })}
             </div>
-            {roles.length === 0 && (
-              <p className="text-xs text-red-600">Select at least one role.</p>
-            )}
+            {roles.length === 0 && <p className="text-xs text-red-600">Select at least one role.</p>}
           </div>
+
+          <p className="text-xs text-slate-400">
+            The invitee will receive an email with a secure link. They set their own name and password. Link expires in 72 hours.
+          </p>
 
           <div className="flex gap-2 pt-1">
             <button
@@ -215,13 +178,9 @@ function InviteModal({
               disabled={loading || emailTaken || roles.length === 0}
               className="wf-btn-primary flex-1 py-2.5 text-sm disabled:opacity-50"
             >
-              {loading ? "Creating…" : "Create account"}
+              {loading ? "Sending…" : "Send invitation"}
             </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="wf-btn-secondary px-4 py-2.5 text-sm"
-            >
+            <button type="button" onClick={onClose} className="wf-btn-secondary px-4 py-2.5 text-sm">
               Done
             </button>
           </div>
@@ -293,7 +252,6 @@ export function AdminPage() {
         <InviteModal
           users={users}
           onClose={() => setShowInvite(false)}
-          onCreated={(u) => setUsers((prev) => [...prev, u])}
         />
       )}
 
