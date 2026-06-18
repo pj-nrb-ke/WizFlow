@@ -14,10 +14,10 @@ from sqlalchemy.orm import Session, joinedload
 from app.db.models import Company, Role, User, UserRole
 from app.db.session import get_db
 from app.routers.admin import ADMIN_ROLES, _user_out
-from app.schemas.admin import UserOut
-from app.services.auth import hash_password
+from app.schemas.org import UserOut
+from app.core.security import hash_password
+from app.core.deps import CurrentUser, require_roles
 from app.services.brevo_mail import send_invite_email
-from app.utils.auth import CurrentUser, require_roles
 
 router = APIRouter(tags=["Invitations"])
 
