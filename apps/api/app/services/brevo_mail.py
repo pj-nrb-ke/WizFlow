@@ -303,10 +303,10 @@ If you weren't expecting this invitation, you can ignore this email.
 """
     html_body = f"""<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;color:#1e293b;max-width:480px;margin:0 auto;padding:24px">
 <div style="text-align:center;margin-bottom:32px">
-  <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:#4f46e5;border-radius:14px;margin-bottom:12px">
-    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="1.75" stroke-linecap="round"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/></svg>
+  <div style="display:inline-block;background:#4f46e5;border-radius:14px;padding:12px 22px;margin-bottom:12px">
+    <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:system-ui,sans-serif">Wiz<span style="opacity:0.75">Flow</span></span>
   </div>
-  <h1 style="font-size:20px;font-weight:700;margin:0">WizFlow</h1>
+  <h1 style="font-size:20px;font-weight:700;margin:0;color:#1e293b">WizFlow</h1>
 </div>
 <h2 style="font-size:18px;font-weight:600;margin:0 0 8px">You've been invited</h2>
 <p style="color:#475569;margin:0 0 24px"><strong>{invited_by_name}</strong> has invited you to join <strong>{company_name}</strong> on WizFlow.</p>
