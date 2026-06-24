@@ -383,44 +383,50 @@ function FieldProperties({
             <p className="text-xs text-slate-400 mb-2">Define the columns of your table.</p>
             <ul className="space-y-2">
               {(tableField.tableColumns ?? []).map((col, idx) => (
-                <li key={idx} className="flex gap-1.5 items-center">
-                  <input
-                    className="wf-input flex-1 text-xs py-1"
-                    placeholder="Column header"
-                    value={col.label}
-                    onChange={(e) => {
-                      const next = [...(tableField.tableColumns ?? [])];
-                      next[idx] = {
-                        ...col,
-                        label: e.target.value,
-                        key: col.key || e.target.value.toLowerCase().replace(/\s+/g, "_"),
-                      };
-                      onUpdate({ tableColumns: next } as Partial<DesignerField>);
-                    }}
-                  />
-                  <select
-                    className="wf-input text-xs py-1 w-28"
-                    value={col.type}
-                    onChange={(e) => {
-                      const next = [...(tableField.tableColumns ?? [])];
-                      next[idx] = { ...col, type: e.target.value as TableColumn["type"] };
-                      onUpdate({ tableColumns: next } as Partial<DesignerField>);
-                    }}
-                  >
-                    <option value="text">Text</option>
-                    <option value="checkbox">Checkbox</option>
-                    <option value="number">Number</option>
-                    <option value="date">Date</option>
-                  </select>
-                  <button
-                    type="button"
-                    className="text-slate-400 hover:text-red-600 px-1 text-lg leading-none"
-                    onClick={() =>
-                      onUpdate({ tableColumns: (tableField.tableColumns ?? []).filter((_, i) => i !== idx) } as Partial<DesignerField>)
-                    }
-                  >
-                    ×
-                  </button>
+                <li key={idx} className="border border-slate-200 rounded-lg p-2 space-y-1.5 bg-slate-50">
+                  <div className="flex gap-1 items-center">
+                    <span className="text-xs text-slate-400 w-4 shrink-0">{idx + 1}.</span>
+                    <input
+                      className="wf-input flex-1 text-xs py-1"
+                      placeholder="Column header name"
+                      value={col.label}
+                      onChange={(e) => {
+                        const next = [...(tableField.tableColumns ?? [])];
+                        next[idx] = {
+                          ...col,
+                          label: e.target.value,
+                          key: col.key || e.target.value.toLowerCase().replace(/\s+/g, "_"),
+                        };
+                        onUpdate({ tableColumns: next } as Partial<DesignerField>);
+                      }}
+                    />
+                    <button
+                      type="button"
+                      className="text-slate-400 hover:text-red-600 px-1 text-lg leading-none shrink-0"
+                      onClick={() =>
+                        onUpdate({ tableColumns: (tableField.tableColumns ?? []).filter((_, i) => i !== idx) } as Partial<DesignerField>)
+                      }
+                    >
+                      ×
+                    </button>
+                  </div>
+                  <div className="flex items-center gap-1.5 pl-5">
+                    <span className="text-xs text-slate-400 shrink-0">Type:</span>
+                    <select
+                      className="wf-input flex-1 text-xs py-1"
+                      value={col.type}
+                      onChange={(e) => {
+                        const next = [...(tableField.tableColumns ?? [])];
+                        next[idx] = { ...col, type: e.target.value as TableColumn["type"] };
+                        onUpdate({ tableColumns: next } as Partial<DesignerField>);
+                      }}
+                    >
+                      <option value="text">Text</option>
+                      <option value="checkbox">Checkbox</option>
+                      <option value="number">Number</option>
+                      <option value="date">Date</option>
+                    </select>
+                  </div>
                 </li>
               ))}
             </ul>
