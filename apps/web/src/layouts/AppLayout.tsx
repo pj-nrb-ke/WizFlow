@@ -5,6 +5,7 @@ import {
   IconHome,
   IconInbox,
   IconPlusCircle,
+  IconRepeat,
   IconShield,
   IconSettings,
   IconSparkles,
@@ -57,6 +58,7 @@ export function AppLayout() {
     : [];
 
   const manageItems: NavItem[] = [
+    { to: "/reminders", label: "Reminders", Icon: IconRepeat },
     ...(showMasterData ? [{ to: "/master-data", label: "Master data", Icon: IconShield }] : []),
     ...(isAdmin
       ? [

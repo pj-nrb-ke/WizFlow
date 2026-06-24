@@ -258,15 +258,19 @@ def process_workflow_schedules(db: Session, *, company_id: UUID | None = None) -
 
 
 def run_all_automation(db: Session, *, company_id: UUID | None = None) -> AutomationRunOut:
+    from app.services.reminders import process_reminder_rules
+
     warnings, breaches = process_sla_alerts(db, company_id=company_id)
     db.commit()
     escalations = process_escalations(db, company_id=company_id)
     reports = process_report_subscriptions(db, company_id=company_id)
     schedules = process_workflow_schedules(db, company_id=company_id)
+    reminders = process_reminder_rules(db, company_id=company_id)
     return AutomationRunOut(
         sla_warnings=warnings,
         sla_breaches=breaches,
         escalations=escalations,
         reports_sent=reports,
         schedules_run=schedules,
+        reminders_sent=reminders,
     )

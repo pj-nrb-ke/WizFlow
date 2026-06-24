@@ -23,6 +23,7 @@ from app.routers import (
     notifications,
     phase2,
     public_approval,
+    reminders,
     reports,
     requests,
     saved_views,
@@ -95,6 +96,7 @@ v1.include_router(drafts.router)
 v1.include_router(saved_views.router)
 v1.include_router(delegations.router)
 v1.include_router(phase2.router)
+v1.include_router(reminders.router)
 app.include_router(v1)
 
 

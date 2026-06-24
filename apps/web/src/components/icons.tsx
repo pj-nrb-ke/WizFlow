@@ -177,3 +177,23 @@ export function IconHelp(props: IconProps) {
     </Icon>
   );
 }
+
+export function IconRepeat(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <path d="m17 2 4 4-4 4" />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14" />
+      <path d="m7 22-4-4 4-4" />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+    </Icon>
+  );
+}
+
+export function IconCheckCircle(props: IconProps) {
+  return (
+    <Icon {...props}>
+      <circle cx="12" cy="12" r="10" />
+      <path d="m9 12 2 2 4-4" />
+    </Icon>
+  );
+}
