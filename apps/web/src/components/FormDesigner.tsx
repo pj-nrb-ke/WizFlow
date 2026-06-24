@@ -708,24 +708,15 @@ export function FormDesigner({ value, onChange }: Props) {
           onDragStart={handleDragStart}
           onDragEnd={handleDragEnd}
         >
-          <div className="grid lg:grid-cols-[220px_1fr_260px] gap-4">
-            <aside>
+          <div className="grid lg:grid-cols-[220px_1fr_260px] gap-4 items-start">
+            <aside className="sticky top-4">
               <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500 mb-2">
                 Controls
               </h3>
-              <p className="text-xs text-slate-400 mb-3">
-                Drag onto the form canvas (powered by{" "}
-                <a
-                  href="https://dndkit.com"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline"
-                >
-                  @dnd-kit
-                </a>
-                )
-              </p>
-              <div className="space-y-2">
+              <div
+                className="overflow-y-auto space-y-2 pr-1"
+                style={{ maxHeight: "calc(100vh - 14rem)" }}
+              >
                 {DESIGNER_CONTROLS.map((c) => (
                   <PaletteItem key={c.id} control={c} />
                 ))}
@@ -750,7 +741,7 @@ export function FormDesigner({ value, onChange }: Props) {
               />
             </section>
 
-            <aside className="wf-card p-4 min-h-[200px]">
+            <aside className="wf-card p-4 min-h-[200px] sticky top-4 self-start overflow-y-auto" style={{ maxHeight: "calc(100vh - 14rem)" }}>
               {selected ? (
                 <FieldProperties
                   field={selected}
