@@ -601,3 +601,19 @@ def list_workflow_events(
             .order_by(WorkflowEvent.created_at.desc())
         )
     )
+
+
+@router.delete("/{workflow_id}", status_code=204)
+def delete_workflow(
+    workflow_id: UUID,
+    user: CurrentUser = Depends(require_roles("company_admin", "manager")),
+    db: Session = Depends(get_db),
+) -> None:
+    defn = _get_definition(db, workflow_id, user.company_id)
+    if defn.status != "draft":
+        raise HTTPException(
+            status_code=400,
+            detail="Only draft workflows can be deleted. Archive published workflows by creating a new version instead.",
+        )
+    db.delete(defn)
+    db.commit()

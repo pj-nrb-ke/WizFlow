@@ -5,6 +5,7 @@ import {
   apiDownload,
   apiFetch,
   cloneWorkflow,
+  deleteWorkflow,
   getWorkflowHealthCheck,
   tuneWorkflow,
   PublishPreview,
@@ -47,6 +48,8 @@ export function WorkflowsPage() {
   const [tuneMsg, setTuneMsg] = useState("");
   const [cloneMsg, setCloneMsg] = useState("");
   const [cloning, setCloning] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   const loadExtras = useCallback(async (id: string) => {
     const token = getToken();
@@ -113,6 +116,22 @@ export function WorkflowsPage() {
       setError(e instanceof ApiError ? e.detail ?? e.message : "Duplicate failed");
     } finally {
       setCloning(false);
+    }
+  }
+
+  async function deleteSelected() {
+    if (!selected) return;
+    setError("");
+    setDeleting(true);
+    try {
+      await deleteWorkflow(selected.id, getToken());
+      setSelected(null);
+      setConfirmDelete(false);
+      await load();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail ?? e.message : "Delete failed");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -463,6 +482,35 @@ export function WorkflowsPage() {
                   >
                     {cloning ? "Duplicating…" : "Duplicate"}
                   </button>
+                  {selected.status === "draft" && !confirmDelete && (
+                    <button
+                      type="button"
+                      onClick={() => setConfirmDelete(true)}
+                      className="px-4 py-2 text-sm border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
+                    >
+                      Delete
+                    </button>
+                  )}
+                  {selected.status === "draft" && confirmDelete && (
+                    <span className="flex items-center gap-2 text-sm">
+                      <span className="text-red-600 font-medium">Delete permanently?</span>
+                      <button
+                        type="button"
+                        onClick={() => void deleteSelected()}
+                        disabled={deleting}
+                        className="px-3 py-1 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 disabled:opacity-50"
+                      >
+                        {deleting ? "Deleting…" : "Yes, delete"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setConfirmDelete(false)}
+                        className="px-3 py-1 wf-btn-secondary text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </span>
+                  )}
                   {selected.status === "draft" && (
                     <HelpTip text="Review the preview, run a simulation with sample data, then publish. Health check warns about missing assignees or form gaps before go-live." />
                   )}

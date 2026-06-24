@@ -1043,6 +1043,15 @@ export function cloneWorkflow(id: string, token?: string | null) {
   );
 }
 
+/** Delete a draft workflow permanently. */
+export function deleteWorkflow(id: string, token?: string | null) {
+  return apiFetch<void>(
+    `/api/v1/workflows/${id}`,
+    { method: "DELETE" },
+    token
+  );
+}
+
 export type WebhookDelivery = {
   id: string;
   event_type: string;
