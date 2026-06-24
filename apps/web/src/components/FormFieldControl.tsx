@@ -189,6 +189,14 @@ export function FormFieldControl({
                           disabled={disabled}
                           className="wf-input w-full text-sm py-1"
                         />
+                      ) : col.type === "date" ? (
+                        <input
+                          type="date"
+                          value={String(cellVal ?? "")}
+                          onChange={(e) => updateCell(rowIdx, col.key, e.target.value)}
+                          disabled={disabled}
+                          className="wf-input w-full text-sm py-1"
+                        />
                       ) : (
                         <input
                           type="text"

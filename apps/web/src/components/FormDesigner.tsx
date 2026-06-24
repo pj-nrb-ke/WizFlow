@@ -410,6 +410,7 @@ function FieldProperties({
                     <option value="text">Text</option>
                     <option value="checkbox">Checkbox</option>
                     <option value="number">Number</option>
+                    <option value="date">Date</option>
                   </select>
                   <button
                     type="button"

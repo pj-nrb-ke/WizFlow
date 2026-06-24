@@ -194,7 +194,7 @@ export type FormFieldOption = { value: string; label: string };
 export type TableColumn = {
   key: string;
   label: string;
-  type: "text" | "checkbox" | "number";
+  type: "text" | "checkbox" | "number" | "date";
 };
 
 export type FormFieldOptionSource = {
