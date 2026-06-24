@@ -449,17 +449,44 @@ function FieldProperties({
 
           <div>
             <span className="text-slate-600 block mb-1 font-medium">Row labels</span>
-            <p className="text-xs text-slate-400 mb-2">One label per line = one fixed row. Leave blank for a single empty row.</p>
-            <textarea
-              className="wf-input w-full text-xs min-h-[200px]"
-              value={(tableField.tableRowLabels ?? []).join("\n")}
-              onChange={(e) =>
+            <p className="text-xs text-slate-400 mb-2">One label per row. Each label becomes a fixed row in the table.</p>
+            <ul className="space-y-1.5">
+              {(tableField.tableRowLabels ?? []).map((label, idx) => (
+                <li key={idx} className="flex gap-1 items-center">
+                  <span className="text-xs text-slate-400 w-5 shrink-0 text-right">{idx + 1}.</span>
+                  <input
+                    className="wf-input flex-1 text-xs py-1"
+                    placeholder="Row label"
+                    value={label}
+                    onChange={(e) => {
+                      const next = [...(tableField.tableRowLabels ?? [])];
+                      next[idx] = e.target.value;
+                      onUpdate({ tableRowLabels: next } as Partial<DesignerField>);
+                    }}
+                  />
+                  <button
+                    type="button"
+                    className="text-slate-400 hover:text-red-600 px-1 text-lg leading-none shrink-0"
+                    onClick={() =>
+                      onUpdate({ tableRowLabels: (tableField.tableRowLabels ?? []).filter((_, i) => i !== idx) } as Partial<DesignerField>)
+                    }
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="mt-2 text-xs text-[rgb(var(--wf-brand-600))] font-medium"
+              onClick={() =>
                 onUpdate({
-                  tableRowLabels: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
+                  tableRowLabels: [...(tableField.tableRowLabels ?? []), ""],
                 } as Partial<DesignerField>)
               }
-              placeholder={"Monday\nTuesday\nWednesday\n..."}
-            />
+            >
+              + Add row
+            </button>
           </div>
         </div>
       )}
