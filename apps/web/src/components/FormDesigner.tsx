@@ -35,6 +35,7 @@ import {
   isInputField,
   toPersistedSchema,
 } from "../lib/formDesigner";
+import type { TableColumn } from "../lib/api";
 import { FORM_LAYOUTS } from "../lib/themes";
 
 type Props = {
@@ -102,7 +103,9 @@ function SortableFieldRow({
                   ? "Date picker"
                   : field.type === "time"
                     ? "Time picker"
-                    : field.type;
+                    : field.type === "table"
+                      ? "Table / Grid"
+                      : field.type;
 
   return (
     <div
@@ -171,6 +174,8 @@ function FieldProperties({
 
   const isMasterDropdown = field.type === "master_dropdown";
   const isCalculated = field.type === "calculated";
+  const isTable = field.type === "table";
+  const tableField = field as DesignerField & { tableColumns?: TableColumn[]; tableRowLabels?: string[] };
   const hasOptionSource =
     field.type === "dropdown" ||
     field.type === "combobox" ||
@@ -369,6 +374,86 @@ function FieldProperties({
             onChange={(e) => onUpdate({ buttonText: e.target.value })}
           />
         </label>
+      )}
+
+      {isTable && (
+        <div className="space-y-4">
+          <div>
+            <span className="text-slate-600 block mb-1 font-medium">Columns</span>
+            <p className="text-xs text-slate-400 mb-2">Define the columns of your table.</p>
+            <ul className="space-y-2">
+              {(tableField.tableColumns ?? []).map((col, idx) => (
+                <li key={idx} className="flex gap-1.5 items-center">
+                  <input
+                    className="wf-input flex-1 text-xs py-1"
+                    placeholder="Column header"
+                    value={col.label}
+                    onChange={(e) => {
+                      const next = [...(tableField.tableColumns ?? [])];
+                      next[idx] = {
+                        ...col,
+                        label: e.target.value,
+                        key: col.key || e.target.value.toLowerCase().replace(/\s+/g, "_"),
+                      };
+                      onUpdate({ tableColumns: next } as Partial<DesignerField>);
+                    }}
+                  />
+                  <select
+                    className="wf-input text-xs py-1 w-28"
+                    value={col.type}
+                    onChange={(e) => {
+                      const next = [...(tableField.tableColumns ?? [])];
+                      next[idx] = { ...col, type: e.target.value as TableColumn["type"] };
+                      onUpdate({ tableColumns: next } as Partial<DesignerField>);
+                    }}
+                  >
+                    <option value="text">Text</option>
+                    <option value="checkbox">Checkbox</option>
+                    <option value="number">Number</option>
+                  </select>
+                  <button
+                    type="button"
+                    className="text-slate-400 hover:text-red-600 px-1 text-lg leading-none"
+                    onClick={() =>
+                      onUpdate({ tableColumns: (tableField.tableColumns ?? []).filter((_, i) => i !== idx) } as Partial<DesignerField>)
+                    }
+                  >
+                    ×
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <button
+              type="button"
+              className="mt-2 text-xs text-[rgb(var(--wf-brand-600))] font-medium"
+              onClick={() =>
+                onUpdate({
+                  tableColumns: [
+                    ...(tableField.tableColumns ?? []),
+                    { key: `col_${(tableField.tableColumns?.length ?? 0) + 1}`, label: "New column", type: "text" },
+                  ],
+                } as Partial<DesignerField>)
+              }
+            >
+              + Add column
+            </button>
+          </div>
+
+          <div>
+            <span className="text-slate-600 block mb-1 font-medium">Row labels</span>
+            <p className="text-xs text-slate-400 mb-2">One label per line = one fixed row. Leave blank for a single empty row.</p>
+            <textarea
+              className="wf-input w-full text-xs min-h-[100px]"
+              value={(tableField.tableRowLabels ?? []).join("\n")}
+              onChange={(e) =>
+                onUpdate({
+                  tableRowLabels: e.target.value.split("\n").map((s) => s.trim()).filter(Boolean),
+                } as Partial<DesignerField>)
+              }
+              placeholder={"Monday\nTuesday\nWednesday\n..."}
+            />
+          </div>
+        </div>
       )}
 
       {(field.type === "text" || field.type === "combobox") && (

@@ -1,4 +1,4 @@
-import type { FormField, FormFieldOption } from "./api";
+import type { FormField, FormFieldOption, TableColumn } from "./api";
 
 /** Palette control types (Form Designer UI labels). */
 export type DesignerControlId =
@@ -16,7 +16,8 @@ export type DesignerControlId =
   | "attachment"
   | "master_dropdown"
   | "employee_selector"
-  | "calculated";
+  | "calculated"
+  | "table";
 
 export const FIELD_ROLE_OPTIONS = [
   "originator",
@@ -69,6 +70,11 @@ export const DESIGNER_CONTROLS: {
     id: "calculated",
     label: "Calculated field",
     hint: "Auto-computed from other fields, e.g. {amount} * 0.15",
+  },
+  {
+    id: "table",
+    label: "Table / Grid",
+    hint: "Multi-column table with fixed or user-defined rows",
   },
 ];
 
@@ -139,6 +145,8 @@ export function schemaTypeForControl(control: DesignerControlId): string {
       return "employee_selector";
     case "calculated":
       return "calculated";
+    case "table":
+      return "table";
     default:
       return "text";
   }
@@ -188,6 +196,16 @@ export function createDesignerField(control: DesignerControlId): DesignerField {
   if (control === "calculated") {
     base.required = false;
     base.formula = "{amount} * 1";
+  }
+  if (control === "table") {
+    base.required = false;
+    (base as FormField & { tableColumns: TableColumn[]; tableRowLabels: string[] }).tableColumns = [
+      { key: "col_1", label: "Column 1", type: "text" },
+      { key: "col_2", label: "Column 2", type: "checkbox" },
+    ];
+    (base as FormField & { tableRowLabels: string[] }).tableRowLabels = [
+      "Row 1", "Row 2", "Row 3",
+    ];
   }
   return base;
 }

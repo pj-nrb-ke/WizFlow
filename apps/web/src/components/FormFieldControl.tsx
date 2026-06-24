@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import type { FormField, FormFieldOption, MasterDataEntry } from "../lib/api";
+import type { FormField, FormFieldOption, MasterDataEntry, TableColumn } from "../lib/api";
 import { apiFetch, listMasterData } from "../lib/api";
 import { getToken } from "../lib/auth";
 import { evaluateCalculatedFormula } from "../lib/calculatedFields";
@@ -120,64 +120,93 @@ export function FormFieldControl({
       ? (field.options ?? [])
       : dynamicOptions;
 
-  if (field.type === "attendance_table") {
-    const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
-    let checked: Record<string, boolean> = {};
-    try { if (value) checked = JSON.parse(value); } catch { /* ignore */ }
-    const weekStartStr = allValues?.week_starting ?? "";
-    const rows = DAY_NAMES.map((dayName, i) => {
-      if (weekStartStr) {
-        const d = new Date(weekStartStr + "T00:00:00");
-        d.setDate(d.getDate() + i);
-        const key = d.toISOString().slice(0, 10);
-        const displayDate = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
-        return { key, dayName, displayDate };
-      }
-      return { key: `day_${i}`, dayName, displayDate: "—" };
-    });
-    const toggle = (key: string) => {
-      const updated = { ...checked, [key]: !checked[key] };
-      onChange?.(JSON.stringify(updated));
+  if (field.type === "table" || field.type === "attendance_table") {
+    const columns: TableColumn[] = (field as FormField & { tableColumns?: TableColumn[] }).tableColumns
+      ?? [{ key: "value", label: "Value", type: "text" }];
+    const rowLabels: string[] = (field as FormField & { tableRowLabels?: string[] }).tableRowLabels ?? [];
+    const numRows = rowLabels.length || 1;
+
+    // Parse stored value: array of row objects
+    let rows: Record<string, string | boolean>[] = [];
+    try {
+      if (value) rows = JSON.parse(value);
+    } catch { /* ignore */ }
+    // Pad / trim to match numRows
+    while (rows.length < numRows) rows.push({});
+    rows = rows.slice(0, numRows);
+
+    const updateCell = (rowIdx: number, colKey: string, cellVal: string | boolean) => {
+      const next = rows.map((r) => ({ ...r }));
+      next[rowIdx] = { ...next[rowIdx], [colKey]: cellVal };
+      onChange?.(JSON.stringify(next));
     };
-    const thClass = "px-4 py-2 text-left border-b border-slate-200 font-semibold text-slate-500 text-xs uppercase tracking-wide";
+
+    const thClass = "px-3 py-2 border-b border-slate-200 font-semibold text-slate-500 text-xs uppercase tracking-wide bg-slate-50 text-left";
+
     return (
-      <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
-        <thead>
-          <tr className="bg-slate-50">
-            <th className={thClass}>Date</th>
-            <th className={thClass}>Day</th>
-            <th className={`${thClass} text-center`}>Working?</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ key, dayName, displayDate }) => (
-            <tr
-              key={key}
-              className="border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"
-              onClick={() => !disabled && toggle(key)}
-            >
-              <td className="px-4 py-2.5 text-slate-700">{displayDate}</td>
-              <td className="px-4 py-2.5 text-slate-700">{dayName}</td>
-              <td className="px-4 py-2.5 text-center">
-                {readOnly ? (
-                  checked[key]
-                    ? <span className="text-green-600 font-bold">✓</span>
-                    : <span className="text-slate-300">—</span>
-                ) : (
-                  <input
-                    type="checkbox"
-                    checked={!!checked[key]}
-                    onChange={() => toggle(key)}
-                    onClick={(e) => e.stopPropagation()}
-                    disabled={disabled}
-                    className="w-4 h-4 cursor-pointer accent-[rgb(var(--wf-brand-600))]"
-                  />
-                )}
-              </td>
+      <div className="overflow-auto rounded-lg border border-slate-200">
+        <table className="w-full text-sm">
+          <thead>
+            <tr>
+              {rowLabels.length > 0 && <th className={thClass} />}
+              {columns.map((col) => (
+                <th key={col.key} className={`${thClass} ${col.type === "checkbox" ? "text-center" : ""}`}>
+                  {col.label}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {Array.from({ length: numRows }, (_, rowIdx) => (
+              <tr key={rowIdx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
+                {rowLabels.length > 0 && (
+                  <td className="px-3 py-2.5 text-slate-700 font-medium whitespace-nowrap">{rowLabels[rowIdx]}</td>
+                )}
+                {columns.map((col) => {
+                  const cellVal = rows[rowIdx]?.[col.key];
+                  return (
+                    <td key={col.key} className={`px-3 py-2 ${col.type === "checkbox" ? "text-center" : ""}`}>
+                      {readOnly ? (
+                        col.type === "checkbox" ? (
+                          cellVal ? <span className="text-green-600 font-bold">✓</span> : <span className="text-slate-300">—</span>
+                        ) : (
+                          <span className="text-slate-700">{String(cellVal ?? "")}</span>
+                        )
+                      ) : col.type === "checkbox" ? (
+                        <input
+                          type="checkbox"
+                          checked={!!cellVal}
+                          onChange={(e) => updateCell(rowIdx, col.key, e.target.checked)}
+                          disabled={disabled}
+                          className="w-4 h-4 cursor-pointer accent-[rgb(var(--wf-brand-600))]"
+                        />
+                      ) : col.type === "number" ? (
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={String(cellVal ?? "")}
+                          onChange={(e) => updateCell(rowIdx, col.key, e.target.value)}
+                          disabled={disabled}
+                          className="wf-input w-full text-sm py-1"
+                        />
+                      ) : (
+                        <input
+                          type="text"
+                          value={String(cellVal ?? "")}
+                          onChange={(e) => updateCell(rowIdx, col.key, e.target.value)}
+                          disabled={disabled}
+                          className="wf-input w-full text-sm py-1"
+                          placeholder={col.label}
+                        />
+                      )}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     );
   }
 
@@ -399,7 +428,7 @@ export function FormFieldBlock({ field, value, onChange, readOnly, highlight, al
     return <FormFieldControl field={field} value="" readOnly={readOnly} />;
   }
 
-  if (field.type === "attendance_table") {
+  if (field.type === "table" || field.type === "attendance_table") {
     return (
       <div>
         {field.label && (

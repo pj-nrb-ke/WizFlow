@@ -191,6 +191,12 @@ export type AiDraftResponse = {
 
 export type FormFieldOption = { value: string; label: string };
 
+export type TableColumn = {
+  key: string;
+  label: string;
+  type: "text" | "checkbox" | "number";
+};
+
 export type FormFieldOptionSource = {
   type: "static" | "master_data" | "org_users" | "api_url";
   category?: string;
@@ -218,6 +224,10 @@ export type FormField = {
   formula?: string;
   /** For type `attachment` */
   attachmentCategory?: string;
+  /** For type `table` — column definitions */
+  tableColumns?: TableColumn[];
+  /** For type `table` — fixed row labels (one per row); omit for dynamic rows */
+  tableRowLabels?: string[];
 };
 
 export type MasterDataEntry = {
