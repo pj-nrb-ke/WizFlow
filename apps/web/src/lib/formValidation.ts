@@ -65,8 +65,11 @@ export function formToPayload(
     if (f.type === "number") {
       const n = parsePositiveNumber(String(v));
       if (n !== null) data[f.key] = n;
+    } else if (f.type === "attendance_table") {
+      try { data[f.key] = JSON.parse(v); } catch { data[f.key] = v; }
+    } else {
+      data[f.key] = v;
     }
-    else data[f.key] = v;
   }
   return data;
 }

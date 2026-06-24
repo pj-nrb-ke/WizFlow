@@ -120,6 +120,67 @@ export function FormFieldControl({
       ? (field.options ?? [])
       : dynamicOptions;
 
+  if (field.type === "attendance_table") {
+    const DAY_NAMES = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+    let checked: Record<string, boolean> = {};
+    try { if (value) checked = JSON.parse(value); } catch { /* ignore */ }
+    const weekStartStr = allValues?.week_starting ?? "";
+    const rows = DAY_NAMES.map((dayName, i) => {
+      if (weekStartStr) {
+        const d = new Date(weekStartStr + "T00:00:00");
+        d.setDate(d.getDate() + i);
+        const key = d.toISOString().slice(0, 10);
+        const displayDate = d.toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "2-digit" });
+        return { key, dayName, displayDate };
+      }
+      return { key: `day_${i}`, dayName, displayDate: "—" };
+    });
+    const toggle = (key: string) => {
+      const updated = { ...checked, [key]: !checked[key] };
+      onChange?.(JSON.stringify(updated));
+    };
+    const thClass = "px-4 py-2 text-left border-b border-slate-200 font-semibold text-slate-500 text-xs uppercase tracking-wide";
+    return (
+      <table className="w-full text-sm border border-slate-200 rounded-lg overflow-hidden">
+        <thead>
+          <tr className="bg-slate-50">
+            <th className={thClass}>Date</th>
+            <th className={thClass}>Day</th>
+            <th className={`${thClass} text-center`}>Working?</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map(({ key, dayName, displayDate }) => (
+            <tr
+              key={key}
+              className="border-b border-slate-100 last:border-0 hover:bg-slate-50 cursor-pointer"
+              onClick={() => !disabled && toggle(key)}
+            >
+              <td className="px-4 py-2.5 text-slate-700">{displayDate}</td>
+              <td className="px-4 py-2.5 text-slate-700">{dayName}</td>
+              <td className="px-4 py-2.5 text-center">
+                {readOnly ? (
+                  checked[key]
+                    ? <span className="text-green-600 font-bold">✓</span>
+                    : <span className="text-slate-300">—</span>
+                ) : (
+                  <input
+                    type="checkbox"
+                    checked={!!checked[key]}
+                    onChange={() => toggle(key)}
+                    onClick={(e) => e.stopPropagation()}
+                    disabled={disabled}
+                    className="w-4 h-4 cursor-pointer accent-[rgb(var(--wf-brand-600))]"
+                  />
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    );
+  }
+
   if (field.type === "calculated") {
     const computed = evaluateCalculatedFormula(field.formula, allValues);
     return (
@@ -336,6 +397,23 @@ type BlockProps = {
 export function FormFieldBlock({ field, value, onChange, readOnly, highlight, allValues }: BlockProps) {
   if (field.type === "label" || field.type === "section") {
     return <FormFieldControl field={field} value="" readOnly={readOnly} />;
+  }
+
+  if (field.type === "attendance_table") {
+    return (
+      <div>
+        {field.label && (
+          <p className="text-sm font-medium text-slate-700 mb-2">{field.label}</p>
+        )}
+        <FormFieldControl
+          field={field}
+          value={value}
+          onChange={onChange}
+          readOnly={readOnly}
+          allValues={allValues}
+        />
+      </div>
+    );
   }
 
   if (field.type === "button") {
