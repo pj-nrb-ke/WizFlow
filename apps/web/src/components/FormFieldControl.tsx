@@ -148,7 +148,6 @@ export function FormFieldControl({
         <table className="w-full text-sm">
           <thead>
             <tr>
-              {rowLabels.length > 0 && <th className={thClass} />}
               {columns.map((col) => (
                 <th key={col.key} className={`${thClass} ${col.type === "checkbox" ? "text-center" : ""}`}>
                   {col.label}
@@ -159,14 +158,14 @@ export function FormFieldControl({
           <tbody>
             {Array.from({ length: numRows }, (_, rowIdx) => (
               <tr key={rowIdx} className="border-b border-slate-100 last:border-0 hover:bg-slate-50">
-                {rowLabels.length > 0 && (
-                  <td className="px-3 py-2.5 text-slate-700 font-medium whitespace-nowrap">{rowLabels[rowIdx]}</td>
-                )}
                 {columns.map((col) => {
-                  const cellVal = rows[rowIdx]?.[col.key];
+                  const isRowLabel = col.type === "row_label";
+                  const cellVal = isRowLabel ? (rowLabels[rowIdx] ?? "") : rows[rowIdx]?.[col.key];
                   return (
                     <td key={col.key} className={`px-3 py-2 ${col.type === "checkbox" ? "text-center" : ""}`}>
-                      {readOnly ? (
+                      {isRowLabel ? (
+                        <span className="text-slate-700 font-medium whitespace-nowrap">{String(cellVal)}</span>
+                      ) : readOnly ? (
                         col.type === "checkbox" ? (
                           cellVal ? <span className="text-green-600 font-bold">✓</span> : <span className="text-slate-300">—</span>
                         ) : (

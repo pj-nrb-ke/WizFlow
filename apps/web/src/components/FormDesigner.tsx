@@ -421,6 +421,7 @@ function FieldProperties({
                         onUpdate({ tableColumns: next } as Partial<DesignerField>);
                       }}
                     >
+                      <option value="row_label">Row Label</option>
                       <option value="text">Text</option>
                       <option value="checkbox">Checkbox</option>
                       <option value="number">Number</option>
@@ -450,7 +451,7 @@ function FieldProperties({
             <span className="text-slate-600 block mb-1 font-medium">Row labels</span>
             <p className="text-xs text-slate-400 mb-2">One label per line = one fixed row. Leave blank for a single empty row.</p>
             <textarea
-              className="wf-input w-full text-xs min-h-[100px]"
+              className="wf-input w-full text-xs min-h-[200px]"
               value={(tableField.tableRowLabels ?? []).join("\n")}
               onChange={(e) =>
                 onUpdate({
