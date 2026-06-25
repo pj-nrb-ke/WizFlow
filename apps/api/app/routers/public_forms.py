@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.db.models import GuestAttachment, GuestSubmission, PublicFormToken, WorkflowDefinition
+from app.db.models import Company, GuestAttachment, GuestSubmission, PublicFormToken, WorkflowDefinition
 from app.db.session import get_db
 
 # ── MIME type whitelist (magic bytes, not extension) ─────────────────────────
@@ -84,9 +84,7 @@ def get_public_form(token: str, db: Session = Depends(get_db)) -> PublicFormSche
     if not wf or wf.status != "published":
         raise HTTPException(status_code=404, detail="This form is not available.")
 
-    from sqlalchemy import select as _sel
-    from app.db.models import Company
-    company = db.scalar(_sel(Company).where(Company.id == wf.company_id))
+    company = db.scalar(select(Company).where(Company.id == wf.company_id))
 
     return PublicFormSchema(
         workflow_id=str(wf.id),

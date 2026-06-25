@@ -17,6 +17,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.core.deps import CurrentUser, require_roles
 from app.db.models import (
+    Company,
     GuestSubmission,
     User,
     WorkflowDefinition,
@@ -66,7 +67,6 @@ def send_form_now(
     wf = _get_published_wf(db, workflow_id, user.company_id)
     sender_name = user.full_name or user.email
 
-    from app.db.models import Company
     company = db.scalar(select(Company).where(Company.id == user.company_id))
     company_name = company.name if company else "WizFlow"
 

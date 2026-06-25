@@ -360,7 +360,10 @@ def download_guest_attachment(
     else:
         raise HTTPException(status_code=404, detail="Attachment not yet linked to a submission.")
 
-    path = Path(att.storage_path)
+    path = Path(att.storage_path).resolve()
+    allowed_root = (Path(settings.file_storage_path) / "guest").resolve()
+    if not str(path).startswith(str(allowed_root)):
+        raise HTTPException(status_code=403, detail="Access denied.")
     if not path.exists():
         raise HTTPException(status_code=404, detail="File not found on server.")
 
