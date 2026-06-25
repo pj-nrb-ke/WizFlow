@@ -609,6 +609,20 @@ def delete_workflow(
     user: CurrentUser = Depends(require_roles("company_admin", "manager")),
     db: Session = Depends(get_db),
 ) -> None:
-    defn = _get_definition(db, workflow_id, user.company_id)
-    db.delete(defn)
+    from sqlalchemy import text as sql
+    _get_definition(db, workflow_id, user.company_id)
+    wid = str(workflow_id)
+    # Delete child records of workflow_instances first
+    db.execute(sql("DELETE FROM approval_tokens WHERE instance_id IN (SELECT id FROM workflow_instances WHERE workflow_definition_id = :w)"), {"w": wid})
+    db.execute(sql("DELETE FROM attachments WHERE instance_id IN (SELECT id FROM workflow_instances WHERE workflow_definition_id = :w)"), {"w": wid})
+    db.execute(sql("DELETE FROM notifications WHERE instance_id IN (SELECT id FROM workflow_instances WHERE workflow_definition_id = :w)"), {"w": wid})
+    db.execute(sql("DELETE FROM sla_alert_log WHERE instance_id IN (SELECT id FROM workflow_instances WHERE workflow_definition_id = :w)"), {"w": wid})
+    db.execute(sql("DELETE FROM workflow_events WHERE instance_id IN (SELECT id FROM workflow_instances WHERE workflow_definition_id = :w)"), {"w": wid})
+    # Delete direct children of workflow_definitions
+    db.execute(sql("DELETE FROM workflow_events WHERE workflow_definition_id = :w"), {"w": wid})
+    db.execute(sql("DELETE FROM workflow_instances WHERE workflow_definition_id = :w"), {"w": wid})
+    db.execute(sql("DELETE FROM request_drafts WHERE workflow_definition_id = :w"), {"w": wid})
+    db.execute(sql("DELETE FROM workflow_schedules WHERE workflow_definition_id = :w"), {"w": wid})
+    db.execute(sql("DELETE FROM workflow_version_history WHERE workflow_definition_id = :w"), {"w": wid})
+    db.execute(sql("DELETE FROM workflow_definitions WHERE id = :w"), {"w": wid})
     db.commit()
