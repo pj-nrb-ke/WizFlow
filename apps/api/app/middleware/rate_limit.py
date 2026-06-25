@@ -15,6 +15,8 @@ _LIMITS: dict[str, tuple[int, int]] = {
     "/api/v1/auth/login": (20, 60),
     "/api/v1/auth/refresh": (30, 60),
     "/api/v1/public/approval": (40, 60),
+    "/api/v1/invitations/": (10, 60),     # brute-force guard on invite accept
+    "/api/v1/public/forms": (30, 60),     # form page loads + submit combined
 }
 
 _buckets: dict[str, list[float]] = defaultdict(list)

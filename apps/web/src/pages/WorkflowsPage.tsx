@@ -8,6 +8,13 @@ import {
   deleteWorkflow,
   getWorkflowHealthCheck,
   tuneWorkflow,
+  getPublicLink,
+  createPublicLink,
+  revokePublicLink,
+  listGuestSubmissions,
+  getGuestSubmission,
+  acceptGuestSubmission,
+  rejectGuestSubmission,
   PublishPreview,
   PublishRequest,
   SimulationResult,
@@ -16,6 +23,9 @@ import {
   WorkflowPreview,
   WorkflowSummary,
   WorkflowVersion,
+  PublicLinkOut,
+  GuestSubOut,
+  GuestSubDetail,
 } from "../lib/api";
 import { getToken } from "../lib/auth";
 import { HelpTip } from "../components/HelpTip";
@@ -50,6 +60,21 @@ export function WorkflowsPage() {
   const [cloning, setCloning] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
+
+  // Public link
+  const [publicLink, setPublicLink] = useState<PublicLinkOut | null>(null);
+  const [linkLoading, setLinkLoading] = useState(false);
+  const [linkMsg, setLinkMsg] = useState("");
+  const [confirmRevoke, setConfirmRevoke] = useState(false);
+
+  // Guest submissions
+  const [guestSubs, setGuestSubs] = useState<GuestSubOut[]>([]);
+  const [selectedSub, setSelectedSub] = useState<GuestSubDetail | null>(null);
+  const [subTab, setSubTab] = useState<"pending" | "all">("pending");
+  const [rejectReason, setRejectReason] = useState("");
+  const [subAction, setSubAction] = useState<"accept" | "reject" | null>(null);
+  const [subWorking, setSubWorking] = useState(false);
+  const [subMsg, setSubMsg] = useState("");
 
   const loadExtras = useCallback(async (id: string) => {
     const token = getToken();
@@ -93,12 +118,117 @@ export function WorkflowsPage() {
     setSimResult(null);
     setShowPublish(false);
     setCloneMsg("");
+    setSelectedSub(null);
+    setPublicLink(null);
+    setGuestSubs([]);
+    setLinkMsg("");
+    setSubMsg("");
     try {
       const detail = await apiFetch<WorkflowDefinition>(`/api/v1/workflows/${id}`, {}, getToken());
       setSelected(detail);
       await loadExtras(id);
+      if (detail.status === "published") {
+        void loadPublicLink(id);
+        void loadGuestSubs(id);
+      }
     } catch (e) {
       setError(e instanceof ApiError ? e.detail ?? e.message : "Failed to load workflow");
+    }
+  }
+
+  async function loadPublicLink(id: string) {
+    try {
+      const link = await getPublicLink(id, getToken());
+      setPublicLink(link);
+    } catch {
+      setPublicLink(null);
+    }
+  }
+
+  async function loadGuestSubs(id: string) {
+    try {
+      const subs = await listGuestSubmissions(id, getToken());
+      setGuestSubs(subs);
+    } catch {
+      setGuestSubs([]);
+    }
+  }
+
+  async function handleCreateLink() {
+    if (!selected) return;
+    setLinkLoading(true);
+    setLinkMsg("");
+    try {
+      const link = await createPublicLink(selected.id, getToken());
+      setPublicLink(link);
+      setConfirmRevoke(false);
+    } catch (e) {
+      setLinkMsg(e instanceof ApiError ? e.detail ?? e.message : "Failed to generate link");
+    } finally {
+      setLinkLoading(false);
+    }
+  }
+
+  async function handleRevokeLink() {
+    if (!selected) return;
+    setLinkLoading(true);
+    try {
+      await revokePublicLink(selected.id, getToken());
+      setPublicLink(null);
+      setConfirmRevoke(false);
+      setLinkMsg("Link revoked. Anyone with the old URL can no longer submit.");
+    } catch (e) {
+      setLinkMsg(e instanceof ApiError ? e.detail ?? e.message : "Failed to revoke link");
+    } finally {
+      setLinkLoading(false);
+    }
+  }
+
+  async function openSub(id: string) {
+    if (!selected) return;
+    setSubMsg("");
+    setSubAction(null);
+    setRejectReason("");
+    try {
+      const detail = await getGuestSubmission(selected.id, id, getToken());
+      setSelectedSub(detail);
+    } catch (e) {
+      setSubMsg(e instanceof ApiError ? e.detail ?? e.message : "Failed to load submission");
+    }
+  }
+
+  async function handleAccept() {
+    if (!selected || !selectedSub) return;
+    setSubWorking(true);
+    setSubMsg("");
+    try {
+      const res = await acceptGuestSubmission(selected.id, selectedSub.id, getToken());
+      setSubMsg(res.message);
+      setSelectedSub({ ...selectedSub, status: "accepted" });
+      setGuestSubs((prev) => prev.map((s) => s.id === selectedSub.id ? { ...s, status: "accepted" } : s));
+      setSubAction(null);
+    } catch (e) {
+      setSubMsg(e instanceof ApiError ? e.detail ?? e.message : "Accept failed");
+    } finally {
+      setSubWorking(false);
+    }
+  }
+
+  async function handleReject() {
+    if (!selected || !selectedSub) return;
+    setSubWorking(true);
+    setSubMsg("");
+    try {
+      const res = await rejectGuestSubmission(selected.id, selectedSub.id, rejectReason, getToken());
+      setSubMsg(res.message);
+      setSelectedSub({ ...selectedSub, status: "rejected" });
+      setGuestSubs((prev) => prev.map((s) => s.id === selectedSub.id ? { ...s, status: "rejected" } : s));
+      setSubAction(null);
+      setRejectReason("");
+    } catch (e) {
+      setSubMsg(e instanceof ApiError ? e.detail ?? e.message : "Reject failed");
+    } finally {
+      setSubWorking(false);
     }
   }
 
@@ -629,6 +759,230 @@ export function WorkflowsPage() {
                   <p className="font-medium text-slate-800 mb-1">Test result</p>
                   <p className="text-slate-600">Steps: {simResult.steps_traversed.join(" → ")}</p>
                   <p className="text-slate-600">Status: {simResult.final_status}</p>
+                </div>
+              )}
+
+              {/* Public link — only for published workflows */}
+              {selected.status === "published" && (
+                <div className="wf-card p-4 text-sm">
+                  <h3 className="font-medium text-slate-800 mb-3">Public form link</h3>
+                  {publicLink ? (
+                    <div className="space-y-3">
+                      <div className="flex gap-2 items-center">
+                        <input
+                          readOnly
+                          value={publicLink.url}
+                          className="wf-input flex-1 text-xs"
+                          onFocus={(e) => e.target.select()}
+                        />
+                        <button
+                          type="button"
+                          className="px-3 py-1.5 wf-btn-secondary text-xs shrink-0"
+                          onClick={() => { void navigator.clipboard.writeText(publicLink.url); setLinkMsg("Copied!"); }}
+                        >
+                          Copy
+                        </button>
+                      </div>
+                      {linkMsg && <p className="text-xs text-green-700">{linkMsg}</p>}
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="px-3 py-1.5 wf-btn-secondary text-xs"
+                          onClick={() => void handleCreateLink()}
+                          disabled={linkLoading}
+                        >
+                          {linkLoading ? "…" : "Regenerate link"}
+                        </button>
+                        {!confirmRevoke ? (
+                          <button
+                            type="button"
+                            className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
+                            onClick={() => setConfirmRevoke(true)}
+                          >
+                            Revoke link
+                          </button>
+                        ) : (
+                          <span className="flex items-center gap-2">
+                            <span className="text-red-600 text-xs font-medium">Revoke permanently?</span>
+                            <button
+                              type="button"
+                              className="px-2 py-1 bg-red-600 text-white rounded text-xs hover:bg-red-700"
+                              onClick={() => void handleRevokeLink()}
+                              disabled={linkLoading}
+                            >
+                              Yes, revoke
+                            </button>
+                            <button
+                              type="button"
+                              className="px-2 py-1 wf-btn-secondary text-xs"
+                              onClick={() => setConfirmRevoke(false)}
+                            >
+                              Cancel
+                            </button>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="space-y-2">
+                      <p className="text-slate-500 text-xs">No active public link. Generate one to let anyone submit this form without logging in.</p>
+                      {linkMsg && <p className="text-xs text-green-700">{linkMsg}</p>}
+                      <button
+                        type="button"
+                        className="px-4 py-2 wf-btn-secondary text-xs"
+                        onClick={() => void handleCreateLink()}
+                        disabled={linkLoading}
+                      >
+                        {linkLoading ? "Generating…" : "Generate public link"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Guest submissions inbox */}
+              {selected.status === "published" && (
+                <div className="wf-card p-4 text-sm">
+                  <div className="flex items-center justify-between mb-3">
+                    <h3 className="font-medium text-slate-800">
+                      Guest submissions
+                      {guestSubs.filter((s) => s.status === "pending").length > 0 && (
+                        <span className="ml-2 text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-800">
+                          {guestSubs.filter((s) => s.status === "pending").length} pending
+                        </span>
+                      )}
+                    </h3>
+                    <div className="flex gap-1">
+                      {(["pending", "all"] as const).map((t) => (
+                        <button
+                          key={t}
+                          type="button"
+                          onClick={() => setSubTab(t)}
+                          className={`px-3 py-1 rounded-lg text-xs capitalize ${subTab === t ? "bg-slate-800 text-white" : "border border-slate-200 text-slate-600 hover:bg-slate-50"}`}
+                        >
+                          {t}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  {guestSubs.length === 0 ? (
+                    <p className="text-slate-400 text-xs">No submissions yet.</p>
+                  ) : (
+                    <ul className="divide-y">
+                      {guestSubs
+                        .filter((s) => subTab === "all" || s.status === "pending")
+                        .map((s) => (
+                          <li
+                            key={s.id}
+                            className={`py-2.5 flex justify-between gap-3 cursor-pointer hover:bg-slate-50 -mx-1 px-1 rounded ${selectedSub?.id === s.id ? "bg-slate-50" : ""}`}
+                            onClick={() => void openSub(s.id)}
+                          >
+                            <div className="min-w-0">
+                              <p className="font-medium text-slate-800 truncate">{s.guest_name}</p>
+                              <p className="text-slate-500 text-xs truncate">{s.guest_email}</p>
+                              <p className="text-slate-400 text-xs">{new Date(s.submitted_at).toLocaleString()}</p>
+                            </div>
+                            <span className={`shrink-0 self-start mt-0.5 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                              s.status === "pending" ? "bg-amber-100 text-amber-800" :
+                              s.status === "accepted" ? "bg-green-100 text-green-800" :
+                              "bg-red-100 text-red-700"
+                            }`}>
+                              {s.status}
+                            </span>
+                          </li>
+                        ))}
+                    </ul>
+                  )}
+
+                  {/* Submission detail panel */}
+                  {selectedSub && (
+                    <div className="mt-4 border-t pt-4">
+                      <div className="flex justify-between items-start mb-3">
+                        <div>
+                          <p className="font-semibold text-slate-800">{selectedSub.guest_name}</p>
+                          <p className="text-xs text-slate-500">{selectedSub.guest_email}</p>
+                        </div>
+                        <button type="button" onClick={() => setSelectedSub(null)} className="text-slate-400 hover:text-slate-600 text-lg leading-none">×</button>
+                      </div>
+
+                      <dl className="space-y-2 mb-4">
+                        {Object.entries(selectedSub.data)
+                          .filter(([k]) => !k.startsWith("__"))
+                          .map(([k, v]) => (
+                            <div key={k} className="flex gap-2 text-xs">
+                              <dt className="text-slate-500 w-32 shrink-0 truncate">{k}</dt>
+                              <dd className="text-slate-800 break-words">{String(v ?? "—")}</dd>
+                            </div>
+                          ))}
+                      </dl>
+
+                      {subMsg && (
+                        <p className={`text-xs mb-3 ${subMsg.toLowerCase().includes("fail") || subMsg.toLowerCase().includes("error") ? "text-red-600" : "text-green-700"}`}>
+                          {subMsg}
+                        </p>
+                      )}
+
+                      {selectedSub.status === "pending" && (
+                        <div className="flex flex-wrap gap-2">
+                          {subAction !== "reject" && (
+                            <button
+                              type="button"
+                              onClick={subAction === "accept" ? () => void handleAccept() : () => setSubAction("accept")}
+                              disabled={subWorking}
+                              className="px-3 py-1.5 text-xs bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50"
+                            >
+                              {subAction === "accept" ? (subWorking ? "Creating account…" : "Confirm — create account & email") : "Accept"}
+                            </button>
+                          )}
+                          {subAction === "accept" && (
+                            <button type="button" onClick={() => setSubAction(null)} className="px-3 py-1.5 text-xs wf-btn-secondary">Cancel</button>
+                          )}
+                          {subAction !== "accept" && (
+                            <>
+                              {subAction !== "reject" ? (
+                                <button
+                                  type="button"
+                                  onClick={() => setSubAction("reject")}
+                                  className="px-3 py-1.5 text-xs border border-red-200 text-red-600 rounded-lg hover:bg-red-50"
+                                >
+                                  Reject
+                                </button>
+                              ) : (
+                                <div className="w-full space-y-2">
+                                  <textarea
+                                    value={rejectReason}
+                                    onChange={(e) => setRejectReason(e.target.value)}
+                                    placeholder="Rejection reason (optional, sent to applicant)"
+                                    rows={2}
+                                    className="wf-input w-full text-xs"
+                                  />
+                                  <div className="flex gap-2">
+                                    <button
+                                      type="button"
+                                      onClick={() => void handleReject()}
+                                      disabled={subWorking}
+                                      className="px-3 py-1.5 text-xs bg-red-600 text-white rounded-lg hover:bg-red-700 disabled:opacity-50"
+                                    >
+                                      {subWorking ? "Sending…" : "Confirm reject & notify"}
+                                    </button>
+                                    <button type="button" onClick={() => { setSubAction(null); setRejectReason(""); }} className="px-3 py-1.5 text-xs wf-btn-secondary">Cancel</button>
+                                  </div>
+                                </div>
+                              )}
+                            </>
+                          )}
+                        </div>
+                      )}
+
+                      {selectedSub.status !== "pending" && (
+                        <p className={`text-xs font-semibold ${selectedSub.status === "accepted" ? "text-green-700" : "text-red-600"}`}>
+                          {selectedSub.status === "accepted" ? "Accepted — account created" : "Rejected"}
+                          {selectedSub.review_note ? ` · ${selectedSub.review_note}` : ""}
+                        </p>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </>

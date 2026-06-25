@@ -25,6 +25,7 @@ import { MasterDataPage } from "../pages/MasterDataPage";
 import { HelpPage } from "../pages/HelpPage";
 import { AcceptInvitePage } from "../pages/AcceptInvitePage";
 import { RemindersPage } from "../pages/RemindersPage";
+import { PublicFormPage } from "../pages/PublicFormPage";
 
 function LoadingScreen() {
   return (
@@ -77,6 +78,7 @@ export function AppRoutes() {
       <Route path="/login" element={<LoginRoute />} />
       <Route path="/approve/:token" element={<PublicApprovePage />} />
       <Route path="/invite/:token" element={<AcceptInvitePage />} />
+      <Route path="/p/:token" element={<PublicFormPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />

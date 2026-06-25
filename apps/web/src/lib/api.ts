@@ -1120,3 +1120,91 @@ export function runAutomation(token?: string | null) {
   }>("/api/v1/automation/run", { method: "POST" }, token);
 }
 
+// ── Public forms & guest submissions ────────────────────────────────────────
+
+export type PublicFormSchema = {
+  workflow_id: string;
+  workflow_name: string;
+  company_name: string;
+  form_schema: Record<string, unknown>;
+  settings: Record<string, unknown>;
+};
+
+export type PublicLinkOut = {
+  id: string;
+  url: string;
+  created_at: string;
+  expires_at: string | null;
+  revoked: boolean;
+};
+
+export type GuestSubOut = {
+  id: string;
+  guest_name: string;
+  guest_email: string;
+  status: "pending" | "accepted" | "rejected";
+  submitted_at: string;
+  review_note: string | null;
+};
+
+export type GuestSubDetail = GuestSubOut & {
+  data: Record<string, unknown>;
+  ip_address: string | null;
+  reviewed_at: string | null;
+};
+
+export function getPublicForm(token: string) {
+  return apiFetch<PublicFormSchema>(`/api/v1/public/forms/${token}`);
+}
+
+export function submitPublicForm(
+  token: string,
+  body: { guest_name: string; guest_email: string; data: Record<string, unknown>; honeypot?: string }
+) {
+  return apiFetch<{ id: string; message: string }>(`/api/v1/public/forms/${token}/submit`, {
+    method: "POST",
+    body: JSON.stringify({ honeypot: "", ...body }),
+  });
+}
+
+export function getPublicLink(workflowId: string, token?: string | null) {
+  return apiFetch<PublicLinkOut | null>(`/api/v1/workflows/${workflowId}/public-link`, {}, token);
+}
+
+export function createPublicLink(workflowId: string, token?: string | null) {
+  return apiFetch<PublicLinkOut>(`/api/v1/workflows/${workflowId}/public-link`, { method: "POST" }, token);
+}
+
+export function revokePublicLink(workflowId: string, token?: string | null) {
+  return apiFetch<void>(`/api/v1/workflows/${workflowId}/public-link`, { method: "DELETE" }, token);
+}
+
+export function listGuestSubmissions(workflowId: string, token?: string | null) {
+  return apiFetch<GuestSubOut[]>(`/api/v1/workflows/${workflowId}/guest-submissions`, {}, token);
+}
+
+export function getGuestSubmission(workflowId: string, subId: string, token?: string | null) {
+  return apiFetch<GuestSubDetail>(`/api/v1/workflows/${workflowId}/guest-submissions/${subId}`, {}, token);
+}
+
+export function acceptGuestSubmission(workflowId: string, subId: string, token?: string | null) {
+  return apiFetch<{ message: string; user_id: string }>(
+    `/api/v1/workflows/${workflowId}/guest-submissions/${subId}/accept`,
+    { method: "POST" },
+    token
+  );
+}
+
+export function rejectGuestSubmission(
+  workflowId: string,
+  subId: string,
+  reason: string,
+  token?: string | null
+) {
+  return apiFetch<{ message: string }>(
+    `/api/v1/workflows/${workflowId}/guest-submissions/${subId}/reject`,
+    { method: "POST", body: JSON.stringify({ reason }) },
+    token
+  );
+}
+

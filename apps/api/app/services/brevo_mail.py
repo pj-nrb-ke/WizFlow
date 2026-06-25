@@ -338,6 +338,136 @@ If you weren't expecting this invitation, you can ignore this email.
     return False
 
 
+def send_welcome_email(
+    *,
+    to_email: str,
+    full_name: str,
+    company_name: str,
+    temp_password: str,
+    login_url: str,
+) -> bool:
+    """Send welcome email to a newly-created user (via guest submission accept)."""
+    cfg = _mail_settings()
+    if not cfg["api_key"] and not cfg["host"]:
+        logger.info("Welcome email skipped (no mail config): %s", to_email)
+        return False
+
+    subject = f"Welcome to {company_name} on WizFlow — your account is ready"
+    text_body = f"""Hello {full_name},
+
+Your application has been approved and your WizFlow account is ready.
+
+Login: {to_email}
+Temporary password: {temp_password}
+
+Sign in here: {login_url}
+
+Please change your password after your first login.
+
+— WizFlow
+"""
+    html_body = f"""<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;color:#1e293b;max-width:480px;margin:0 auto;padding:24px">
+<div style="text-align:center;margin-bottom:32px">
+  <div style="display:inline-block;background:#4f46e5;border-radius:14px;padding:12px 22px;margin-bottom:12px">
+    <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:system-ui,sans-serif">Wiz<span style="opacity:0.75">Flow</span></span>
+  </div>
+</div>
+<h2 style="font-size:18px;font-weight:600;margin:0 0 8px">Welcome to {company_name}!</h2>
+<p style="color:#475569;margin:0 0 16px">Hello <strong>{full_name}</strong>, your application has been approved. Your account is ready.</p>
+<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:20px">
+  <p style="margin:0 0 6px;font-size:13px;color:#64748b">Login email</p>
+  <p style="margin:0 0 14px;font-weight:600;font-size:14px">{to_email}</p>
+  <p style="margin:0 0 6px;font-size:13px;color:#64748b">Temporary password</p>
+  <p style="margin:0;font-weight:700;font-size:15px;font-family:monospace;letter-spacing:0.05em">{temp_password}</p>
+</div>
+<a href="{login_url}" style="display:block;background:#4f46e5;color:#fff;text-align:center;padding:14px 24px;text-decoration:none;border-radius:10px;font-weight:600;font-size:15px;margin-bottom:16px">Sign in to WizFlow</a>
+<p style="font-size:12px;color:#94a3b8;text-align:center">Please change your password after signing in for the first time.</p>
+<hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+<p style="font-size:12px;color:#94a3b8;text-align:center">WizFlow · Workflow automation for your team</p>
+</body></html>"""
+
+    errors: list[str] = []
+    if cfg["api_key"]:
+        try:
+            _send_via_api(cfg, to_email=to_email, to_name=full_name,
+                          subject=subject, text_body=text_body, html_body=html_body)
+            logger.info("Sent welcome email via Brevo API to %s", to_email)
+            return True
+        except Exception as e:
+            errors.append(str(e))
+    if cfg["host"]:
+        try:
+            _send_via_smtp(cfg, to_email=to_email, subject=subject,
+                           text_body=text_body, html_body=html_body)
+            logger.info("Sent welcome email via SMTP to %s", to_email)
+            return True
+        except Exception as e:
+            errors.append(str(e))
+    if errors:
+        logger.error("Welcome email failed for %s: %s", to_email, errors)
+    return False
+
+
+def send_rejection_email(
+    *,
+    to_email: str,
+    full_name: str,
+    company_name: str,
+    reason: str,
+) -> bool:
+    """Notify an applicant that their submission was not approved."""
+    cfg = _mail_settings()
+    if not cfg["api_key"] and not cfg["host"]:
+        logger.info("Rejection email skipped (no mail config): %s", to_email)
+        return False
+
+    subject = f"Update on your application to {company_name}"
+    reason_text = f"\n\nReason: {reason}" if reason else ""
+    reason_html = f"<p style='color:#475569;margin:0 0 16px'><strong>Reason:</strong> {reason}</p>" if reason else ""
+    text_body = f"""Hello {full_name},
+
+Thank you for your interest in {company_name}. After reviewing your submission, we are unable to approve your application at this time.{reason_text}
+
+If you have any questions, please reach out to the team directly.
+
+— {company_name}
+"""
+    html_body = f"""<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;color:#1e293b;max-width:480px;margin:0 auto;padding:24px">
+<div style="text-align:center;margin-bottom:32px">
+  <div style="display:inline-block;background:#4f46e5;border-radius:14px;padding:12px 22px;margin-bottom:12px">
+    <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:system-ui,sans-serif">Wiz<span style="opacity:0.75">Flow</span></span>
+  </div>
+</div>
+<h2 style="font-size:18px;font-weight:600;margin:0 0 8px">Application update</h2>
+<p style="color:#475569;margin:0 0 16px">Hello <strong>{full_name}</strong>, thank you for your interest in <strong>{company_name}</strong>.</p>
+<p style="color:#475569;margin:0 0 16px">After reviewing your submission, we are unable to approve your application at this time.</p>
+{reason_html}<p style="color:#475569;margin:0 0 16px;font-size:13px">If you have questions, please reach out to the team directly.</p>
+<hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+<p style="font-size:12px;color:#94a3b8;text-align:center">WizFlow · Workflow automation for your team</p>
+</body></html>"""
+
+    errors: list[str] = []
+    if cfg["api_key"]:
+        try:
+            _send_via_api(cfg, to_email=to_email, to_name=full_name,
+                          subject=subject, text_body=text_body, html_body=html_body)
+            logger.info("Sent rejection email via Brevo API to %s", to_email)
+            return True
+        except Exception as e:
+            errors.append(str(e))
+    if cfg["host"]:
+        try:
+            _send_via_smtp(cfg, to_email=to_email, subject=subject,
+                           text_body=text_body, html_body=html_body)
+            logger.info("Sent rejection email via SMTP to %s", to_email)
+            return True
+        except Exception as e:
+            errors.append(str(e))
+    if errors:
+        logger.error("Rejection email failed for %s: %s", to_email, errors)
+    return False
+
+
 def send_plain_email(to_email: str, subject: str, text_body: str) -> bool:
     """Simple text email for scheduled reports."""
     cfg = _mail_settings()

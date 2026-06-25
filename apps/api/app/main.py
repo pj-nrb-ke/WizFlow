@@ -15,6 +15,7 @@ from app.routers import (
     documents,
     drafts,
     external_api,
+    guest_submissions,
     health,
     inbox,
     integrations,
@@ -23,6 +24,7 @@ from app.routers import (
     notifications,
     phase2,
     public_approval,
+    public_forms,
     reminders,
     reports,
     requests,
@@ -97,6 +99,8 @@ v1.include_router(saved_views.router)
 v1.include_router(delegations.router)
 v1.include_router(phase2.router)
 v1.include_router(reminders.router)
+v1.include_router(public_forms.router)
+v1.include_router(guest_submissions.router)
 app.include_router(v1)
 
 
