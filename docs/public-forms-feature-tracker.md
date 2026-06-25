@@ -2,6 +2,32 @@
 
 **Status key:** `[ ]` Not started · `[~]` In progress · `[x]` Done
 
+**Last updated:** 2026-06-25
+
+---
+
+## Progress Summary
+
+| # | Feature | Status |
+|---|---|---|
+| 1 | Send form to internal users | `[ ]` Not started |
+| 2 | Scheduled form dispatch | `[ ]` Not started |
+| 3 | Public form link (anonymous users) | `[ ]` Not started |
+| 4 | Auto-injected system fields on public forms | `[ ]` Not started |
+| 5 | Guest submission storage & inbox | `[ ]` Not started |
+| 6 | Accept → auto-create user account | `[ ]` Not started |
+| 7 | Reject → notify applicant | `[ ]` Not started |
+| 8 | Submission reports & charts | `[ ]` Not started |
+| 9 | Security — SQL injection | `[x]` Done |
+| 10 | Security — input validation | `[ ]` Not started |
+| 11 | Security — rate limiting & spam | `[ ]` Not started |
+| 12 | Security — token safety | `[ ]` Not started |
+| 13 | Security — file uploads | `[ ]` Not started |
+| 14 | Security — XSS prevention | `[ ]` Not started |
+| 15 | Internal user invites — fix & extend | `[x]` Done |
+
+**Overall: 2 of 15 features complete.**
+
 ---
 
 ## 1. Send Form to Internal Users
@@ -114,7 +140,8 @@ A reports tab on every published workflow showing response analytics — works f
 ## 9. Security — SQL Injection
 
 - [x] All queries use SQLAlchemy ORM or parameterised `text("... :param")` — no string concatenation
-- [ ] Code review of new public endpoints to confirm no raw SQL with user input
+- [x] Invite endpoints reviewed — no raw SQL with user input
+- [ ] Code review of new public form endpoints when built (Features 3, 5)
 
 ---
 
@@ -129,6 +156,7 @@ A reports tab on every published workflow showing response analytics — works f
 ## 11. Security — Rate Limiting & Spam
 
 - [ ] IP-based rate limit on public submission endpoint: 5 submissions per IP per hour (using `slowapi`, already a project dependency)
+- [ ] Rate limit on invite accept endpoint to prevent brute-force token guessing
 - [ ] Honeypot hidden field added to public form — submissions where honeypot is filled are silently discarded
 - [ ] Public token revocation available to admin as an emergency stop
 
@@ -136,10 +164,11 @@ A reports tab on every published workflow showing response analytics — works f
 
 ## 12. Security — Token Safety
 
-- [ ] Public link tokens generated with `secrets.token_urlsafe(32)` (256-bit entropy)
-- [ ] Token stored as a hash in the DB — raw token never persisted
-- [ ] Tokens support expiry date
-- [ ] Tokens can be revoked instantly by admin
+- [x] Invite tokens generated with `secrets.token_urlsafe(32)` (256-bit entropy) — pattern established in Feature 15
+- [x] Invite tokens stored as SHA-256 hash in DB — raw token never persisted
+- [x] Invite tokens expire after 72 hours
+- [x] Invite tokens can be revoked instantly by admin
+- [ ] Same pattern to be applied to public form tokens (Feature 3)
 
 ---
 
@@ -161,63 +190,61 @@ Applies when public forms include attachment fields (e.g. vendor KYC documents).
 
 ---
 
----
+## 15. Internal User Invites — Fix & Extend ✓
 
-## 15. Internal User Invites — Fix & Extend
-
-Allow admins to invite staff by email so they can create their own WizFlow accounts. The invite system already exists in code but stores tokens in memory (lost on server restart). This section covers the fix and the missing additions.
+Allow admins to invite staff by email so they can create their own WizFlow accounts.
 
 ### 15a. Fix: Move invite tokens to the database
 
-- [x] Create `user_invites` table: `id`, `company_id`, `email`, `role`, `token_hash`, `invited_by`, `created_at`, `expires_at`, `accepted_at`
-- [x] Replace the current in-memory invite store with DB reads/writes
+- [x] `invitations` table extended: added `token_hash`, `invited_by_name`, `company_name`, `revoked` columns (migration 017)
+- [x] Replaced the in-memory `_invites` dict with full DB reads/writes
 - [x] Invite tokens expire after 72 hours
-- [x] Expired token shows "This invite has expired — ask your admin to send a new one"
+- [x] Expired/revoked token shows clear error message to the recipient
 
 ### 15b. Admin — Send invite
 
-- [x] Invite form in the Users / Team section: enter email address + select role
-- [x] System generates token with `secrets.token_urlsafe(32)`, stores hash in DB
-- [x] Sends invite email with "Set up your account" button → `https://app.wizflow.biz/invite/{token}`
-- [x] Pending invites list visible to admin — shows email, role, sent date, expiry, status (Pending / Accepted / Expired / Revoked)
-- [x] Resend button — invalidates old token, generates a new one, sends fresh email
-- [x] Revoke button — marks invite as cancelled before it is accepted
+- [x] Invite form in Admin → Users section: enter email + select roles
+- [x] Token generated with `secrets.token_urlsafe(32)`, stored as SHA-256 hash in DB
+- [x] Invite email sent via Brevo with "Set up your account" button → `https://app.wizflow.biz/invite/{token}`
+- [x] Pending invites list visible below the user list — shows email, who invited, expiry, roles, status badge
+- [x] Resend button — generates fresh token, resets expiry, sends new email
+- [x] Revoke button — immediately cancels the invite
 
 ### 15c. Employee — Accept invite
 
-- [x] `/invite/{token}` page loads with email pre-filled (read-only, from the invite record)
-- [x] Employee enters their **Full name** and chooses a **password**
-- [x] On submit: account created, invite marked accepted, user redirected to login
-- [x] If token is invalid / expired / revoked / already used: clear error message shown
+- [x] `/invite/{token}` page loads with email pre-filled (read-only)
+- [x] Employee enters Full name and chooses a password
+- [x] On submit: account created with correct roles, invite marked accepted
+- [x] Clear error messages for: invalid token, expired, revoked, already used
 
 ### 15d. Security
 
 - [x] Token stored as SHA-256 hash — raw token never in the DB
-- [x] One-time use — token invalidated immediately on acceptance
-- [ ] Rate limit on the accept endpoint to prevent brute-force token guessing
-- [x] No open self-registration — invite must come from an admin
+- [x] One-time use — token marked accepted immediately on use
+- [x] No open self-registration — invite must always come from an admin
+- [ ] Rate limit on the accept endpoint (to be added with Feature 11)
 
 ---
 
 ## DB Schema Changes
 
-| Table | Action |
-|---|---|
-| `public_form_tokens` | New — stores hashed tokens, workflow link, expiry, revoked flag |
-| `guest_submissions` | New — stores anonymous form responses and review status |
-| `user_invites` | New — replaces in-memory invite store; persists invite tokens with expiry |
+| Table | Action | Status |
+|---|---|---|
+| `invitations` | Extended — added `token_hash`, `invited_by_name`, `company_name`, `revoked` (migration 017) | `[x]` Done |
+| `public_form_tokens` | New — hashed tokens, workflow link, expiry, revoked flag | `[ ]` Pending |
+| `guest_submissions` | New — anonymous form responses and review status | `[ ]` Pending |
 
 ---
 
-## Build Order (Recommended)
+## Build Order
 
-1. **Internal invites fix** — DB migration for `user_invites`, replace in-memory store, resend/revoke UI (Feature 15)
-2. DB migrations for `public_form_tokens` and `guest_submissions`
-3. Public form token API + public form web route (Feature 3)
-4. Auto-injected system fields (Feature 4)
-5. Guest submission endpoint + security hardening (Features 5, 10, 11, 12, 13, 14)
-6. Guest submissions inbox UI (Feature 5 UI)
-7. Accept / Reject flows (Features 6, 7)
-8. Send form to internal users (Feature 1)
-9. Scheduled dispatch (Feature 2)
-10. Reports & charts (Feature 8)
+1. `[x]` **Internal invites fix** — DB migration, replace in-memory store, resend/revoke UI (Feature 15)
+2. `[ ]` DB migrations for `public_form_tokens` and `guest_submissions`
+3. `[ ]` Public form token API + public form web route (Feature 3)
+4. `[ ]` Auto-injected system fields (Feature 4)
+5. `[ ]` Guest submission endpoint + security hardening (Features 5, 10, 11, 12, 13, 14)
+6. `[ ]` Guest submissions inbox UI (Feature 5 UI)
+7. `[ ]` Accept / Reject flows (Features 6, 7)
+8. `[ ]` Send form to internal users (Feature 1)
+9. `[ ]` Scheduled dispatch (Feature 2)
+10. `[ ]` Reports & charts (Feature 8)
