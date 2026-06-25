@@ -32,7 +32,6 @@ import {
   PublicLinkOut,
   GuestSubOut,
   GuestSubDetail,
-  GuestAttachmentInfo,
   FormScheduleOut,
   FormReport,
   OrgUser,
