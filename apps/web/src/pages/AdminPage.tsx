@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ApiError, apiFetch, Department, UserGroup, UserRow } from "../lib/api";
+import { ApiError, apiFetch, Department, InviteOut, listInvites, resendInvite, revokeInvite, UserGroup, UserRow } from "../lib/api";
 import { getToken } from "../lib/auth";
 import { useAuth } from "../context/AuthContext";
 import { AppThemeSwitcher } from "../components/ThemeSwitcher";
@@ -50,9 +50,11 @@ function UserInitials({ name }: { name: string }) {
 function InviteModal({
   users,
   onClose,
+  onSent,
 }: {
   users: UserRow[];
   onClose: () => void;
+  onSent: () => void;
 }) {
   const [email, setEmail]   = useState("");
   const [roles, setRoles]   = useState<string[]>(["originator"]);
@@ -79,6 +81,7 @@ function InviteModal({
       setSuccess(`Invitation sent to ${email.trim()}. They will receive an email with a link to set up their account.`);
       setEmail("");
       setRoles(["originator"]);
+      onSent();
     } catch (err) {
       setError(err instanceof ApiError ? err.detail ?? err.message : "Failed to send invitation");
     } finally {
@@ -199,6 +202,7 @@ export function AdminPage() {
 
   const [departments, setDepartments] = useState<Department[]>([]);
   const [users, setUsers]             = useState<UserRow[]>([]);
+  const [invites, setInvites]         = useState<InviteOut[]>([]);
   const [deptName, setDeptName]       = useState("");
   const [groups, setGroups]           = useState<UserGroup[]>([]);
   const [groupName, setGroupName]     = useState("");
@@ -208,6 +212,10 @@ export function AdminPage() {
 
   const isAdmin = user?.roles.includes("company_admin");
 
+  function loadInvites() {
+    listInvites(getToken()).then(setInvites).catch(() => {});
+  }
+
   useEffect(() => {
     if (!isAdmin) return;
     const token = getToken();
@@ -215,11 +223,13 @@ export function AdminPage() {
       apiFetch<Department[]>("/api/v1/admin/departments", {}, token),
       apiFetch<UserRow[]>("/api/v1/admin/users", {}, token),
       apiFetch<UserGroup[]>("/api/v1/admin/user-groups", {}, token).catch(() => []),
+      listInvites(token),
     ])
-      .then(([d, u, g]) => {
+      .then(([d, u, g, inv]) => {
         setDepartments(d);
         setUsers(u);
         setGroups(g);
+        setInvites(inv);
       })
       .catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed to load"));
   }, [isAdmin]);
@@ -252,6 +262,7 @@ export function AdminPage() {
         <InviteModal
           users={users}
           onClose={() => setShowInvite(false)}
+          onSent={loadInvites}
         />
       )}
 
@@ -379,6 +390,79 @@ export function AdminPage() {
               ))
             )}
           </div>
+
+          {/* Pending invites */}
+          {invites.length > 0 && (
+            <div className="mt-6 pt-5 border-t border-slate-100">
+              <h3 className="text-sm font-semibold text-slate-700 mb-3">
+                Invitations
+                <span className="ml-2 text-xs font-normal text-slate-400">
+                  ({invites.filter((i) => i.status === "pending").length} pending)
+                </span>
+              </h3>
+              <div className="divide-y divide-slate-100">
+                {invites.map((inv) => {
+                  const statusColor =
+                    inv.status === "pending"   ? "bg-amber-50 text-amber-700 border-amber-200" :
+                    inv.status === "accepted"  ? "bg-green-50 text-green-700 border-green-200" :
+                    inv.status === "revoked"   ? "bg-red-50 text-red-600 border-red-200" :
+                                                 "bg-slate-50 text-slate-500 border-slate-200";
+                  return (
+                    <div key={inv.id} className="flex items-center gap-3 py-3 flex-wrap">
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-slate-800 truncate">{inv.email}</p>
+                        <p className="text-xs text-slate-400">
+                          Invited by {inv.invited_by_name} ·{" "}
+                          {inv.status === "pending"
+                            ? `Expires ${new Date(inv.expires_at).toLocaleDateString()}`
+                            : `Sent ${new Date(inv.created_at).toLocaleDateString()}`}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-wrap gap-1">
+                          {inv.role_slugs.map((slug) => {
+                            const { label, color } = roleBadge(slug);
+                            return (
+                              <span key={slug} className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border ${color}`}>
+                                {label}
+                              </span>
+                            );
+                          })}
+                        </div>
+                        <span className={`text-[11px] font-semibold px-2 py-0.5 rounded-full border capitalize ${statusColor}`}>
+                          {inv.status}
+                        </span>
+                        {inv.status === "pending" && (
+                          <>
+                            <button
+                              type="button"
+                              className="text-xs text-[rgb(var(--wf-brand-600))] hover:underline"
+                              onClick={async () => {
+                                await resendInvite(inv.id, getToken());
+                                loadInvites();
+                              }}
+                            >
+                              Resend
+                            </button>
+                            <button
+                              type="button"
+                              className="text-xs text-red-500 hover:underline"
+                              onClick={async () => {
+                                await revokeInvite(inv.id, getToken());
+                                loadInvites();
+                              }}
+                            >
+                              Revoke
+                            </button>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
         </section>
       )}
 

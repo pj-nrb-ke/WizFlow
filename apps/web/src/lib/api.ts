@@ -1052,6 +1052,46 @@ export function deleteWorkflow(id: string, token?: string | null) {
   );
 }
 
+// ── Invitations ──────────────────────────────────────────────────────────────
+
+export type InviteOut = {
+  id: string;
+  email: string;
+  role_slugs: string[];
+  invited_by_name: string;
+  expires_at: string;
+  created_at: string;
+  status: "pending" | "accepted" | "expired" | "revoked";
+};
+
+export function listInvites(token?: string | null) {
+  return apiFetch<InviteOut[]>("/api/v1/admin/invitations", {}, token);
+}
+
+export function sendInvite(email: string, role_slugs: string[], token?: string | null) {
+  return apiFetch<InviteOut>(
+    "/api/v1/admin/invitations",
+    { method: "POST", body: JSON.stringify({ email, role_slugs }) },
+    token
+  );
+}
+
+export function resendInvite(inviteId: string, token?: string | null) {
+  return apiFetch<InviteOut>(
+    `/api/v1/admin/invitations/${inviteId}/resend`,
+    { method: "POST" },
+    token
+  );
+}
+
+export function revokeInvite(inviteId: string, token?: string | null) {
+  return apiFetch<void>(
+    `/api/v1/admin/invitations/${inviteId}`,
+    { method: "DELETE" },
+    token
+  );
+}
+
 export type WebhookDelivery = {
   id: string;
   event_type: string;
