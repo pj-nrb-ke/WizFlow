@@ -169,33 +169,33 @@ Allow admins to invite staff by email so they can create their own WizFlow accou
 
 ### 15a. Fix: Move invite tokens to the database
 
-- [ ] Create `user_invites` table: `id`, `company_id`, `email`, `role`, `token_hash`, `invited_by`, `created_at`, `expires_at`, `accepted_at`
-- [ ] Replace the current in-memory invite store with DB reads/writes
-- [ ] Invite tokens expire after 72 hours
-- [ ] Expired token shows "This invite has expired — ask your admin to send a new one"
+- [x] Create `user_invites` table: `id`, `company_id`, `email`, `role`, `token_hash`, `invited_by`, `created_at`, `expires_at`, `accepted_at`
+- [x] Replace the current in-memory invite store with DB reads/writes
+- [x] Invite tokens expire after 72 hours
+- [x] Expired token shows "This invite has expired — ask your admin to send a new one"
 
 ### 15b. Admin — Send invite
 
-- [ ] Invite form in the Users / Team section: enter email address + select role
-- [ ] System generates token with `secrets.token_urlsafe(32)`, stores hash in DB
-- [ ] Sends invite email with "Set up your account" button → `https://app.wizflow.biz/accept-invite/{token}`
-- [ ] Pending invites list visible to admin — shows email, role, sent date, expiry, status (Pending / Accepted / Expired)
-- [ ] Resend button — invalidates old token, generates a new one, sends fresh email
-- [ ] Revoke button — marks invite as cancelled before it is accepted
+- [x] Invite form in the Users / Team section: enter email address + select role
+- [x] System generates token with `secrets.token_urlsafe(32)`, stores hash in DB
+- [x] Sends invite email with "Set up your account" button → `https://app.wizflow.biz/invite/{token}`
+- [x] Pending invites list visible to admin — shows email, role, sent date, expiry, status (Pending / Accepted / Expired / Revoked)
+- [x] Resend button — invalidates old token, generates a new one, sends fresh email
+- [x] Revoke button — marks invite as cancelled before it is accepted
 
 ### 15c. Employee — Accept invite
 
-- [ ] `/accept-invite/{token}` page loads with email pre-filled (read-only, from the invite record)
-- [ ] Employee enters their **Full name** and chooses a **password**
-- [ ] On submit: account created, invite marked accepted, user immediately logged in
-- [ ] If token is invalid / expired / already used: clear error message shown
+- [x] `/invite/{token}` page loads with email pre-filled (read-only, from the invite record)
+- [x] Employee enters their **Full name** and chooses a **password**
+- [x] On submit: account created, invite marked accepted, user redirected to login
+- [x] If token is invalid / expired / revoked / already used: clear error message shown
 
 ### 15d. Security
 
-- [ ] Token stored as SHA-256 hash — raw token never in the DB
-- [ ] One-time use — token invalidated immediately on acceptance
+- [x] Token stored as SHA-256 hash — raw token never in the DB
+- [x] One-time use — token invalidated immediately on acceptance
 - [ ] Rate limit on the accept endpoint to prevent brute-force token guessing
-- [ ] No open self-registration — invite must come from an admin
+- [x] No open self-registration — invite must come from an admin
 
 ---
 
