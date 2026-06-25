@@ -15,6 +15,12 @@ import {
   getGuestSubmission,
   acceptGuestSubmission,
   rejectGuestSubmission,
+  sendFormNow,
+  listFormSchedules,
+  createFormSchedule,
+  toggleFormSchedule,
+  deleteFormSchedule,
+  getFormReport,
   PublishPreview,
   PublishRequest,
   SimulationResult,
@@ -26,6 +32,9 @@ import {
   PublicLinkOut,
   GuestSubOut,
   GuestSubDetail,
+  FormScheduleOut,
+  FormReport,
+  OrgUser,
 } from "../lib/api";
 import { getToken } from "../lib/auth";
 import { HelpTip } from "../components/HelpTip";
@@ -76,6 +85,22 @@ export function WorkflowsPage() {
   const [subWorking, setSubWorking] = useState(false);
   const [subMsg, setSubMsg] = useState("");
 
+  // Send form (Feature 1 & 2)
+  const [orgUsers, setOrgUsers] = useState<OrgUser[]>([]);
+  const [sendSelected, setSendSelected] = useState<Set<string>>(new Set());
+  const [sendMsg, setSendMsg] = useState("");
+  const [sending, setSending] = useState(false);
+  const [showScheduleForm, setShowScheduleForm] = useState(false);
+  const [schedules, setSchedules] = useState<FormScheduleOut[]>([]);
+  const [schedName, setSchedName] = useState("");
+  const [schedFreq, setSchedFreq] = useState<"weekly" | "monthly" | "once">("weekly");
+  const [schedDate, setSchedDate] = useState("");
+  const [schedCreating, setSchedCreating] = useState(false);
+
+  // Form report (Feature 8)
+  const [report, setReport] = useState<FormReport | null>(null);
+  const [reportLoading, setReportLoading] = useState(false);
+
   const loadExtras = useCallback(async (id: string) => {
     const token = getToken();
     const [prev, vers] = await Promise.all([
@@ -123,6 +148,11 @@ export function WorkflowsPage() {
     setGuestSubs([]);
     setLinkMsg("");
     setSubMsg("");
+    setSendMsg("");
+    setSendSelected(new Set());
+    setShowScheduleForm(false);
+    setSchedules([]);
+    setReport(null);
     try {
       const detail = await apiFetch<WorkflowDefinition>(`/api/v1/workflows/${id}`, {}, getToken());
       setSelected(detail);
@@ -130,9 +160,43 @@ export function WorkflowsPage() {
       if (detail.status === "published") {
         void loadPublicLink(id);
         void loadGuestSubs(id);
+        void loadOrgUsers();
+        void loadSchedules(id);
+        void loadReport(id);
       }
     } catch (e) {
       setError(e instanceof ApiError ? e.detail ?? e.message : "Failed to load workflow");
+    }
+  }
+
+  async function loadOrgUsers() {
+    if (orgUsers.length > 0) return;
+    try {
+      const dir = await apiFetch<{ users: OrgUser[] }>("/api/v1/org-directory", {}, getToken());
+      setOrgUsers(dir.users);
+    } catch {
+      // non-critical
+    }
+  }
+
+  async function loadSchedules(id: string) {
+    try {
+      const s = await listFormSchedules(id, getToken());
+      setSchedules(s);
+    } catch {
+      setSchedules([]);
+    }
+  }
+
+  async function loadReport(id: string) {
+    setReportLoading(true);
+    try {
+      const r = await getFormReport(id, getToken());
+      setReport(r);
+    } catch {
+      setReport(null);
+    } finally {
+      setReportLoading(false);
     }
   }
 
@@ -230,6 +294,65 @@ export function WorkflowsPage() {
     } finally {
       setSubWorking(false);
     }
+  }
+
+  async function handleSendNow() {
+    if (!selected || sendSelected.size === 0) return;
+    setSending(true);
+    setSendMsg("");
+    try {
+      const res = await sendFormNow(selected.id, [...sendSelected], getToken());
+      setSendMsg(`Sent to ${res.sent} user${res.sent !== 1 ? "s" : ""}${res.skipped ? ` (${res.skipped} skipped)` : ""}.`);
+      setSendSelected(new Set());
+    } catch (e) {
+      setSendMsg(e instanceof ApiError ? e.detail ?? e.message : "Send failed");
+    } finally {
+      setSending(false);
+    }
+  }
+
+  async function handleCreateSchedule() {
+    if (!selected || !schedName.trim() || sendSelected.size === 0) return;
+    setSchedCreating(true);
+    setSendMsg("");
+    try {
+      const sched = await createFormSchedule(
+        selected.id,
+        {
+          name: schedName.trim(),
+          frequency: schedFreq,
+          recipient_user_ids: [...sendSelected],
+          next_run_at: schedFreq === "once" && schedDate ? new Date(schedDate).toISOString() : null,
+        },
+        getToken()
+      );
+      setSchedules((prev) => [sched, ...prev]);
+      setSchedName("");
+      setSchedDate("");
+      setSendSelected(new Set());
+      setShowScheduleForm(false);
+      setSendMsg("Schedule created.");
+    } catch (e) {
+      setSendMsg(e instanceof ApiError ? e.detail ?? e.message : "Create schedule failed");
+    } finally {
+      setSchedCreating(false);
+    }
+  }
+
+  async function handleToggleSchedule(schedId: string) {
+    if (!selected) return;
+    try {
+      const updated = await toggleFormSchedule(selected.id, schedId, getToken());
+      setSchedules((prev) => prev.map((s) => s.id === schedId ? updated : s));
+    } catch { /* ignore */ }
+  }
+
+  async function handleDeleteSchedule(schedId: string) {
+    if (!selected) return;
+    try {
+      await deleteFormSchedule(selected.id, schedId, getToken());
+      setSchedules((prev) => prev.filter((s) => s.id !== schedId));
+    } catch { /* ignore */ }
   }
 
   async function duplicate() {
@@ -840,6 +963,165 @@ export function WorkflowsPage() {
                 </div>
               )}
 
+              {/* Send form to internal users (Features 1 & 2) */}
+              {selected.status === "published" && (
+                <div className="wf-card p-4 text-sm">
+                  <h3 className="font-medium text-slate-800 mb-3">Send form to staff</h3>
+                  {orgUsers.length === 0 ? (
+                    <p className="text-slate-400 text-xs">Loading users…</p>
+                  ) : (
+                    <div className="space-y-3">
+                      <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-lg divide-y">
+                        {orgUsers.map((u) => (
+                          <label key={u.id} className="flex items-center gap-2 px-3 py-2 hover:bg-slate-50 cursor-pointer">
+                            <input
+                              type="checkbox"
+                              checked={sendSelected.has(u.id)}
+                              onChange={(e) => {
+                                const next = new Set(sendSelected);
+                                if (e.target.checked) next.add(u.id); else next.delete(u.id);
+                                setSendSelected(next);
+                              }}
+                            />
+                            <span className="flex-1 text-xs">
+                              <span className="font-medium text-slate-800">{u.full_name}</span>
+                              <span className="text-slate-400 ml-1">{u.email}</span>
+                            </span>
+                          </label>
+                        ))}
+                      </div>
+                      <p className="text-xs text-slate-400">{sendSelected.size} selected</p>
+
+                      {sendMsg && <p className={`text-xs ${sendMsg.toLowerCase().includes("fail") || sendMsg.toLowerCase().includes("error") ? "text-red-600" : "text-green-700"}`}>{sendMsg}</p>}
+
+                      <div className="flex flex-wrap gap-2">
+                        <button
+                          type="button"
+                          onClick={() => void handleSendNow()}
+                          disabled={sending || sendSelected.size === 0}
+                          className="px-3 py-1.5 wf-btn-primary text-xs disabled:opacity-50"
+                        >
+                          {sending ? "Sending…" : "Send now"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowScheduleForm(!showScheduleForm)}
+                          disabled={sendSelected.size === 0}
+                          className="px-3 py-1.5 wf-btn-secondary text-xs disabled:opacity-50"
+                        >
+                          {showScheduleForm ? "Cancel schedule" : "Schedule send"}
+                        </button>
+                      </div>
+
+                      {showScheduleForm && (
+                        <div className="space-y-2 p-3 bg-slate-50 border border-slate-200 rounded-lg">
+                          <input
+                            value={schedName}
+                            onChange={(e) => setSchedName(e.target.value)}
+                            placeholder="Schedule name"
+                            className="wf-input w-full text-xs"
+                          />
+                          <div className="flex gap-2">
+                            {(["weekly", "monthly", "once"] as const).map((f) => (
+                              <button
+                                key={f}
+                                type="button"
+                                onClick={() => setSchedFreq(f)}
+                                className={`px-2.5 py-1 rounded-lg text-xs capitalize border ${schedFreq === f ? "border-slate-800 bg-white font-medium" : "border-slate-200 hover:border-slate-400"}`}
+                              >
+                                {f}
+                              </button>
+                            ))}
+                          </div>
+                          {schedFreq === "once" && (
+                            <input
+                              type="datetime-local"
+                              value={schedDate}
+                              onChange={(e) => setSchedDate(e.target.value)}
+                              className="wf-input w-full text-xs"
+                            />
+                          )}
+                          <button
+                            type="button"
+                            onClick={() => void handleCreateSchedule()}
+                            disabled={schedCreating || !schedName.trim()}
+                            className="px-3 py-1.5 wf-btn-primary text-xs disabled:opacity-50"
+                          >
+                            {schedCreating ? "Saving…" : "Create schedule"}
+                          </button>
+                        </div>
+                      )}
+
+                      {schedules.length > 0 && (
+                        <div className="mt-2">
+                          <p className="text-xs font-semibold text-slate-600 uppercase tracking-wide mb-1">Active schedules</p>
+                          <ul className="divide-y border border-slate-200 rounded-lg">
+                            {schedules.map((s) => (
+                              <li key={s.id} className="flex items-center gap-2 px-3 py-2 text-xs">
+                                <div className="flex-1 min-w-0">
+                                  <span className="font-medium text-slate-800">{s.name}</span>
+                                  <span className="text-slate-400 ml-1 capitalize">{s.frequency}</span>
+                                  {s.next_run_at && s.frequency === "once" && (
+                                    <span className="text-slate-400 ml-1">· {new Date(s.next_run_at).toLocaleString()}</span>
+                                  )}
+                                  {s.last_run_at && (
+                                    <span className="text-slate-400 ml-1">· last sent {new Date(s.last_run_at).toLocaleDateString()}</span>
+                                  )}
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleToggleSchedule(s.id)}
+                                  className={`px-2 py-0.5 rounded text-xs border ${s.is_active ? "border-green-200 text-green-700" : "border-slate-200 text-slate-400"}`}
+                                >
+                                  {s.is_active ? "Active" : "Paused"}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => void handleDeleteSchedule(s.id)}
+                                  className="text-red-400 hover:text-red-600 text-xs px-1"
+                                >
+                                  ×
+                                </button>
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Form report (Feature 8) */}
+              {selected.status === "published" && (
+                <div className="wf-card p-4 text-sm">
+                  <h3 className="font-medium text-slate-800 mb-3">
+                    Submission report
+                    {report && (
+                      <span className="ml-2 text-xs font-normal text-slate-500">
+                        {report.total_responses} total · {report.internal_count} internal · {report.guest_count} guest
+                      </span>
+                    )}
+                  </h3>
+                  {reportLoading ? (
+                    <p className="text-slate-400 text-xs">Loading…</p>
+                  ) : !report || report.total_responses === 0 ? (
+                    <p className="text-slate-400 text-xs">No submissions yet.</p>
+                  ) : (
+                    <div className="space-y-4">
+                      {report.first_submission && (
+                        <p className="text-xs text-slate-500">
+                          {new Date(report.first_submission).toLocaleDateString()} – {new Date(report.last_submission!).toLocaleDateString()}
+                        </p>
+                      )}
+                      {report.fields.map((f) => (
+                        <FieldReportCard key={f.key} field={f} />
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {/* Guest submissions inbox */}
               {selected.status === "published" && (
                 <div className="wf-card p-4 text-sm">
@@ -1158,6 +1440,54 @@ function SlaStepEditor({
         Save SLA
       </button>
       {msg && <p className="text-xs text-green-700 mt-1">{msg}</p>}
+    </div>
+  );
+}
+
+function FieldReportCard({ field }: { field: import("../lib/api").FieldReport }) {
+  const agg = field.aggregation;
+  return (
+    <div className="border border-slate-200 rounded-lg p-3">
+      <p className="text-xs font-semibold text-slate-700 mb-2">
+        {field.label}
+        <span className="ml-2 font-normal text-slate-400 capitalize">{field.field_type}</span>
+        <span className="ml-2 font-normal text-slate-400">{agg.count} response{agg.count !== 1 ? "s" : ""}</span>
+      </p>
+
+      {agg.type === "counts" && agg.options && agg.options.length > 0 && (
+        <ul className="space-y-1.5">
+          {agg.options.map((o) => (
+            <li key={o.label} className="text-xs">
+              <div className="flex justify-between mb-0.5">
+                <span className="text-slate-700 truncate max-w-[60%]">{o.label || "(empty)"}</span>
+                <span className="text-slate-500">{o.count} · {o.pct}%</span>
+              </div>
+              <div className="h-1.5 bg-slate-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-[rgb(var(--wf-brand-600))] rounded-full"
+                  style={{ width: `${o.pct}%` }}
+                />
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {agg.type === "numeric" && (
+        <div className="flex gap-4 text-xs text-slate-600">
+          <span>Min <strong>{agg.min}</strong></span>
+          <span>Max <strong>{agg.max}</strong></span>
+          <span>Avg <strong>{agg.avg}</strong></span>
+        </div>
+      )}
+
+      {(agg.type === "texts" || agg.type === "raw") && agg.texts && agg.texts.length > 0 && (
+        <ul className="space-y-1 text-xs text-slate-600 max-h-32 overflow-y-auto">
+          {agg.texts.map((t, i) => (
+            <li key={i} className="py-0.5 border-b border-slate-100 last:border-0 truncate">{t}</li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }

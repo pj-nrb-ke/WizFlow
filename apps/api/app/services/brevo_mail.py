@@ -338,6 +338,68 @@ If you weren't expecting this invitation, you can ignore this email.
     return False
 
 
+def send_form_invitation_email(
+    *,
+    to_email: str,
+    to_name: str,
+    sender_name: str,
+    company_name: str,
+    workflow_name: str,
+    form_url: str,
+) -> bool:
+    """Notify an internal user that they have been asked to fill in a form."""
+    cfg = _mail_settings()
+    if not cfg["api_key"] and not cfg["host"]:
+        logger.info("Form invitation email skipped (no mail config): %s", to_email)
+        return False
+
+    subject = f"Action required: {workflow_name}"
+    text_body = f"""Hello {to_name},
+
+{sender_name} from {company_name} has asked you to fill in the following form:
+
+{workflow_name}
+
+Open the form here: {form_url}
+
+— WizFlow
+"""
+    html_body = f"""<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;color:#1e293b;max-width:480px;margin:0 auto;padding:24px">
+<div style="text-align:center;margin-bottom:32px">
+  <div style="display:inline-block;background:#4f46e5;border-radius:14px;padding:12px 22px;margin-bottom:12px">
+    <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:system-ui,sans-serif">Wiz<span style="opacity:0.75">Flow</span></span>
+  </div>
+</div>
+<h2 style="font-size:18px;font-weight:600;margin:0 0 8px">Form request: {workflow_name}</h2>
+<p style="color:#475569;margin:0 0 20px">Hello <strong>{to_name}</strong>, <strong>{sender_name}</strong> has asked you to fill in a form in WizFlow.</p>
+<a href="{form_url}" style="display:block;background:#4f46e5;color:#fff;text-align:center;padding:14px 24px;text-decoration:none;border-radius:10px;font-weight:600;font-size:15px;margin-bottom:20px">Open form: {workflow_name}</a>
+<p style="font-size:12px;color:#94a3b8;text-align:center">Sign in to WizFlow to complete the form.</p>
+<hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+<p style="font-size:12px;color:#94a3b8;text-align:center">WizFlow · Workflow automation for your team</p>
+</body></html>"""
+
+    errors: list[str] = []
+    if cfg["api_key"]:
+        try:
+            _send_via_api(cfg, to_email=to_email, to_name=to_name,
+                          subject=subject, text_body=text_body, html_body=html_body)
+            logger.info("Sent form invitation via Brevo API to %s", to_email)
+            return True
+        except Exception as e:
+            errors.append(str(e))
+    if cfg["host"]:
+        try:
+            _send_via_smtp(cfg, to_email=to_email, subject=subject,
+                           text_body=text_body, html_body=html_body)
+            logger.info("Sent form invitation via SMTP to %s", to_email)
+            return True
+        except Exception as e:
+            errors.append(str(e))
+    if errors:
+        logger.error("Form invitation email failed for %s: %s", to_email, errors)
+    return False
+
+
 def send_welcome_email(
     *,
     to_email: str,

@@ -24,7 +24,7 @@ from app.db.models import (
 from app.schemas.phase2 import AutomationRunOut
 from app.services import analytics as analytics_service
 from app.services.assignees import _users_for_role
-from app.services.brevo_mail import send_plain_email
+from app.services.brevo_mail import send_form_invitation_email, send_plain_email
 from app.services.events import record_event
 from app.services.instance_engine import submit_request
 from app.services.notifications import notify_users
@@ -217,6 +217,42 @@ def process_report_subscriptions(db: Session, *, company_id: UUID | None = None)
     return sent
 
 
+def _send_form_schedule(db: Session, sched: WorkflowSchedule, defn: WorkflowDefinition, now: datetime) -> int:
+    """Send form invitation emails for a send_form schedule. Returns number of emails sent."""
+    sender = db.get(User, sched.initiator_user_id) if sched.initiator_user_id else None
+    sender_name = (sender.full_name or sender.email) if sender else "WizFlow"
+    company = db.get(Company, sched.company_id)
+    company_name = company.name if company else "WizFlow"
+
+    from app.config import settings as _settings
+    form_url = f"{_settings.app_url}/submit?wf={defn.id}"
+
+    sent = 0
+    for uid_str in (sched.recipient_user_ids or []):
+        try:
+            import uuid as _uuid
+            uid = _uuid.UUID(str(uid_str))
+        except (ValueError, AttributeError):
+            continue
+        recipient = db.get(User, uid)
+        if not recipient or recipient.company_id != sched.company_id:
+            continue
+        try:
+            ok = send_form_invitation_email(
+                to_email=recipient.email,
+                to_name=recipient.full_name or recipient.email,
+                sender_name=sender_name,
+                company_name=company_name,
+                workflow_name=defn.name,
+                form_url=form_url,
+            )
+            if ok:
+                sent += 1
+        except Exception as e:
+            logger.warning("Form schedule %s email to %s failed: %s", sched.id, recipient.email, e)
+    return sent
+
+
 def process_workflow_schedules(db: Session, *, company_id: UUID | None = None) -> int:
     now = datetime.now(timezone.utc)
     q = select(WorkflowSchedule).where(WorkflowSchedule.is_active.is_(True))
@@ -224,10 +260,33 @@ def process_workflow_schedules(db: Session, *, company_id: UUID | None = None) -
         q = q.where(WorkflowSchedule.company_id == company_id)
     ran = 0
     for sched in db.scalars(q):
-        if not _frequency_due(sched.last_run_at, sched.frequency, now):
-            continue
         defn = db.get(WorkflowDefinition, sched.workflow_definition_id)
         if not defn or defn.status != "published":
+            continue
+
+        # ── send_form type: email recipients ──
+        if getattr(sched, "schedule_type", "auto_submit") == "send_form":
+            due = False
+            if sched.frequency == "once":
+                due = (sched.next_run_at is not None
+                       and sched.last_run_at is None
+                       and now >= sched.next_run_at)
+            else:
+                due = _frequency_due(sched.last_run_at, sched.frequency, now)
+            if not due:
+                continue
+            try:
+                _send_form_schedule(db, sched, defn, now)
+                sched.last_run_at = now
+                if sched.frequency == "once":
+                    sched.is_active = False
+                ran += 1
+            except Exception as e:
+                logger.warning("Form schedule %s failed: %s", sched.id, e)
+            continue
+
+        # ── auto_submit type: create workflow instance ──
+        if not _frequency_due(sched.last_run_at, sched.frequency, now):
             continue
         uid = sched.initiator_user_id
         if not uid:

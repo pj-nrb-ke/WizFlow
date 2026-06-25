@@ -1120,6 +1120,93 @@ export function runAutomation(token?: string | null) {
   }>("/api/v1/automation/run", { method: "POST" }, token);
 }
 
+// ── Feature 1 & 2: Send form + scheduling ───────────────────────────────────
+
+export function sendFormNow(workflowId: string, userIds: string[], token?: string | null) {
+  return apiFetch<{ sent: number; skipped: number }>(
+    `/api/v1/workflows/${workflowId}/send-form`,
+    { method: "POST", body: JSON.stringify({ user_ids: userIds }) },
+    token
+  );
+}
+
+export type FormScheduleOut = {
+  id: string;
+  name: string;
+  frequency: "once" | "weekly" | "monthly";
+  recipient_user_ids: string[];
+  is_active: boolean;
+  last_run_at: string | null;
+  next_run_at: string | null;
+  created_at: string;
+};
+
+export function listFormSchedules(workflowId: string, token?: string | null) {
+  return apiFetch<FormScheduleOut[]>(`/api/v1/workflows/${workflowId}/form-schedules`, {}, token);
+}
+
+export function createFormSchedule(
+  workflowId: string,
+  body: { name: string; frequency: string; recipient_user_ids: string[]; next_run_at?: string | null },
+  token?: string | null
+) {
+  return apiFetch<FormScheduleOut>(
+    `/api/v1/workflows/${workflowId}/form-schedules`,
+    { method: "POST", body: JSON.stringify(body) },
+    token
+  );
+}
+
+export function toggleFormSchedule(workflowId: string, schedId: string, token?: string | null) {
+  return apiFetch<FormScheduleOut>(
+    `/api/v1/workflows/${workflowId}/form-schedules/${schedId}`,
+    { method: "PATCH" },
+    token
+  );
+}
+
+export function deleteFormSchedule(workflowId: string, schedId: string, token?: string | null) {
+  return apiFetch<void>(
+    `/api/v1/workflows/${workflowId}/form-schedules/${schedId}`,
+    { method: "DELETE" },
+    token
+  );
+}
+
+// ── Feature 8: Form report ────────────────────────────────────────────────────
+
+export type FieldAggregation = {
+  type: "counts" | "numeric" | "texts" | "raw";
+  options?: { label: string; count: number; pct: number }[];
+  texts?: string[];
+  min?: number | null;
+  max?: number | null;
+  avg?: number | null;
+  count: number;
+};
+
+export type FieldReport = {
+  key: string;
+  label: string;
+  field_type: string;
+  aggregation: FieldAggregation;
+};
+
+export type FormReport = {
+  workflow_id: string;
+  workflow_name: string;
+  total_responses: number;
+  internal_count: number;
+  guest_count: number;
+  first_submission: string | null;
+  last_submission: string | null;
+  fields: FieldReport[];
+};
+
+export function getFormReport(workflowId: string, token?: string | null) {
+  return apiFetch<FormReport>(`/api/v1/workflows/${workflowId}/form-report`, {}, token);
+}
+
 // ── Public forms & guest submissions ────────────────────────────────────────
 
 export type PublicFormSchema = {

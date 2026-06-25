@@ -10,14 +10,14 @@
 
 | # | Feature | Status |
 |---|---|---|
-| 1 | Send form to internal users | `[ ]` Not started |
-| 2 | Scheduled form dispatch | `[ ]` Not started |
+| 1 | Send form to internal users | `[x]` Done |
+| 2 | Scheduled form dispatch | `[x]` Done |
 | 3 | Public form link (anonymous users) | `[x]` Done |
 | 4 | Auto-injected system fields on public forms | `[x]` Done |
 | 5 | Guest submission storage & inbox | `[x]` Done |
 | 6 | Accept → auto-create user account | `[x]` Done |
 | 7 | Reject → notify applicant | `[x]` Done |
-| 8 | Submission reports & charts | `[ ]` Not started |
+| 8 | Submission reports & charts | `[x]` Done |
 | 9 | Security — SQL injection | `[x]` Done |
 | 10 | Security — input validation | `[x]` Done |
 | 11 | Security — rate limiting & spam | `[x]` Done |
@@ -26,7 +26,7 @@
 | 14 | Security — XSS prevention | `[x]` Done |
 | 15 | Internal user invites — fix & extend | `[x]` Done |
 
-**Overall: 11 of 15 features complete.**
+**Overall: 14 of 15 features complete.** (Feature 13 — file uploads — deferred until public forms include attachment fields)
 
 ---
 
@@ -246,6 +246,6 @@ Allow admins to invite staff by email so they can create their own WizFlow accou
 5. `[x]` Guest submission endpoint + security hardening — Pydantic validation, HTML strip, honeypot, rate limiting (Features 5, 10, 11, 12, 14)
 6. `[x]` Guest submissions inbox UI with detail panel (Feature 5 UI)
 7. `[x]` Accept / Reject flows with welcome & rejection emails (Features 6, 7)
-8. `[ ]` Send form to internal users (Feature 1)
-9. `[ ]` Scheduled dispatch (Feature 2)
-10. `[ ]` Reports & charts (Feature 8)
+8. `[x]` Send form to internal users — immediate send with user picker (Feature 1)
+9. `[x]` Scheduled dispatch — weekly/monthly/once with recipient list, scheduler integration (Feature 2)
+10. `[x]` Reports & charts — per-field aggregation (counts+%, numeric stats, text list) (Feature 8)

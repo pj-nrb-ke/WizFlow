@@ -1,5 +1,5 @@
 import { FormEvent, useCallback, useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ThemeScope } from "../context/ThemeContext";
 import { HelpTip } from "../components/HelpTip";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
@@ -46,6 +46,7 @@ function assigneeLabel(a?: { type?: string; value?: string; user_ids?: string[] 
 
 export function SubmitRequestPage() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const [fields, setFields] = useState<FormField[]>([]);
@@ -99,11 +100,13 @@ export function SubmitRequestPage() {
       .then(async (list) => {
         setWorkflows(list);
         if (list.length) {
-          const first = list[0].id;
+          const paramWf = searchParams.get("wf");
+          const first = (paramWf && list.find((w) => w.id === paramWf)?.id) || list[0].id;
           setSelectedId(first);
-          const fromList = getFormFields(list[0].form_schema);
+          const found = list.find((w) => w.id === first);
+          const fromList = found ? getFormFields(found.form_schema) : [];
           if (fromList.length > 0) {
-            applyWorkflow(list[0]);
+            applyWorkflow(found!);
           } else {
             await loadWorkflowDetail(first);
           }
