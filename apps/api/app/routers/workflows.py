@@ -610,10 +610,5 @@ def delete_workflow(
     db: Session = Depends(get_db),
 ) -> None:
     defn = _get_definition(db, workflow_id, user.company_id)
-    if defn.status != "draft":
-        raise HTTPException(
-            status_code=400,
-            detail="Only draft workflows can be deleted. Archive published workflows by creating a new version instead.",
-        )
     db.delete(defn)
     db.commit()

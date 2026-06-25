@@ -482,7 +482,7 @@ export function WorkflowsPage() {
                   >
                     {cloning ? "Duplicating…" : "Duplicate"}
                   </button>
-                  {selected.status === "draft" && !confirmDelete && (
+                  {!confirmDelete && (
                     <button
                       type="button"
                       onClick={() => setConfirmDelete(true)}
@@ -491,7 +491,7 @@ export function WorkflowsPage() {
                       Delete
                     </button>
                   )}
-                  {selected.status === "draft" && confirmDelete && (
+                  {confirmDelete && (
                     <span className="flex items-center gap-2 text-sm">
                       <span className="text-red-600 font-medium">Delete permanently?</span>
                       <button
