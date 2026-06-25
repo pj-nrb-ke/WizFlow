@@ -5,15 +5,40 @@ from __future__ import annotations
 import re
 import uuid
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, UploadFile
 from pydantic import BaseModel, EmailStr, field_validator
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.db.models import GuestSubmission, PublicFormToken, WorkflowDefinition
+from app.config import settings
+from app.db.models import GuestAttachment, GuestSubmission, PublicFormToken, WorkflowDefinition
 from app.db.session import get_db
+
+# ── MIME type whitelist (magic bytes, not extension) ─────────────────────────
+
+_MAGIC: list[tuple[bytes, str, str]] = [
+    (b"\x25\x50\x44\x46", "application/pdf", ".pdf"),
+    (b"\xff\xd8\xff", "image/jpeg", ".jpg"),
+    (b"\x89\x50\x4e\x47\x0d\x0a\x1a\x0a", "image/png", ".png"),
+]
+_MAX_FILE_BYTES = 10 * 1024 * 1024
+
+
+def _try_uuid(s: str) -> uuid.UUID | None:
+    try:
+        return uuid.UUID(s)
+    except ValueError:
+        return None
+
+
+def _detect_mime(header: bytes) -> tuple[str, str] | None:
+    for magic, mime, ext in _MAGIC:
+        if header[: len(magic)] == magic:
+            return mime, ext
+    return None
 
 router = APIRouter(tags=["Public Forms"])
 
@@ -69,6 +94,57 @@ def get_public_form(token: str, db: Session = Depends(get_db)) -> PublicFormSche
         company_name=company.name if company else "",
         form_schema=wf.form_schema,
         settings=wf.settings or {},
+    )
+
+
+# ── POST /public/forms/{token}/upload ────────────────────────────────────────
+
+class UploadOut(BaseModel):
+    id: str
+    original_filename: str
+    size_bytes: int
+
+
+@router.post("/public/forms/{token}/upload", response_model=UploadOut)
+async def upload_form_file(
+    token: str,
+    field_key: str = Form(...),
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db),
+) -> UploadOut:
+    tok = _resolve_token(token, db)
+
+    content = await file.read()
+    if len(content) > _MAX_FILE_BYTES:
+        raise HTTPException(status_code=413, detail="File exceeds 10 MB limit.")
+
+    result = _detect_mime(content[:8])
+    if result is None:
+        raise HTTPException(status_code=415, detail="Only PDF, JPG, and PNG files are allowed.")
+    detected_mime, ext = result
+
+    safe_name = f"{uuid.uuid4().hex}{ext}"
+    dest = Path(settings.file_storage_path) / "guest"
+    dest.mkdir(parents=True, exist_ok=True)
+    (dest / safe_name).write_bytes(content)
+
+    att = GuestAttachment(
+        id=uuid.uuid4(),
+        token_id=tok.id,
+        field_key=field_key[:100],
+        original_filename=(file.filename or "upload")[:255],
+        storage_path=str(dest / safe_name),
+        content_type=detected_mime,
+        size_bytes=len(content),
+    )
+    db.add(att)
+    db.commit()
+    db.refresh(att)
+
+    return UploadOut(
+        id=str(att.id),
+        original_filename=att.original_filename,
+        size_bytes=att.size_bytes,
     )
 
 
@@ -130,8 +206,9 @@ def submit_public_form(
     clean_data["__guest_name"] = _strip_html(body.guest_name)
     clean_data["__guest_email"] = str(body.guest_email).lower()
 
+    sub_id = uuid.uuid4()
     sub = GuestSubmission(
-        id=uuid.uuid4(),
+        id=sub_id,
         company_id=wf.company_id,
         workflow_definition_id=wf.id,
         token_id=tok.id,
@@ -142,6 +219,24 @@ def submit_public_form(
         ip_address=ip,
     )
     db.add(sub)
+    db.flush()
+
+    # Link any pre-uploaded attachments referenced in the submitted data
+    att_ids = {
+        str(v) for v in clean_data.values()
+        if isinstance(v, str) and len(v) in (32, 36)
+    }
+    if att_ids:
+        orphans = db.scalars(
+            select(GuestAttachment).where(
+                GuestAttachment.id.in_([_try_uuid(a) for a in att_ids if _try_uuid(a)]),
+                GuestAttachment.token_id == tok.id,
+                GuestAttachment.guest_submission_id.is_(None),
+            )
+        ).all()
+        for orphan in orphans:
+            orphan.guest_submission_id = sub_id
+
     db.commit()
 
     return PublicSubmitOut(

@@ -22,11 +22,11 @@
 | 10 | Security — input validation | `[x]` Done |
 | 11 | Security — rate limiting & spam | `[x]` Done |
 | 12 | Security — token safety | `[x]` Done |
-| 13 | Security — file uploads | `[ ]` Not started (no file fields on public forms yet) |
+| 13 | Security — file uploads | `[x]` Done |
 | 14 | Security — XSS prevention | `[x]` Done |
 | 15 | Internal user invites — fix & extend | `[x]` Done |
 
-**Overall: 14 of 15 features complete.** (Feature 13 — file uploads — deferred until public forms include attachment fields)
+**Overall: 15 of 15 features complete.**
 
 ---
 
@@ -177,10 +177,15 @@ A reports tab on every published workflow showing response analytics — works f
 
 Applies when public forms include attachment fields (e.g. vendor KYC documents).
 
-- [ ] MIME type whitelist enforced server-side: PDF, JPG, PNG only (not just extension check)
-- [ ] Per-file size limit: 10 MB maximum
-- [ ] Uploaded files stored with randomised UUIDs as filenames — original name never used as a path
-- [ ] Files served as static assets only — never executed by the server
+- [x] MIME type whitelist enforced server-side: PDF, JPG, PNG only (magic bytes, not extension)
+- [x] Per-file size limit: 10 MB maximum (enforced in middleware + handler)
+- [x] Uploaded files stored with randomised UUID filenames — original name never used as path
+- [x] Files served through authenticated download endpoint only — never executed by server
+- [x] `guest_attachments` table links uploads to submissions (two-phase: upload before submit)
+- [x] `POST /public/forms/{token}/upload` — unauthenticated upload, validates token
+- [x] `GET /api/v1/guest-attachments/{id}/download` — managers only, company-scoped
+- [x] Attachment fields rendered in `PublicFormPage` with drag-to-replace UI
+- [x] Submission detail shows filename + size + download button per attachment
 
 ---
 

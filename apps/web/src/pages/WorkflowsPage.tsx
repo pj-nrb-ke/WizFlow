@@ -32,9 +32,11 @@ import {
   PublicLinkOut,
   GuestSubOut,
   GuestSubDetail,
+  GuestAttachmentInfo,
   FormScheduleOut,
   FormReport,
   OrgUser,
+  downloadGuestAttachment,
 } from "../lib/api";
 import { getToken } from "../lib/auth";
 import { HelpTip } from "../components/HelpTip";
@@ -1191,12 +1193,26 @@ export function WorkflowsPage() {
                       <dl className="space-y-2 mb-4">
                         {Object.entries(selectedSub.data)
                           .filter(([k]) => !k.startsWith("__"))
-                          .map(([k, v]) => (
-                            <div key={k} className="flex gap-2 text-xs">
-                              <dt className="text-slate-500 w-32 shrink-0 truncate">{k}</dt>
-                              <dd className="text-slate-800 break-words">{String(v ?? "—")}</dd>
-                            </div>
-                          ))}
+                          .map(([k, v]) => {
+                            const att = selectedSub.attachments?.find((a) => a.field_key === k);
+                            return (
+                              <div key={k} className="flex gap-2 text-xs">
+                                <dt className="text-slate-500 w-32 shrink-0 truncate">{k}</dt>
+                                <dd className="text-slate-800 break-words">
+                                  {att ? (
+                                    <button
+                                      type="button"
+                                      onClick={() => void downloadGuestAttachment(att.id, getToken())}
+                                      className="text-blue-600 hover:underline flex items-center gap-1"
+                                    >
+                                      ⬇ {att.original_filename}
+                                      <span className="text-slate-400 ml-1">({(att.size_bytes / 1024).toFixed(0)} KB)</span>
+                                    </button>
+                                  ) : String(v ?? "—")}
+                                </dd>
+                              </div>
+                            );
+                          })}
                       </dl>
 
                       {subMsg && (

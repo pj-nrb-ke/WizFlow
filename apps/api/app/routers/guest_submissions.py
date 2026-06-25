@@ -6,7 +6,10 @@ import secrets
 import uuid
 from datetime import datetime, timezone
 
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -14,7 +17,7 @@ from sqlalchemy.orm import Session
 from app.config import settings
 from app.core.deps import CurrentUser, require_company, require_roles
 from app.core.security import hash_password
-from app.db.models import Company, GuestSubmission, PublicFormToken, Role, User, UserRole, WorkflowDefinition
+from app.db.models import Company, GuestAttachment, GuestSubmission, PublicFormToken, Role, User, UserRole, WorkflowDefinition
 from app.db.session import get_db
 from app.services.brevo_mail import send_welcome_email, send_rejection_email
 
@@ -63,10 +66,18 @@ class GuestSubOut(BaseModel):
     review_note: str | None
 
 
+class AttachmentInfo(BaseModel):
+    id: str
+    field_key: str
+    original_filename: str
+    size_bytes: int
+
+
 class GuestSubDetail(GuestSubOut):
     data: dict
     ip_address: str | None
     reviewed_at: datetime | None
+    attachments: list[AttachmentInfo]
 
 
 class RejectBody(BaseModel):
@@ -191,6 +202,11 @@ def get_guest_submission(
     )
     if not sub:
         raise HTTPException(status_code=404, detail="Submission not found.")
+
+    atts = db.scalars(
+        select(GuestAttachment).where(GuestAttachment.guest_submission_id == sub.id)
+    ).all()
+
     return GuestSubDetail(
         id=str(sub.id),
         guest_name=sub.guest_name,
@@ -201,6 +217,15 @@ def get_guest_submission(
         data=sub.data,
         ip_address=sub.ip_address,
         reviewed_at=sub.reviewed_at,
+        attachments=[
+            AttachmentInfo(
+                id=str(a.id),
+                field_key=a.field_key,
+                original_filename=a.original_filename,
+                size_bytes=a.size_bytes,
+            )
+            for a in atts
+        ],
     )
 
 
@@ -308,3 +333,39 @@ def reject_guest_submission(
     )
 
     return {"message": "Submission rejected and applicant notified."}
+
+
+# ── Attachment download ───────────────────────────────────────────────────────
+
+@router.get("/guest-attachments/{att_id}/download")
+def download_guest_attachment(
+    att_id: uuid.UUID,
+    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    att = db.scalar(select(GuestAttachment).where(GuestAttachment.id == att_id))
+    if not att:
+        raise HTTPException(status_code=404, detail="Attachment not found.")
+
+    # Verify the attachment belongs to a submission in the caller's company
+    if att.guest_submission_id:
+        sub = db.scalar(
+            select(GuestSubmission).where(
+                GuestSubmission.id == att.guest_submission_id,
+                GuestSubmission.company_id == user.company_id,
+            )
+        )
+        if not sub:
+            raise HTTPException(status_code=403, detail="Access denied.")
+    else:
+        raise HTTPException(status_code=404, detail="Attachment not yet linked to a submission.")
+
+    path = Path(att.storage_path)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found on server.")
+
+    return FileResponse(
+        path=str(path),
+        media_type=att.content_type or "application/octet-stream",
+        filename=att.original_filename,
+    )

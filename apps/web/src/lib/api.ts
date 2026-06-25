@@ -1234,10 +1234,18 @@ export type GuestSubOut = {
   review_note: string | null;
 };
 
+export type GuestAttachmentInfo = {
+  id: string;
+  field_key: string;
+  original_filename: string;
+  size_bytes: number;
+};
+
 export type GuestSubDetail = GuestSubOut & {
   data: Record<string, unknown>;
   ip_address: string | null;
   reviewed_at: string | null;
+  attachments: GuestAttachmentInfo[];
 };
 
 export function getPublicForm(token: string) {
@@ -1252,6 +1260,46 @@ export function submitPublicForm(
     method: "POST",
     body: JSON.stringify({ honeypot: "", ...body }),
   });
+}
+
+export async function uploadGuestFile(
+  formToken: string,
+  fieldKey: string,
+  file: File
+): Promise<GuestAttachmentInfo & { id: string; original_filename: string; size_bytes: number }> {
+  const fd = new FormData();
+  fd.append("field_key", fieldKey);
+  fd.append("file", file);
+  const res = await fetch(`${API_BASE}/api/v1/public/forms/${formToken}/upload`, {
+    method: "POST",
+    body: fd,
+    credentials: "include",
+  });
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail ?? detail; } catch { /* ignore */ }
+    throw new ApiError(detail, res.status, detail);
+  }
+  return res.json();
+}
+
+export async function downloadGuestAttachment(attId: string, authToken?: string | null): Promise<void> {
+  const headers: Record<string, string> = {};
+  if (authToken) headers.Authorization = `Bearer ${authToken}`;
+  const res = await fetch(`${API_BASE}/api/v1/guest-attachments/${attId}/download`, {
+    headers,
+    credentials: "include",
+  });
+  if (!res.ok) throw new ApiError("Download failed", res.status);
+  const blob = await res.blob();
+  const cd = res.headers.get("content-disposition") ?? "";
+  const filename = cd.match(/filename="([^"]+)"/)?.[1] ?? "download";
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 export function getPublicLink(workflowId: string, token?: string | null) {

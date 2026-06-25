@@ -1,14 +1,17 @@
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { ApiError, getPublicForm, submitPublicForm, PublicFormSchema } from "../lib/api";
+import { ApiError, getPublicForm, submitPublicForm, uploadGuestFile, PublicFormSchema } from "../lib/api";
 
 type FieldValue = string | boolean | string[];
+
+type UploadState = { status: "idle" } | { status: "uploading" } | { status: "done"; id: string; filename: string; size: number } | { status: "error"; message: string };
 
 export function PublicFormPage() {
   const { token } = useParams<{ token: string }>();
   const [form, setForm] = useState<PublicFormSchema | null>(null);
   const [loadErr, setLoadErr] = useState("");
   const [values, setValues] = useState<Record<string, FieldValue>>({});
+  const [uploadStates, setUploadStates] = useState<Record<string, UploadState>>({});
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -33,9 +36,24 @@ export function PublicFormPage() {
       );
   }, [token]);
 
+  async function handleFileUpload(fieldKey: string, file: File) {
+    if (!token) return;
+    setUploadStates((prev) => ({ ...prev, [fieldKey]: { status: "uploading" } }));
+    try {
+      const res = await uploadGuestFile(token, fieldKey, file);
+      setUploadStates((prev) => ({ ...prev, [fieldKey]: { status: "done", id: res.id, filename: res.original_filename, size: res.size_bytes } }));
+      setValues((prev) => ({ ...prev, [fieldKey]: res.id }));
+    } catch (err) {
+      const msg = err instanceof ApiError ? err.detail ?? err.message : "Upload failed";
+      setUploadStates((prev) => ({ ...prev, [fieldKey]: { status: "error", message: msg } }));
+    }
+  }
+
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     if (!token) return;
+    const uploading = Object.values(uploadStates).some((s) => s.status === "uploading");
+    if (uploading) { setSubmitErr("Please wait for uploads to complete."); return; }
     setSubmitting(true);
     setSubmitErr("");
     try {
@@ -138,6 +156,8 @@ export function PublicFormPage() {
             field={field}
             value={values[field.key] ?? ""}
             onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: v }))}
+            uploadState={uploadStates[field.key] ?? { status: "idle" }}
+            onFileUpload={(file) => handleFileUpload(field.key, file)}
           />
         ))}
 
@@ -182,12 +202,55 @@ function FieldRenderer({
   field,
   value,
   onChange,
+  uploadState,
+  onFileUpload,
 }: {
   field: FieldDef;
   value: FieldValue;
   onChange: (v: FieldValue) => void;
+  uploadState: UploadState;
+  onFileUpload: (file: File) => void;
 }) {
+  const fileRef = useRef<HTMLInputElement>(null);
   const base = "space-y-1";
+
+  if (field.type === "attachment") {
+    return (
+      <div className={base}>
+        <label className="text-xs font-medium text-slate-700">
+          {field.label}
+          {field.required && <span className="text-red-500 ml-0.5">*</span>}
+        </label>
+        <div
+          className="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:border-slate-300 hover:bg-slate-50/60 transition-colors"
+          onClick={() => fileRef.current?.click()}
+        >
+          {uploadState.status === "uploading" && (
+            <p className="text-sm text-slate-500">Uploading…</p>
+          )}
+          {uploadState.status === "done" && (
+            <div>
+              <p className="text-sm font-medium text-green-700 truncate">{uploadState.filename}</p>
+              <p className="text-xs text-slate-400">{(uploadState.size / 1024).toFixed(0)} KB — click to replace</p>
+            </div>
+          )}
+          {uploadState.status === "error" && (
+            <p className="text-sm text-red-600">{uploadState.message} — click to try again</p>
+          )}
+          {uploadState.status === "idle" && (
+            <p className="text-sm text-slate-500">Click to upload (PDF, JPG, PNG · max 10 MB)</p>
+          )}
+          <input
+            ref={fileRef}
+            type="file"
+            accept=".pdf,.jpg,.jpeg,.png"
+            className="hidden"
+            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileUpload(f); }}
+          />
+        </div>
+      </div>
+    );
+  }
   const label = (
     <label className="text-xs font-medium text-slate-700">
       {field.label}

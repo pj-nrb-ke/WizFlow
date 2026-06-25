@@ -596,6 +596,24 @@ class GuestSubmission(Base):
     submitted_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class GuestAttachment(Base):
+    __tablename__ = "guest_attachments"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    guest_submission_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("guest_submissions.id", ondelete="CASCADE"), nullable=True, index=True
+    )
+    token_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("public_form_tokens.id", ondelete="SET NULL"), nullable=True
+    )
+    field_key: Mapped[str] = mapped_column(String(100), nullable=False, default="")
+    original_filename: Mapped[str] = mapped_column(String(255), nullable=False)
+    storage_path: Mapped[str] = mapped_column(String(500), nullable=False)
+    content_type: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    size_bytes: Mapped[int] = mapped_column(BigInteger, nullable=False, default=0)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
 class ReminderRule(Base):
     __tablename__ = "reminder_rules"
 
