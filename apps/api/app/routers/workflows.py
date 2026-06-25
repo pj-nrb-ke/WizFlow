@@ -5,7 +5,7 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.deps import CurrentUser, require_company
+from app.core.deps import CurrentUser, require_company, require_roles
 from app.db.models import User, UserGroup, UserGroupMember, WorkflowDefinition, WorkflowEvent
 from app.db.session import get_db
 from app.schemas.request import RequestSubmit, WorkflowInstanceOut
