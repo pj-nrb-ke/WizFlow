@@ -224,12 +224,18 @@ test.describe("QA-006 Targeted Retest", () => {
       "QA005 session x22",
       async () => {
         await gotoFast(page, "/settings");
+        // Let the authenticated page settle (on-mount fetchMe completes online)
+        // before simulating offline, so we exercise offline UX — not a cold-load race.
+        await page.waitForSelector(".wf-page-title, h1", { timeout: 12_000 }).catch(() => {});
         await context.setOffline(true);
         const banner = page.getByTestId("network-offline-banner");
+        // Give React time to render the banner in response to the offline event;
+        // isVisible() checked immediately after setOffline is a race.
+        await banner.waitFor({ state: "visible", timeout: 5000 }).catch(() => {});
         const offlineVisible = await banner.isVisible().catch(() => false);
         expect(offlineVisible || page.url().includes("/settings")).toBeTruthy();
         await context.setOffline(false);
-        return { assertions: "banner visible offline", apiEvidence: "n/a" };
+        return { assertions: `banner visible offline=${offlineVisible}`, apiEvidence: "n/a" };
       },
       logs
     );
@@ -243,10 +249,13 @@ test.describe("QA-006 Targeted Retest", () => {
       "QA005 session",
       async () => {
         await gotoFast(page, "/inbox");
+        await page.waitForSelector(".wf-page-title, h1", { timeout: 12_000 }).catch(() => {});
         await context.setOffline(true);
         await page.waitForTimeout(500);
         await context.setOffline(false);
-        await page.waitForTimeout(1000);
+        // Wait until the browser is genuinely back online before navigating, else
+        // the goto races the reconnect and fails with ERR_INTERNET_DISCONNECTED.
+        await page.waitForFunction(() => navigator.onLine === true, undefined, { timeout: 10_000 }).catch(() => {});
         await gotoFast(page, "/inbox");
         await expect(page).not.toHaveURL(/\/login/);
         await page.waitForSelector(".wf-page-title, h1", { timeout: 15_000 });
@@ -264,9 +273,12 @@ test.describe("QA-006 Targeted Retest", () => {
       "QA005 session",
       async () => {
         await gotoFast(page, "/settings");
+        await page.waitForSelector(".wf-page-title, h1", { timeout: 12_000 }).catch(() => {});
         await context.setOffline(true);
         await context.setOffline(false);
-        await page.waitForTimeout(800);
+        // Ensure connectivity is restored before reloading (avoids ERR_INTERNET_DISCONNECTED).
+        await page.waitForFunction(() => navigator.onLine === true, undefined, { timeout: 10_000 }).catch(() => {});
+        await page.waitForTimeout(300);
         await page.reload({ waitUntil: "domcontentloaded", timeout: 20_000 });
         await page.waitForTimeout(1500);
         const onLogin = page.url().includes("/login");

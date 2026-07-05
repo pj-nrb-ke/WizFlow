@@ -35,9 +35,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       applyBrandColor(profile.company_branding?.brand_color);
     } catch (e) {
       if (e instanceof ApiError && e.status === 401) {
+        // Genuine auth failure — clear the invalid session and sign out.
         auth.clearToken();
+        setUser(null);
       }
-      setUser(null);
+      // Network/offline/transient errors (e.g. fetchMe fails while the
+      // connection drops): keep the current session so a connectivity blip
+      // doesn't spuriously log the user out. The offline banner communicates
+      // the state, and the next successful refresh restores fresh data.
     } finally {
       setLoading(false);
     }

@@ -4,9 +4,14 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
     <meta name="theme-color" content="#534AB7" />
+    <!-- frame-ancestors is intentionally omitted here: browsers ignore it in a
+         <meta> CSP (it only works as an HTTP response header), so leaving it in
+         just emits a console error while providing no protection. Clickjacking
+         defense is delivered via the server (X-Frame-Options / CSP frame-ancestors
+         at Caddy in production). -->
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; connect-src 'self' https://api.wizflow.biz http://localhost:* http://127.0.0.1:*; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; frame-ancestors 'none'; base-uri 'self';"
+      content="default-src 'self'; connect-src 'self' https://api.wizflow.biz http://localhost:* http://127.0.0.1:*; img-src 'self' data: https:; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; script-src 'self'; base-uri 'self';"
     />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />

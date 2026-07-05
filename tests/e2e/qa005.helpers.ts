@@ -58,7 +58,10 @@ export async function gotoFast(page: Page, route: string): Promise<void> {
 }
 
 export async function uiLogin(page: Page): Promise<void> {
-  await page.goto("/login");
+  // domcontentloaded, not the default "load": the login page pulls external
+  // Google Fonts, and waiting for full "load" can stall for the whole nav
+  // timeout when that request is slow (qa006's helper uses the same approach).
+  await page.goto("/login", { waitUntil: "domcontentloaded" });
   await expect(page.locator("#email")).toBeVisible({ timeout: 30_000 });
   await page.locator("#email").fill("admin@demo.wizflow.biz");
   await page.locator("#password").fill("changeme");
@@ -85,6 +88,16 @@ export async function apiGet<T>(request: APIRequestContext, token: string, path:
 }
 
 export async function countUiInboxItems(page: Page): Promise<number> {
-  const items = page.locator("div.lg\\:col-span-1 button.w-full");
-  return items.count();
+  // Prefer the stable test id (added in the qa-006 cycle); fall back to the
+  // data-inbox-count attribute. The old ".lg:col-span-1 button.w-full" selector
+  // no longer matches the inbox DOM and read 0, failing every sync assertion.
+  const items = page.getByTestId("inbox-list-item");
+  const n = await items.count();
+  if (n > 0) return n;
+  const attr = await page
+    .locator("[data-inbox-count]")
+    .getAttribute("data-inbox-count")
+    .catch(() => null);
+  if (attr) return parseInt(attr, 10);
+  return 0;
 }
