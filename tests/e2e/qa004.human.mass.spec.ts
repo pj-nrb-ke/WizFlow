@@ -43,8 +43,16 @@ async function safeClick(page: Page, selectors: string[]): Promise<boolean> {
   for (const s of selectors) {
     const loc = page.locator(s).first();
     if (await loc.count()) {
-      await loc.click({ delay: rand(10, 70) });
-      return true;
+      try {
+        // Bound each click to 3s. Without a timeout, an element that is briefly
+        // non-actionable (covered/animating/disabled) makes Playwright wait its
+        // 30s default before moving on — a few of those per run ballooned the
+        // sweep past 5 minutes. Skip to the next selector instead of stalling.
+        await loc.click({ delay: rand(10, 70), timeout: 3000 });
+        return true;
+      } catch {
+        continue;
+      }
     }
   }
   return false;
@@ -56,7 +64,14 @@ async function safeType(page: Page, selectors: string[], value: string): Promise
     if (await loc.count()) {
       await loc.click();
       await loc.fill("");
-      for (const ch of value) await loc.type(ch, { delay: rand(12, 80) });
+      if (value.length > 200) {
+        // Long values model pasted text ("10k+ chars pasted"); typing them
+        // character-by-character with a per-key delay would take minutes and
+        // blow the test timeout. fill() reproduces a paste instantly.
+        await loc.fill(value);
+      } else {
+        for (const ch of value) await loc.type(ch, { delay: rand(12, 80) });
+      }
       return true;
     }
   }
@@ -74,6 +89,29 @@ async function login(page: Page): Promise<void> {
 
 test.describe("QA-004 Human Frontend Mass Tests", () => {
   test("Execute 100+ human interaction test cases", async ({ page, context, browserName }) => {
+    // ~140 human-interaction cases run sequentially in one test at ~2s each
+    // (navigation + clicks + human-like waits); the default 90s cap — and even
+    // 300s — is too tight for the full sweep, so allow generous headroom.
+    test.setTimeout(600_000);
+
+    // page.goto/reload/goBack default to waitUntil:"load", which on this SPA can
+    // stall for many seconds per navigation waiting on every sub-resource (heavy
+    // once the dev DB fills with data). Default them to "domcontentloaded" — the
+    // same fast pattern qa005/qa006 helpers use — so the ~300 navigations across
+    // the sweep don't blow the timeout.
+    const _goto = page.goto.bind(page);
+    page.goto = ((url: string, opts?: any) =>
+      _goto(url, { waitUntil: "domcontentloaded", ...opts })) as typeof page.goto;
+    const _reload = page.reload.bind(page);
+    page.reload = ((opts?: any) =>
+      _reload({ waitUntil: "domcontentloaded", ...opts })) as typeof page.reload;
+    const _goBack = page.goBack.bind(page);
+    page.goBack = ((opts?: any) =>
+      _goBack({ waitUntil: "domcontentloaded", ...opts })) as typeof page.goBack;
+    const _goForward = page.goForward.bind(page);
+    page.goForward = ((opts?: any) =>
+      _goForward({ waitUntil: "domcontentloaded", ...opts })) as typeof page.goForward;
+
     ensureDirs();
     const cases: CaseRow[] = [];
     const consoleLogs: string[] = [];
@@ -100,6 +138,7 @@ test.describe("QA-004 Human Frontend Mass Tests", () => {
     ): Promise<void> {
       const id = `QA004-${String(idx).padStart(3, "0")}`;
       idx += 1;
+      const started = Date.now();
       let status: CaseRow["status"] = "PASS";
       let actual = "Completed without uncaught UI crash";
       let severity: CaseRow["severity"] = "—";
@@ -112,7 +151,13 @@ test.describe("QA-004 Human Frontend Mass Tests", () => {
         actual = String(e?.message ?? e);
         screenshot = path.join(FAIL_DIR, `${id}.png`);
       }
-      await page.screenshot({ path: screenshot, fullPage: true });
+      // Full-page capture only for failures (the evidence that matters); a
+      // viewport capture for passes keeps the 140-case sweep inside its timeout
+      // (140 full-page screenshots alone pushed the run past 5 minutes).
+      await page.screenshot({ path: screenshot, fullPage: status === "FAIL" });
+      const elapsed = Date.now() - started;
+      fs.appendFileSync(path.join(LOG_DIR, `timing-${browserName}.log`), `${id} ${sheet} ${elapsed}ms\n`);
+      if (elapsed > 3000) console.log(`[SLOW] ${id} (${sheet}) "${scenario}" took ${elapsed}ms`);
       cases.push({
         id,
         sheet,
@@ -265,7 +310,7 @@ test.describe("QA-004 Human Frontend Mass Tests", () => {
         "No crash; predictable conflict handling",
         async () => {
           const tab2 = await context.newPage();
-          await tab2.goto("/inbox");
+          await tab2.goto("/inbox", { waitUntil: "domcontentloaded" });
           await page.goto("/inbox");
           await safeClick(page, ["button"]);
           await safeClick(tab2, ["button"]);

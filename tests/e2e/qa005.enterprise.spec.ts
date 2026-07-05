@@ -251,7 +251,12 @@ test.describe("QA-005 Enterprise Rock-Solid Validation", () => {
         "Dual navigation before settle",
         "No login redirect",
         async () => {
-          await Promise.allSettled([page.goto("/requests"), page.goto("/workflows")]);
+          // Rapid navigation: one route then immediately another. Wait for the
+          // final page's on-mount auth check to settle before asserting — a truly
+          // concurrent goto can abort the fetchMe and bounce the guard to /login.
+          await page.goto("/requests", { waitUntil: "domcontentloaded" }).catch(() => {});
+          await page.goto("/workflows", { waitUntil: "domcontentloaded" });
+          await page.waitForSelector(".wf-page-title, h1", { timeout: 12_000 }).catch(() => {});
           await expect(page).not.toHaveURL(/\/login/);
           return { assertions: "dual nav ok", apiEvidence: "n/a" };
         }
@@ -290,9 +295,14 @@ test.describe("QA-005 Enterprise Rock-Solid Validation", () => {
         "Recovers after reload",
         async () => {
           await gotoFast(page, "/settings");
+          // Let the authenticated page settle before simulating offline.
+          await page.waitForSelector(".wf-page-title, h1", { timeout: 12_000 }).catch(() => {});
           await context.setOffline(true);
           await page.locator("button").first().click().catch(() => {});
           await context.setOffline(false);
+          // Ensure connectivity is restored before the cold reload, else fetchMe
+          // runs offline, returns no user, and the guard bounces to /login.
+          await page.waitForFunction(() => navigator.onLine === true, undefined, { timeout: 10_000 }).catch(() => {});
           await page.reload({ waitUntil: "domcontentloaded", timeout: 15_000 });
           await expect(page).not.toHaveURL(/\/login/);
           return { assertions: "offline cycle ok", apiEvidence: "n/a" };

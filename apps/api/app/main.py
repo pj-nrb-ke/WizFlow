@@ -11,6 +11,7 @@ from app.routers import (
     ai,
     analytics,
     auth,
+    checklists,
     delegations,
     documents,
     drafts,
@@ -103,6 +104,7 @@ v1.include_router(reminders.router)
 v1.include_router(public_forms.router)
 v1.include_router(guest_submissions.router)
 v1.include_router(form_sending.router)
+v1.include_router(checklists.router)
 app.include_router(v1)
 
 
