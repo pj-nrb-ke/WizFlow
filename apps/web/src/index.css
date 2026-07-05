@@ -498,9 +498,10 @@
   .wf-btn-primary {
     background-color: rgb(var(--wf-brand-600));
     color: white;
+    border: 1px solid transparent;
     border-radius: var(--wf-radius);
     font-family: var(--wf-font-body);
-    @apply font-semibold transition-all hover:brightness-110 disabled:opacity-50;
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-semibold transition-all hover:brightness-110 disabled:opacity-50;
   }
   .wf-btn-primary:focus-visible {
     outline: 2px solid rgb(var(--wf-brand-500));
@@ -524,9 +525,22 @@
     background-color: rgb(var(--wf-card-bg));
     border: 1px solid rgb(var(--wf-card-border));
     border-radius: var(--wf-radius);
-    @apply text-slate-700 hover:bg-slate-50;
+    font-family: var(--wf-font-body);
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 disabled:opacity-50;
   }
   .wf-btn-secondary:focus-visible {
+    outline: 2px solid rgb(var(--wf-brand-500));
+    outline-offset: 2px;
+  }
+
+  .wf-btn-ghost {
+    background-color: transparent;
+    border: 1px solid transparent;
+    border-radius: var(--wf-radius);
+    font-family: var(--wf-font-body);
+    @apply inline-flex items-center justify-center gap-2 px-4 py-2 text-sm font-medium text-slate-600 transition-all hover:bg-slate-100 disabled:opacity-50;
+  }
+  .wf-btn-ghost:focus-visible {
     outline: 2px solid rgb(var(--wf-brand-500));
     outline-offset: 2px;
   }
