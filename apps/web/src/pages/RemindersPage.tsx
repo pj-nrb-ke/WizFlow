@@ -149,7 +149,7 @@ function RuleModal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="bg-[rgb(var(--wf-surface))] rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
+      <div className="bg-[rgb(var(--wf-card-bg))] rounded-xl shadow-xl w-full max-w-lg mx-4 max-h-[90vh] overflow-y-auto">
         <div className="p-6">
           <h2 className="text-lg font-semibold mb-4">{rule ? "Edit reminder rule" : "New reminder rule"}</h2>
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -185,7 +185,7 @@ function RuleModal({
                     className={`px-3 py-1 rounded text-sm border transition-colors ${
                       days.includes(i)
                         ? "bg-[rgb(var(--wf-brand-600))] text-white border-[rgb(var(--wf-brand-600))]"
-                        : "bg-[rgb(var(--wf-surface))] border-[rgb(var(--wf-border))] text-[rgb(var(--wf-text-secondary))]"
+                        : "bg-[rgb(var(--wf-card-bg))] border-[rgb(var(--wf-card-border))] text-slate-500"
                     }`}
                   >
                     {label}
@@ -206,14 +206,14 @@ function RuleModal({
                 value={sendHour}
                 onChange={(e) => setSendHour(Number(e.target.value))}
               />
-              <p className="text-xs text-[rgb(var(--wf-text-secondary))] mt-1">
+              <p className="text-xs text-slate-500 mt-1">
                 Reminders fire once per day when the scheduler runs at or after this UTC hour.
               </p>
             </div>
 
             <div>
               <label className="block text-sm font-medium mb-2">Assign to users</label>
-              <div className="max-h-36 overflow-y-auto border border-[rgb(var(--wf-border))] rounded p-2 space-y-1">
+              <div className="max-h-36 overflow-y-auto border border-[rgb(var(--wf-card-border))] rounded p-2 space-y-1">
                 {users.map((u) => (
                   <label key={u.id} className="flex items-center gap-2 text-sm cursor-pointer">
                     <input
@@ -222,17 +222,17 @@ function RuleModal({
                       onChange={() => toggleUser(u.id)}
                     />
                     <span>{u.full_name}</span>
-                    <span className="text-[rgb(var(--wf-text-secondary))]">{u.email}</span>
+                    <span className="text-slate-500">{u.email}</span>
                   </label>
                 ))}
-                {users.length === 0 && <p className="text-xs text-[rgb(var(--wf-text-secondary))]">No users found</p>}
+                {users.length === 0 && <p className="text-xs text-slate-500">No users found</p>}
               </div>
             </div>
 
             {groups.length > 0 && (
               <div>
                 <label className="block text-sm font-medium mb-2">Assign to groups</label>
-                <div className="max-h-28 overflow-y-auto border border-[rgb(var(--wf-border))] rounded p-2 space-y-1">
+                <div className="max-h-28 overflow-y-auto border border-[rgb(var(--wf-card-border))] rounded p-2 space-y-1">
                   {groups.map((g) => (
                     <label key={g.id} className="flex items-center gap-2 text-sm cursor-pointer">
                       <input
@@ -241,7 +241,7 @@ function RuleModal({
                         onChange={() => toggleGroup(g.id)}
                       />
                       <span>{g.name}</span>
-                      <span className="text-[rgb(var(--wf-text-secondary))]">({g.member_count} members)</span>
+                      <span className="text-slate-500">({g.member_count} members)</span>
                     </label>
                   ))}
                 </div>
@@ -307,12 +307,12 @@ function RulesTab() {
     load();
   }
 
-  if (loading) return <p className="text-sm text-[rgb(var(--wf-text-secondary))] py-8 text-center">Loading…</p>;
+  if (loading) return <p className="text-sm text-slate-500 py-8 text-center">Loading…</p>;
 
   return (
     <div>
       <div className="flex items-center justify-between mb-4">
-        <p className="text-sm text-[rgb(var(--wf-text-secondary))]">
+        <p className="text-sm text-slate-500">
           {rules.length} reminder {rules.length === 1 ? "rule" : "rules"}
         </p>
         <button className="wf-btn-primary text-sm" onClick={() => setEditRule("new")}>
@@ -321,7 +321,7 @@ function RulesTab() {
       </div>
 
       {rules.length === 0 ? (
-        <div className="text-center py-16 text-[rgb(var(--wf-text-secondary))]">
+        <div className="text-center py-16 text-slate-500">
           <IconRepeat size={36} className="mx-auto mb-3 opacity-30" />
           <p className="font-medium">No reminder rules yet</p>
           <p className="text-sm mt-1">Create a rule to start sending recurring reminders to your team.</p>
@@ -330,7 +330,7 @@ function RulesTab() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[rgb(var(--wf-border))]">
+              <tr className="border-b border-[rgb(var(--wf-card-border))]">
                 <th className="text-left py-2 pr-4 font-medium">Name</th>
                 <th className="text-left py-2 pr-4 font-medium">Schedule</th>
                 <th className="text-left py-2 pr-4 font-medium">Hour (UTC)</th>
@@ -341,17 +341,17 @@ function RulesTab() {
             </thead>
             <tbody>
               {rules.map((rule) => (
-                <tr key={rule.id} className="border-b border-[rgb(var(--wf-border))] hover:bg-[rgb(var(--wf-surface-hover))]">
+                <tr key={rule.id} className="border-b border-[rgb(var(--wf-card-border))] hover:bg-[rgb(var(--wf-accent-muted))]">
                   <td className="py-3 pr-4">
                     <div className="font-medium">{rule.name}</div>
                     {rule.description && (
-                      <div className="text-xs text-[rgb(var(--wf-text-secondary))] mt-0.5 truncate max-w-xs">{rule.description}</div>
+                      <div className="text-xs text-slate-500 mt-0.5 truncate max-w-xs">{rule.description}</div>
                     )}
                   </td>
                   <td className="py-3 pr-4">{formatDays(rule.days_of_week)}</td>
                   <td className="py-3 pr-4">{rule.send_hour}:00</td>
                   <td className="py-3 pr-4">
-                    <span className="text-[rgb(var(--wf-text-secondary))]">
+                    <span className="text-slate-500">
                       {rule.assignee_user_ids.length} user{rule.assignee_user_ids.length !== 1 ? "s" : ""}
                       {rule.assignee_group_ids.length > 0 && `, ${rule.assignee_group_ids.length} group${rule.assignee_group_ids.length !== 1 ? "s" : ""}`}
                     </span>
@@ -431,7 +431,7 @@ function MyRemindersTab() {
   const pending = occs.filter((o) => o.status === "pending");
   const recent = occs.filter((o) => o.status !== "pending");
 
-  if (loading) return <p className="text-sm text-[rgb(var(--wf-text-secondary))] py-8 text-center">Loading…</p>;
+  if (loading) return <p className="text-sm text-slate-500 py-8 text-center">Loading…</p>;
 
   return (
     <div className="space-y-6">
@@ -440,7 +440,7 @@ function MyRemindersTab() {
           Pending reminders{pending.length > 0 && <span className="ml-2 px-1.5 py-0.5 bg-amber-100 text-amber-700 text-xs rounded">{pending.length}</span>}
         </h3>
         {pending.length === 0 ? (
-          <div className="text-center py-10 text-[rgb(var(--wf-text-secondary))]">
+          <div className="text-center py-10 text-slate-500">
             <IconCheckCircle size={36} className="mx-auto mb-3 opacity-30" />
             <p className="font-medium">All caught up!</p>
             <p className="text-sm mt-1">No pending reminders today.</p>
@@ -450,11 +450,11 @@ function MyRemindersTab() {
             {pending.map((occ) => (
               <div
                 key={occ.id}
-                className="flex items-center justify-between p-4 rounded-lg border border-[rgb(var(--wf-border))] bg-[rgb(var(--wf-surface))]"
+                className="flex items-center justify-between p-4 rounded-lg border border-[rgb(var(--wf-card-border))] bg-[rgb(var(--wf-card-bg))]"
               >
                 <div>
                   <p className="font-medium text-sm">{occ.rule_name}</p>
-                  <p className="text-xs text-[rgb(var(--wf-text-secondary))] mt-0.5">Due {occ.due_date}</p>
+                  <p className="text-xs text-slate-500 mt-0.5">Due {occ.due_date}</p>
                 </div>
                 <button
                   onClick={() => markDone(occ)}
@@ -475,7 +475,7 @@ function MyRemindersTab() {
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-[rgb(var(--wf-border))]">
+                <tr className="border-b border-[rgb(var(--wf-card-border))]">
                   <th className="text-left py-2 pr-4 font-medium">Task</th>
                   <th className="text-left py-2 pr-4 font-medium">Due</th>
                   <th className="text-left py-2 font-medium">Status</th>
@@ -483,7 +483,7 @@ function MyRemindersTab() {
               </thead>
               <tbody>
                 {recent.map((occ) => (
-                  <tr key={occ.id} className="border-b border-[rgb(var(--wf-border))]">
+                  <tr key={occ.id} className="border-b border-[rgb(var(--wf-card-border))]">
                     <td className="py-2 pr-4">{occ.rule_name}</td>
                     <td className="py-2 pr-4">{occ.due_date}</td>
                     <td className="py-2">{statusBadge(occ.status)}</td>
@@ -582,8 +582,8 @@ function ComplianceTab() {
       {/* Summary cards */}
       {report && (
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-          <div className="rounded-lg border border-[rgb(var(--wf-border))] p-4 bg-[rgb(var(--wf-surface))]">
-            <p className="text-xs text-[rgb(var(--wf-text-secondary))]">Total</p>
+          <div className="rounded-lg border border-[rgb(var(--wf-card-border))] p-4 bg-[rgb(var(--wf-card-bg))]">
+            <p className="text-xs text-slate-500">Total</p>
             <p className="text-2xl font-bold mt-1">{report.total}</p>
           </div>
           <div className="rounded-lg border border-green-200 p-4 bg-green-50">
@@ -594,8 +594,8 @@ function ComplianceTab() {
             <p className="text-xs text-red-600">Missed</p>
             <p className="text-2xl font-bold text-red-700 mt-1">{report.missed}</p>
           </div>
-          <div className="rounded-lg border border-[rgb(var(--wf-border))] p-4 bg-[rgb(var(--wf-surface))]">
-            <p className="text-xs text-[rgb(var(--wf-text-secondary))]">Compliance rate</p>
+          <div className="rounded-lg border border-[rgb(var(--wf-card-border))] p-4 bg-[rgb(var(--wf-card-bg))]">
+            <p className="text-xs text-slate-500">Compliance rate</p>
             <p
               className={`text-2xl font-bold mt-1 ${
                 report.compliance_pct >= 80
@@ -616,7 +616,7 @@ function ComplianceTab() {
         <div className="overflow-x-auto">
           <table className="w-full text-sm">
             <thead>
-              <tr className="border-b border-[rgb(var(--wf-border))]">
+              <tr className="border-b border-[rgb(var(--wf-card-border))]">
                 <th className="text-left py-2 pr-4 font-medium">Staff member</th>
                 <th className="text-left py-2 pr-4 font-medium">Task</th>
                 <th className="text-left py-2 pr-4 font-medium">Due date</th>
@@ -626,12 +626,12 @@ function ComplianceTab() {
             </thead>
             <tbody>
               {report.rows.map((row) => (
-                <tr key={row.occurrence_id} className="border-b border-[rgb(var(--wf-border))] hover:bg-[rgb(var(--wf-surface-hover))]">
+                <tr key={row.occurrence_id} className="border-b border-[rgb(var(--wf-card-border))] hover:bg-[rgb(var(--wf-accent-muted))]">
                   <td className="py-2 pr-4 font-medium">{row.user_name}</td>
                   <td className="py-2 pr-4">{row.rule_name}</td>
                   <td className="py-2 pr-4">{row.due_date}</td>
                   <td className="py-2 pr-4">{statusBadge(row.status)}</td>
-                  <td className="py-2 text-[rgb(var(--wf-text-secondary))]">
+                  <td className="py-2 text-slate-500">
                     {row.acknowledged_at ? new Date(row.acknowledged_at).toLocaleString() : "—"}
                   </td>
                 </tr>
@@ -640,7 +640,7 @@ function ComplianceTab() {
           </table>
         </div>
       ) : report ? (
-        <p className="text-sm text-[rgb(var(--wf-text-secondary))] py-8 text-center">No records match the selected filters.</p>
+        <p className="text-sm text-slate-500 py-8 text-center">No records match the selected filters.</p>
       ) : null}
     </div>
   );
@@ -668,7 +668,7 @@ export function RemindersPage() {
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-[rgb(var(--wf-border))]">
+      <div className="flex gap-1 border-b border-[rgb(var(--wf-card-border))]">
         {tabs.map((t) => (
           <button
             key={t.id}
@@ -676,7 +676,7 @@ export function RemindersPage() {
             className={`px-4 py-2 text-sm font-medium border-b-2 transition-colors -mb-px ${
               tab === t.id
                 ? "border-[rgb(var(--wf-brand-600))] text-[rgb(var(--wf-brand-600))]"
-                : "border-transparent text-[rgb(var(--wf-text-secondary))] hover:text-[rgb(var(--wf-text))]"
+                : "border-transparent text-slate-500 hover:text-slate-900"
             }`}
           >
             {t.label}

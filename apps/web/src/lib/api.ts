@@ -1343,3 +1343,259 @@ export function rejectGuestSubmission(
   );
 }
 
+// ── Checklists ───────────────────────────────────────────────────────────────
+
+export type ChecklistTaskInput = {
+  title: string;
+  description?: string | null;
+  assignee_user_id?: string | null;
+  due_date?: string | null;
+  priority?: string;
+  weight?: number;
+  attachment_required?: boolean;
+  order_index?: number;
+};
+
+export type ChecklistCreateInput = {
+  name: string;
+  description?: string | null;
+  category?: string | null;
+  timezone?: string;
+  start_date: string;
+  due_date: string;
+  recurrence?: string;
+  recurrence_config?: Record<string, unknown>;
+  carry_over?: string;
+  verification_required?: boolean;
+  verifier_user_id?: string | null;
+  completion_rule?: string;
+  completion_threshold?: number;
+  tasks: ChecklistTaskInput[];
+};
+
+export type TaskAttachment = {
+  id: string;
+  original_filename: string;
+  size_bytes: number;
+  created_at: string;
+};
+
+export type ChecklistTask = {
+  id: string;
+  checklist_id: string;
+  instance_id: string;
+  checklist_name: string;
+  title: string;
+  description: string | null;
+  assignee_user_id: string | null;
+  assignee_name: string | null;
+  due_date: string | null;
+  priority: string;
+  weight: number;
+  attachment_required: boolean;
+  order_index: number;
+  status: string;
+  completed_at: string | null;
+  completion_channel: string | null;
+  approved_at: string | null;
+  reject_reason: string | null;
+  verification_required: boolean;
+  timezone: string;
+  link: string | null;
+  attachments: TaskAttachment[];
+};
+
+export type ChecklistSummary = {
+  id: string;
+  name: string;
+  description: string | null;
+  category: string | null;
+  status: string;
+  timezone: string;
+  start_date: string;
+  due_date: string;
+  recurrence: string;
+  verification_required: boolean;
+  task_count: number;
+  done_count: number;
+  progress_pct: number;
+  created_at: string;
+};
+
+export type ChecklistDetail = ChecklistSummary & {
+  instance_id: string | null;
+  completion_rule: string;
+  completion_threshold: number;
+  carry_over: string;
+  verifier_user_id: string | null;
+  tasks: ChecklistTask[];
+};
+
+export type ChecklistTaskLibraryRow = {
+  checklist_id: string;
+  checklist_name: string;
+  task_id: string;
+  title: string;
+  description: string | null;
+};
+
+export type ChecklistReportRow = {
+  task_id: string;
+  checklist_name: string;
+  title: string;
+  assignee_name: string | null;
+  due_date: string | null;
+  completed_on: string | null;
+  status: string;
+  outcome: string;
+  variance_days: number | null;
+};
+
+export type ChecklistReportUserRow = {
+  user_id: string | null;
+  user_name: string;
+  total: number;
+  completed: number;
+  on_time: number;
+  late: number;
+  on_time_pct: number;
+  avg_variance_days: number | null;
+};
+
+export type ChecklistReport = {
+  rows: ChecklistReportRow[];
+  by_user: ChecklistReportUserRow[];
+  total: number;
+  completed: number;
+  on_time: number;
+  late: number;
+  on_time_pct: number;
+};
+
+export type PublicTaskView = {
+  title: string;
+  description: string | null;
+  checklist_name: string;
+  company_name: string;
+  assignee_name: string | null;
+  due_date: string | null;
+  status: string;
+  attachment_required: boolean;
+  attachments: TaskAttachment[];
+};
+
+export function listChecklists(token?: string | null) {
+  return apiFetch<ChecklistSummary[]>("/api/v1/checklists", {}, token);
+}
+
+export function getChecklist(id: string, token?: string | null) {
+  return apiFetch<ChecklistDetail>(`/api/v1/checklists/${id}`, {}, token);
+}
+
+export function createChecklist(body: ChecklistCreateInput, token?: string | null) {
+  return apiFetch<ChecklistDetail>(
+    "/api/v1/checklists",
+    { method: "POST", body: JSON.stringify(body) },
+    token
+  );
+}
+
+export function updateChecklist(
+  id: string,
+  body: Partial<{ name: string; description: string | null; category: string | null; status: string; verification_required: boolean; verifier_user_id: string | null }>,
+  token?: string | null
+) {
+  return apiFetch<ChecklistDetail>(
+    `/api/v1/checklists/${id}`,
+    { method: "PATCH", body: JSON.stringify(body) },
+    token
+  );
+}
+
+export function deleteChecklist(id: string, token?: string | null) {
+  return apiFetch<void>(`/api/v1/checklists/${id}`, { method: "DELETE" }, token);
+}
+
+export function listMyChecklistTasks(token?: string | null) {
+  return apiFetch<ChecklistTask[]>("/api/v1/checklists/my", {}, token);
+}
+
+export function getChecklistTask(taskId: string, token?: string | null) {
+  return apiFetch<ChecklistTask>(`/api/v1/checklists/tasks/${taskId}`, {}, token);
+}
+
+export function completeChecklistTask(taskId: string, token?: string | null) {
+  return apiFetch<ChecklistTask>(
+    `/api/v1/checklists/tasks/${taskId}/complete`,
+    { method: "POST", body: JSON.stringify({}) },
+    token
+  );
+}
+
+export function approveChecklistTask(taskId: string, token?: string | null) {
+  return apiFetch<ChecklistTask>(`/api/v1/checklists/tasks/${taskId}/approve`, { method: "POST" }, token);
+}
+
+export function rejectChecklistTask(taskId: string, reason: string, token?: string | null) {
+  return apiFetch<ChecklistTask>(
+    `/api/v1/checklists/tasks/${taskId}/reject`,
+    { method: "POST", body: JSON.stringify({ reason }) },
+    token
+  );
+}
+
+export function skipChecklistTask(taskId: string, reason: string, token?: string | null) {
+  return apiFetch<ChecklistTask>(
+    `/api/v1/checklists/tasks/${taskId}/skip`,
+    { method: "POST", body: JSON.stringify({ reason }) },
+    token
+  );
+}
+
+export function reassignChecklistTask(
+  taskId: string,
+  assignee_user_id: string,
+  reason: string,
+  token?: string | null
+) {
+  return apiFetch<ChecklistTask>(
+    `/api/v1/checklists/tasks/${taskId}/reassign`,
+    { method: "POST", body: JSON.stringify({ assignee_user_id, reason }) },
+    token
+  );
+}
+
+export function getChecklistTaskLibrary(q?: string, token?: string | null) {
+  const qs = q?.trim() ? `?q=${encodeURIComponent(q.trim())}` : "";
+  return apiFetch<ChecklistTaskLibraryRow[]>(`/api/v1/checklists/task-library${qs}`, {}, token);
+}
+
+export function getChecklistReport(
+  params?: { checklist_id?: string; from_date?: string; to_date?: string },
+  token?: string | null
+) {
+  const s = new URLSearchParams();
+  if (params?.checklist_id) s.set("checklist_id", params.checklist_id);
+  if (params?.from_date) s.set("from_date", params.from_date);
+  if (params?.to_date) s.set("to_date", params.to_date);
+  const qs = s.toString();
+  return apiFetch<ChecklistReport>(`/api/v1/checklists/report${qs ? `?${qs}` : ""}`, {}, token);
+}
+
+export function uploadChecklistTaskFile(taskId: string, file: File, token?: string | null) {
+  return apiUpload<TaskAttachment>(`/api/v1/checklists/tasks/${taskId}/attachments`, file, token);
+}
+
+// Public (no-login) task link
+export function getPublicTask(token: string) {
+  return apiFetch<PublicTaskView>(`/api/v1/checklists/public/tasks/${token}`);
+}
+
+export function completePublicTask(token: string) {
+  return apiFetch<PublicTaskView>(`/api/v1/checklists/public/tasks/${token}/complete`, { method: "POST" });
+}
+
+export function uploadPublicTaskFile(token: string, file: File) {
+  return apiUpload<TaskAttachment>(`/api/v1/checklists/public/tasks/${token}/upload`, file);
+}
+

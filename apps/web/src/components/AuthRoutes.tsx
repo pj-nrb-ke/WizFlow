@@ -26,6 +26,8 @@ import { HelpPage } from "../pages/HelpPage";
 import { AcceptInvitePage } from "../pages/AcceptInvitePage";
 import { RemindersPage } from "../pages/RemindersPage";
 import { PublicFormPage } from "../pages/PublicFormPage";
+import { ChecklistsPage } from "../pages/ChecklistsPage";
+import { PublicTaskPage } from "../pages/PublicTaskPage";
 
 function LoadingScreen() {
   return (
@@ -79,6 +81,7 @@ export function AppRoutes() {
       <Route path="/approve/:token" element={<PublicApprovePage />} />
       <Route path="/invite/:token" element={<AcceptInvitePage />} />
       <Route path="/p/:token" element={<PublicFormPage />} />
+      <Route path="/t/:token" element={<PublicTaskPage />} />
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
@@ -99,6 +102,7 @@ export function AppRoutes() {
           <Route path="integrations" element={<IntegrationsPage />} />
           <Route path="master-data" element={<MasterDataPage />} />
           <Route path="reminders" element={<RemindersPage />} />
+          <Route path="checklists" element={<ChecklistsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="help" element={<HelpPage />} />
         </Route>
