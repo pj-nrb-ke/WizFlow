@@ -34,6 +34,7 @@ from app.schemas.user_group import (
     UserGroupMemberOut,
 )
 from app.services import instance_engine, workflow_engine
+from app.services.recurring_activities import close_obligations_for_instance
 from app.services.custom_workflow import (
     CustomWorkflowError,
     build_custom_settings,
@@ -579,6 +580,8 @@ def submit_request(
             title=f"Approval needed: {inst.workflow_name}",
             body="New request submitted — please review.",
         )
+    # Close any matching recurring-activity obligation for this submitter.
+    close_obligations_for_instance(db, inst)
     db.commit()
     db.refresh(inst)
     return to_out(db, inst, defn, user.id)

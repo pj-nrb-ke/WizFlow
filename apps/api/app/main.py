@@ -27,6 +27,7 @@ from app.routers import (
     phase2,
     public_approval,
     public_forms,
+    recurring_activities,
     reminders,
     reports,
     requests,
@@ -105,6 +106,7 @@ v1.include_router(public_forms.router)
 v1.include_router(guest_submissions.router)
 v1.include_router(form_sending.router)
 v1.include_router(checklists.router)
+v1.include_router(recurring_activities.router)
 app.include_router(v1)
 
 

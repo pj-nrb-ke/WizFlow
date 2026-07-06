@@ -829,3 +829,121 @@ class ChecklistEvent(Base):
     )
     payload: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+# ── Recurring Activities (general recurring reminders / obligations) ─────────────
+#
+# A RecurringActivity fires on a calendar recurrence ("every X day of every Y
+# week/month/year"). Each firing opens an ActivityCycle and one ActivityObligation
+# per recipient. Recipients either just acknowledge ("acknowledge" mode) or must
+# submit a workflow ("submit_workflow" mode). Outstanding obligations are nagged
+# on a cadence until done, with optional escalation to a supervisor.
+
+
+class RecurringActivity(Base):
+    __tablename__ = "recurring_activities"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+
+    # ── Recurrence: "every {interval} {freq}, on {by_*} at {at_hour}" ──
+    freq: Mapped[str] = mapped_column(String(10), nullable=False, default="monthly")  # weekly|monthly|yearly
+    interval: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    by_weekday: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 0=Mon..6=Sun (weekly)
+    by_monthday: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 1..31 (monthly/yearly)
+    by_month: Mapped[int | None] = mapped_column(Integer, nullable=True)  # 1..12 (yearly)
+    at_hour: Mapped[int] = mapped_column(Integer, nullable=False, default=9)  # 0..23 local
+    timezone: Mapped[str] = mapped_column(String(64), nullable=False, default="UTC")
+    start_date: Mapped[date] = mapped_column(Date, nullable=False)  # anchors intervals
+    end_date: Mapped[date | None] = mapped_column(Date, nullable=True)
+
+    # ── What happens when it fires ──
+    completion_mode: Mapped[str] = mapped_column(String(20), nullable=False, default="acknowledge")  # acknowledge|submit_workflow
+    workflow_definition_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workflow_definitions.id", ondelete="SET NULL"), nullable=True
+    )
+
+    # ── Recipients (each gets their own obligation) ──
+    recipient_user_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+    recipient_group_ids: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+    # ── Nagging: re-remind outstanding recipients until done ──
+    remind_enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    remind_interval_days: Mapped[int] = mapped_column(Integer, nullable=False, default=1)  # 1 = daily
+    remind_max_count: Mapped[int | None] = mapped_column(Integer, nullable=True, default=10)  # stop after N (null = no cap)
+    remind_window_days: Mapped[int | None] = mapped_column(Integer, nullable=True)  # stop N days after due (null = until next cycle)
+
+    # ── Escalation ──
+    escalate_after_count: Mapped[int | None] = mapped_column(Integer, nullable=True)  # copy supervisor after N reminders
+    supervisor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    cycles: Mapped[list["ActivityCycle"]] = relationship(
+        back_populates="activity", cascade="all, delete-orphan"
+    )
+
+
+class ActivityCycle(Base):
+    __tablename__ = "activity_cycles"
+    __table_args__ = (UniqueConstraint("activity_id", "due_date", name="uq_activity_cycle_due"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    activity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recurring_activities.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    due_date: Mapped[date] = mapped_column(Date, nullable=False)
+    period_label: Mapped[str] = mapped_column(String(40), nullable=False, default="")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    activity: Mapped[RecurringActivity] = relationship(back_populates="cycles")
+    obligations: Mapped[list["ActivityObligation"]] = relationship(
+        back_populates="cycle", cascade="all, delete-orphan"
+    )
+
+
+class ActivityObligation(Base):
+    __tablename__ = "activity_obligations"
+    __table_args__ = (UniqueConstraint("cycle_id", "user_id", name="uq_activity_obligation"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    activity_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recurring_activities.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    cycle_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("activity_cycles.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False, default="outstanding")  # outstanding|submitted|waived
+    completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    instance_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workflow_instances.id", ondelete="SET NULL"), nullable=True
+    )
+    reminder_count: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    last_reminded_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    escalated_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+    cycle: Mapped[ActivityCycle] = relationship(back_populates="obligations")

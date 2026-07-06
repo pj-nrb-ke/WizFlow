@@ -129,3 +129,5 @@ class AutomationRunOut(BaseModel):
     reports_sent: int = 0
     schedules_run: int = 0
     reminders_sent: int = 0
+    activities_opened: int = 0
+    activity_reminders: int = 0
