@@ -28,6 +28,7 @@ from app.db.models import (
     ScheduleRun,
     ScheduleTarget,
     User,
+    UserGroup,
     WorkflowDefinition,
 )
 from app.db.session import get_db
@@ -210,6 +211,35 @@ def _validate_target(
         if not cl or cl.company_id != company_id:
             raise HTTPException(status_code=404, detail="Checklist not found")
     # acknowledge needs neither a workflow nor a checklist
+
+
+def _validate_user_refs(
+    db: Session,
+    company_id: UUID,
+    *,
+    recipient_user_ids: list | None = None,
+    recipient_group_ids: list | None = None,
+    supervisor_user_id: UUID | None = None,
+) -> None:
+    """Every user/group a target references must belong to the caller's company.
+
+    Guards write-side tenant isolation: without this an admin could point a
+    recipient or the escalation supervisor at another company's user, producing a
+    cross-tenant notification/email. Also turns a non-existent supervisor id into
+    a clean 400 instead of a DB IntegrityError (500).
+    """
+    for uid in recipient_user_ids or []:
+        u = db.get(User, UUID(str(uid)))
+        if not u or u.company_id != company_id:
+            raise HTTPException(status_code=400, detail="Recipient user is not in your company")
+    for gid in recipient_group_ids or []:
+        g = db.get(UserGroup, UUID(str(gid)))
+        if not g or g.company_id != company_id:
+            raise HTTPException(status_code=400, detail="Recipient group is not in your company")
+    if supervisor_user_id is not None:
+        s = db.get(User, UUID(str(supervisor_user_id)))
+        if not s or s.company_id != company_id:
+            raise HTTPException(status_code=400, detail="Supervisor is not in your company")
 
 
 def _get_owned(db: Session, schedule_id: UUID, company_id: UUID) -> RecurringSchedule:
@@ -430,6 +460,13 @@ def update_target(
     checklist_id = data.get("checklist_id", target.checklist_id)
     if any(k in data for k in ("kind", "workflow_definition_id", "checklist_id")):
         _validate_target(db, user.company_id, kind, wf_id, checklist_id)
+    _validate_user_refs(
+        db,
+        user.company_id,
+        recipient_user_ids=data.get("recipient_user_ids"),
+        recipient_group_ids=data.get("recipient_group_ids"),
+        supervisor_user_id=data.get("supervisor_user_id"),
+    )
 
     simple = {
         "kind", "name", "workflow_definition_id", "checklist_id", "remind_enabled",
@@ -561,6 +598,13 @@ def add_target(
 ) -> TargetOut:
     sched = _get_owned(db, schedule_id, user.company_id)
     _validate_target(db, user.company_id, body.kind, body.workflow_definition_id, body.checklist_id)
+    _validate_user_refs(
+        db,
+        user.company_id,
+        recipient_user_ids=body.recipient_user_ids,
+        recipient_group_ids=body.recipient_group_ids,
+        supervisor_user_id=body.supervisor_user_id,
+    )
     target = ScheduleTarget(
         company_id=user.company_id,
         schedule_id=sched.id,

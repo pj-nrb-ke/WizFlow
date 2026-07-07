@@ -477,6 +477,52 @@ def test_acknowledge_target_needs_neither(env):
     assert body["checklist_id"] is None
 
 
+def test_target_user_refs_must_be_same_company(env, other_env):
+    """Write-side tenant isolation: a target may not reference another company's
+    user as a recipient or as the escalation supervisor, and a supervisor id that
+    exists nowhere is a clean 400 (previously a 500 DB IntegrityError). A
+    same-company recipient + supervisor still attaches (201)."""
+    h = env.admin_headers
+    sid = _new_schedule(h)
+
+    # A supervisor belonging to company B must be rejected.
+    foreign_sup = client.post(
+        f"/api/v1/recurring-schedules/{sid}/targets",
+        headers=h,
+        json={"kind": "acknowledge", "supervisor_user_id": str(other_env.supervisor_id)},
+    )
+    assert foreign_sup.status_code == 400, foreign_sup.text
+
+    # A recipient belonging to company B must be rejected.
+    foreign_rcpt = client.post(
+        f"/api/v1/recurring-schedules/{sid}/targets",
+        headers=h,
+        json={"kind": "acknowledge", "recipient_user_ids": [str(other_env.recipient1_id)]},
+    )
+    assert foreign_rcpt.status_code == 400, foreign_rcpt.text
+
+    # A supervisor id that matches no user is a clean 400, not a 500.
+    missing_sup = client.post(
+        f"/api/v1/recurring-schedules/{sid}/targets",
+        headers=h,
+        json={"kind": "acknowledge", "supervisor_user_id": str(uuid4())},
+    )
+    assert missing_sup.status_code == 400, missing_sup.text
+
+    # A same-company recipient + supervisor still attaches.
+    ok = client.post(
+        f"/api/v1/recurring-schedules/{sid}/targets",
+        headers=h,
+        json={
+            "kind": "acknowledge",
+            "recipient_user_ids": [str(env.recipient1_id)],
+            "supervisor_user_id": str(env.supervisor_id),
+        },
+    )
+    assert ok.status_code == 201, ok.text
+    assert ok.json()["supervisor_user_id"] == str(env.supervisor_id)
+
+
 # ── Part D: firing (process_recurring_schedules) ─────────────────────────────
 
 
@@ -751,6 +797,105 @@ def test_run_now_and_acknowledge_via_api(env):
         headers=env.recipient1_headers,
     )
     assert ok.status_code == 200
+    assert ok.json()["status"] == "submitted"
+
+
+def test_run_now_respects_schedule_is_active(env):
+    """run-now on a deactivated schedule opens nothing (no runs, no obligations);
+    once reactivated it opens a run + obligation for the active target."""
+    h = env.admin_headers
+    sid = client.post(
+        "/api/v1/recurring-schedules",
+        headers=h,
+        json={"name": "toggle", "freq": "monthly", "by_monthday": 15, "at_hour": 0, "start_date": TODAY},
+    ).json()["id"]
+    tid = client.post(
+        f"/api/v1/recurring-schedules/{sid}/targets",
+        headers=h,
+        json={"kind": "acknowledge", "recipient_user_ids": [str(env.recipient1_id)]},
+    ).json()["id"]
+
+    # Deactivate the schedule, then run-now: nothing must be opened.
+    assert client.patch(
+        f"/api/v1/recurring-schedules/{sid}", headers=h, json={"is_active": False}
+    ).status_code == 200
+    assert client.post(f"/api/v1/recurring-schedules/{sid}/run-now", headers=h).status_code == 200
+
+    inactive = client.get(
+        f"/api/v1/recurring-schedules/targets/{tid}/compliance", headers=h
+    ).json()
+    assert inactive["runs"] == []       # no schedule_runs
+    assert inactive["total"] == 0       # no schedule_obligations
+    assert inactive["rows"] == []
+
+    # Reactivate, then run-now: now a run + one obligation appear (contrast).
+    assert client.patch(
+        f"/api/v1/recurring-schedules/{sid}", headers=h, json={"is_active": True}
+    ).status_code == 200
+    assert client.post(f"/api/v1/recurring-schedules/{sid}/run-now", headers=h).status_code == 200
+
+    active = client.get(
+        f"/api/v1/recurring-schedules/targets/{tid}/compliance", headers=h
+    ).json()
+    assert len(active["runs"]) == 1
+    assert active["total"] == 1
+    assert active["rows"][0]["status"] == "outstanding"
+
+
+def test_acknowledge_rejects_non_acknowledge_kind(env):
+    """Acknowledge is acknowledge-kind only: a workflow-kind obligation cannot be
+    self-marked done (404) and stays outstanding, while an acknowledge-kind
+    obligation can (submitted)."""
+    h = env.admin_headers
+    sid = client.post(
+        "/api/v1/recurring-schedules",
+        headers=h,
+        json={"name": "kinds", "freq": "monthly", "by_monthday": 15, "at_hour": 0, "start_date": TODAY},
+    ).json()["id"]
+    # A workflow target and an acknowledge target, both for recipient1.
+    assert client.post(
+        f"/api/v1/recurring-schedules/{sid}/targets",
+        headers=h,
+        json={
+            "kind": "workflow",
+            "workflow_definition_id": str(env.workflow_id),
+            "recipient_user_ids": [str(env.recipient1_id)],
+        },
+    ).status_code == 201
+    assert client.post(
+        f"/api/v1/recurring-schedules/{sid}/targets",
+        headers=h,
+        json={"kind": "acknowledge", "recipient_user_ids": [str(env.recipient1_id)]},
+    ).status_code == 201
+
+    assert client.post(f"/api/v1/recurring-schedules/{sid}/run-now", headers=h).status_code == 200
+
+    mine = client.get(
+        "/api/v1/recurring-schedules/mine/obligations", headers=env.recipient1_headers
+    ).json()
+    wf_ob = next(o for o in mine if o["schedule_id"] == sid and o["completion_mode"] == "submit_workflow")
+    ack_ob = next(o for o in mine if o["schedule_id"] == sid and o["completion_mode"] == "acknowledge")
+
+    # The workflow obligation cannot be acknowledged.
+    bad = client.post(
+        f"/api/v1/recurring-schedules/obligations/{wf_ob['id']}/acknowledge",
+        headers=env.recipient1_headers,
+    )
+    assert bad.status_code == 404, bad.text
+
+    # It is untouched — still outstanding.
+    mine_after = client.get(
+        "/api/v1/recurring-schedules/mine/obligations", headers=env.recipient1_headers
+    ).json()
+    wf_after = next(o for o in mine_after if o["id"] == wf_ob["id"])
+    assert wf_after["status"] == "outstanding"
+
+    # The acknowledge obligation, in contrast, can be acknowledged.
+    ok = client.post(
+        f"/api/v1/recurring-schedules/obligations/{ack_ob['id']}/acknowledge",
+        headers=env.recipient1_headers,
+    )
+    assert ok.status_code == 200, ok.text
     assert ok.json()["status"] == "submitted"
 
 

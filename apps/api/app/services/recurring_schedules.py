@@ -310,6 +310,8 @@ def run_due_targets(db: Session, sched: RecurringSchedule, due_date: date) -> in
 
     Returns the number of newly-opened runs. Does not commit.
     """
+    if not sched.is_active:
+        return 0  # a deactivated schedule fires nothing, even via run-now
     opened = 0
     for target in sched.targets:
         if not target.is_active:
@@ -497,9 +499,18 @@ def close_obligations_for_instance(db: Session, instance: WorkflowInstance) -> i
 def acknowledge_obligation(
     db: Session, obligation_id: UUID, user_id: UUID
 ) -> ScheduleObligation | None:
-    """Recipient marks their own (acknowledge-mode) obligation done."""
+    """Recipient marks their own acknowledge-kind obligation done.
+
+    Workflow-kind obligations are NOT acknowledgeable here — they close only when
+    the recipient actually submits the workflow (see ``close_obligations_for_instance``).
+    Without this guard a recipient could self-mark a "submit the fee note" task
+    complete without submitting anything, inflating the compliance figures.
+    """
     ob = db.get(ScheduleObligation, obligation_id)
     if not ob or ob.user_id != user_id:
+        return None
+    target = db.get(ScheduleTarget, ob.target_id)
+    if not target or target.kind != "acknowledge":
         return None
     if ob.status == "outstanding":
         ob.status = "submitted"
