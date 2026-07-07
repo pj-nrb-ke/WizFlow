@@ -34,7 +34,7 @@ from app.schemas.user_group import (
     UserGroupMemberOut,
 )
 from app.services import instance_engine, workflow_engine
-from app.services.recurring_activities import close_obligations_for_instance
+from app.services.recurring_schedules import close_obligations_for_instance
 from app.services.custom_workflow import (
     CustomWorkflowError,
     build_custom_settings,
