@@ -1,5 +1,5 @@
 import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ApiError } from "../lib/api";
 import * as auth from "../lib/auth";
 import { useAuth } from "../context/AuthContext";
@@ -115,6 +115,11 @@ export function LoginPage() {
                 {submitting ? "Signing in…" : needsCode ? "Verify & sign in" : "Sign in"}
               </button>
             </form>
+            <p className="mt-4 text-center text-sm">
+              <Link to="/forgot-password" className="text-[rgb(var(--wf-brand-600))] hover:underline">
+                Forgot your password?
+              </Link>
+            </p>
             <p className="mt-4 text-xs text-slate-400 text-center">
               admin@demo.wizflow.biz / changeme
             </p>
