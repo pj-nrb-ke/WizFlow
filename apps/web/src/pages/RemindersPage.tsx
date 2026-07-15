@@ -281,7 +281,7 @@ function RulesTab() {
       const [r, u, g] = await Promise.all([
         apiFetch<ReminderRule[]>("/api/v1/reminders/rules", {}, token),
         apiFetch<OrgUser[]>("/api/v1/admin/users", {}, token),
-        apiFetch<UserGroup[]>("/api/v1/user-groups", {}, token),
+        apiFetch<UserGroup[]>("/api/v1/admin/user-groups", {}, token),
       ]);
       setRules(r);
       setUsers(u);

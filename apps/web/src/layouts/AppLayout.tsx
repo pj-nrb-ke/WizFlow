@@ -60,6 +60,7 @@ export function AppLayout() {
   const manageItems: NavItem[] = [
     { to: "/checklists", label: "Checklists", Icon: IconClipboardList },
     { to: "/reminders", label: "Reminders", Icon: IconRepeat },
+    { to: "/recurring-schedules", label: "Recurring Schedules", Icon: IconRepeat },
     ...(showMasterData ? [{ to: "/master-data", label: "Master data", Icon: IconShield }] : []),
     ...(isAdmin
       ? [

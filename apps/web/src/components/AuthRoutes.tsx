@@ -25,6 +25,7 @@ import { MasterDataPage } from "../pages/MasterDataPage";
 import { HelpPage } from "../pages/HelpPage";
 import { AcceptInvitePage } from "../pages/AcceptInvitePage";
 import { RemindersPage } from "../pages/RemindersPage";
+import { RecurringSchedulesPage } from "../pages/RecurringSchedulesPage";
 import { PublicFormPage } from "../pages/PublicFormPage";
 import { ChecklistsPage } from "../pages/ChecklistsPage";
 import { PublicTaskPage } from "../pages/PublicTaskPage";
@@ -102,6 +103,7 @@ export function AppRoutes() {
           <Route path="integrations" element={<IntegrationsPage />} />
           <Route path="master-data" element={<MasterDataPage />} />
           <Route path="reminders" element={<RemindersPage />} />
+          <Route path="recurring-schedules" element={<RecurringSchedulesPage />} />
           <Route path="checklists" element={<ChecklistsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="help" element={<HelpPage />} />
