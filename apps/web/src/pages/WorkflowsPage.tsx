@@ -39,6 +39,7 @@ import {
 } from "../lib/api";
 import { getToken } from "../lib/auth";
 import { HelpTip } from "../components/HelpTip";
+import { WorkflowPreviewModal, PreviewStep } from "../components/WorkflowPreviewModal";
 import { ThemeSwatches } from "../components/ThemeSwitcher";
 import { StatusBadge } from "../components/StatusBadge";
 import {
@@ -68,6 +69,7 @@ export function WorkflowsPage() {
   const [tuneMsg, setTuneMsg] = useState("");
   const [cloneMsg, setCloneMsg] = useState("");
   const [cloning, setCloning] = useState(false);
+  const [showVisualPreview, setShowVisualPreview] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
@@ -718,6 +720,13 @@ export function WorkflowsPage() {
                   </div>
                 )}
                 <div className="flex flex-wrap gap-2 items-center">
+                  <button
+                    type="button"
+                    onClick={() => setShowVisualPreview(true)}
+                    className="px-4 py-2 text-sm rounded-lg border border-[rgb(var(--wf-brand-600))] text-[rgb(var(--wf-brand-700))] bg-[rgb(var(--wf-accent-muted))] hover:opacity-90 font-medium"
+                  >
+                    👁 Preview form &amp; flow
+                  </button>
                   {selected.status === "draft" && (
                     <button
                       type="button"
@@ -828,6 +837,14 @@ export function WorkflowsPage() {
                   </div>
                 )}
               </div>
+
+              <WorkflowPreviewModal
+                open={showVisualPreview}
+                onClose={() => setShowVisualPreview(false)}
+                name={selected.name}
+                fields={selected.form_schema?.fields ?? []}
+                steps={(selected.steps ?? []) as unknown as PreviewStep[]}
+              />
 
               {preview && (
                 <div className="wf-card p-4 text-sm">

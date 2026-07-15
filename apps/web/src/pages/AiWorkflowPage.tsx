@@ -2,10 +2,12 @@ import { FormEvent, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { HelpTip } from "../components/HelpTip";
 import { PageHeader } from "../components/PageHeader";
+import { WorkflowPreviewModal, PreviewStep } from "../components/WorkflowPreviewModal";
 import {
   AiDraftResponse,
   ApiError,
   apiFetch,
+  FormField,
   postWizardFinalize,
   postWizardQuestions,
   WizardQuestion,
@@ -42,6 +44,7 @@ export function AiWorkflowPage() {
   const [draft, setDraft] = useState<AiDraftResponse | null>(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [showScreens, setShowScreens] = useState(false);
 
   async function loadQuestions() {
     setError("");
@@ -287,6 +290,13 @@ export function AiWorkflowPage() {
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
+              onClick={() => setShowScreens(true)}
+              className="px-4 py-2 text-sm rounded-lg border border-[rgb(var(--wf-brand-600))] text-[rgb(var(--wf-brand-700))] bg-[rgb(var(--wf-accent-muted))] hover:opacity-90 font-medium"
+            >
+              👁 Preview form &amp; flow
+            </button>
+            <button
+              type="button"
               className="px-4 py-2 wf-btn-secondary text-sm"
               onClick={() => setStep("questions")}
             >
@@ -301,6 +311,13 @@ export function AiWorkflowPage() {
               Save as draft workflow
             </button>
           </div>
+          <WorkflowPreviewModal
+            open={showScreens}
+            onClose={() => setShowScreens(false)}
+            name={String(d?.name ?? "Workflow")}
+            fields={(d?.form_schema?.fields ?? []) as unknown as FormField[]}
+            steps={(d?.steps ?? []) as unknown as PreviewStep[]}
+          />
         </div>
       )}
 
