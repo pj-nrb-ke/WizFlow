@@ -557,3 +557,64 @@ def send_plain_email(to_email: str, subject: str, text_body: str) -> bool:
         except Exception as e:
             logger.warning("Plain email SMTP failed: %s", e)
     return False
+
+
+def send_password_reset_email(
+    *,
+    to_email: str,
+    full_name: str,
+    reset_url: str,
+) -> bool:
+    """Send a password-reset link (valid 1 hour)."""
+    cfg = _mail_settings()
+    if not cfg["api_key"] and not cfg["host"]:
+        logger.info("Password reset email (dev): to=%s url=%s", to_email, reset_url)
+        return False
+
+    name = full_name or to_email.split("@")[0]
+    subject = "Reset your WizFlow password"
+    text_body = f"""Hello {name},
+
+We received a request to reset the password for your WizFlow account ({to_email}).
+
+Choose a new password using the link below (it expires in 1 hour):
+{reset_url}
+
+If you didn't request this, you can safely ignore this email — your password won't change.
+
+— WizFlow
+"""
+    html_body = f"""<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;color:#1e293b;max-width:480px;margin:0 auto;padding:24px">
+<div style="text-align:center;margin-bottom:32px">
+  <div style="display:inline-block;background:#4f46e5;border-radius:14px;padding:12px 22px;margin-bottom:12px">
+    <span style="color:#ffffff;font-size:22px;font-weight:800;letter-spacing:-0.5px;font-family:system-ui,sans-serif">Wiz<span style="opacity:0.75">Flow</span></span>
+  </div>
+</div>
+<h2 style="font-size:18px;font-weight:600;margin:0 0 8px">Reset your password</h2>
+<p style="color:#475569;margin:0 0 20px">Hello <strong>{name}</strong>, we received a request to reset the password for <strong>{to_email}</strong>.</p>
+<a href="{reset_url}" style="display:block;background:#4f46e5;color:#fff;text-align:center;padding:14px 24px;text-decoration:none;border-radius:10px;font-weight:600;font-size:15px;margin-bottom:20px">Choose a new password</a>
+<p style="font-size:12px;color:#94a3b8;text-align:center">This link expires in 1 hour. If you didn't request this, you can safely ignore this email.</p>
+<hr style="border:none;border-top:1px solid #e2e8f0;margin:24px 0">
+<p style="font-size:12px;color:#94a3b8;text-align:center">WizFlow · Workflow automation for your team</p>
+</body></html>"""
+
+    errors: list[str] = []
+    if cfg["api_key"]:
+        try:
+            _send_via_api(cfg, to_email=to_email, to_name=name,
+                          subject=subject, text_body=text_body, html_body=html_body)
+            logger.info("Sent password reset email via Brevo API to %s", to_email)
+            return True
+        except Exception as e:
+            errors.append(str(e))
+    if cfg["host"]:
+        try:
+            _send_via_smtp(cfg, to_email=to_email, subject=subject,
+                           text_body=text_body, html_body=html_body)
+            logger.info("Sent password reset email via SMTP to %s", to_email)
+            return True
+        except Exception as e:
+            errors.append(str(e))
+    if errors:
+        logger.error("Password reset email failed for %s: %s", to_email, errors)
+    return False

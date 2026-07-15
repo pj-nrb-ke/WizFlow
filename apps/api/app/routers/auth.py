@@ -1,3 +1,6 @@
+import hashlib
+import secrets
+from datetime import datetime, timedelta, timezone
 from uuid import UUID
 
 from fastapi import APIRouter, Body, Cookie, Depends, HTTPException, Request, Response, status
@@ -16,15 +19,20 @@ from app.core.security import (
     decrypt_secret,
     encrypt_secret,
     generate_totp_secret,
+    hash_password,
     totp_provisioning_uri,
     verify_password,
     verify_totp,
 )
-from app.db.models import Company, User, UserRole
+from app.db.models import Company, PasswordResetToken, User, UserRole
 from app.db.session import get_db
 from app.schemas.auth import (
+    ForgotPasswordRequest,
     LoginRequest,
+    MessageResponse,
     RefreshRequest,
+    ResetPasswordRequest,
+    ResetTokenValidateOut,
     TokenResponse,
     TwoFactorCode,
     TwoFactorSetupOut,
@@ -32,6 +40,7 @@ from app.schemas.auth import (
     UserProfile,
 )
 from app.schemas.phase1 import CompanyBranding, NotificationPreferences
+from app.services.brevo_mail import send_password_reset_email
 from app.services.company_settings import branding_from_settings, user_notification_preferences
 from app.services.security_audit import log_security_event
 
@@ -218,3 +227,124 @@ def two_factor_disable(body: TwoFactorCode, user: CurrentUser = Depends(get_curr
     log_security_event(db, action="auth.2fa_disabled", company_id=db_user.company_id, actor_user_id=db_user.id)
     db.commit()
     return TwoFactorStatusOut(enabled=False)
+
+
+# ── Password reset (self-service forgot-password) ────────────────────────────
+
+RESET_TTL_MINUTES = 60
+
+
+def _hash_reset_token(token: str) -> str:
+    return hashlib.sha256(token.encode()).hexdigest()
+
+
+def _valid_reset_token(db: Session, token: str) -> PasswordResetToken | None:
+    row = db.scalar(
+        select(PasswordResetToken).where(
+            PasswordResetToken.token_hash == _hash_reset_token(token),
+            PasswordResetToken.used_at.is_(None),
+        )
+    )
+    if not row or datetime.now(timezone.utc) > row.expires_at:
+        return None
+    return row
+
+
+@router.post("/forgot-password", response_model=MessageResponse)
+def forgot_password(
+    body: ForgotPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    email = body.email.strip().lower()
+    generic = MessageResponse(
+        message="If an account exists for that email, a password reset link has been sent."
+    )
+    user = db.scalar(select(User).where(User.email == email, User.is_active.is_(True)))
+    if not user:
+        # Never reveal whether an email is registered.
+        log_security_event(
+            db,
+            action="auth.password_reset_requested",
+            detail={"email": email, "found": False},
+            ip_address=_client_ip(request),
+        )
+        db.commit()
+        return generic
+
+    now = datetime.now(timezone.utc)
+    # Invalidate any outstanding tokens, then mint a fresh one.
+    for old in db.scalars(
+        select(PasswordResetToken).where(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used_at.is_(None),
+        )
+    ):
+        old.used_at = now
+    raw = secrets.token_urlsafe(32)
+    db.add(
+        PasswordResetToken(
+            user_id=user.id,
+            token_hash=_hash_reset_token(raw),
+            expires_at=now + timedelta(minutes=RESET_TTL_MINUTES),
+        )
+    )
+    log_security_event(
+        db,
+        action="auth.password_reset_requested",
+        company_id=user.company_id,
+        actor_user_id=user.id,
+        detail={"email": email, "found": True},
+        ip_address=_client_ip(request),
+    )
+    db.commit()
+
+    reset_url = f"{settings.app_url}/reset-password?token={raw}"
+    send_password_reset_email(to_email=user.email, full_name=user.full_name, reset_url=reset_url)
+    return generic
+
+
+@router.get("/reset-password/validate", response_model=ResetTokenValidateOut)
+def validate_reset_token(token: str, db: Session = Depends(get_db)) -> ResetTokenValidateOut:
+    row = _valid_reset_token(db, token)
+    if not row:
+        return ResetTokenValidateOut(valid=False)
+    user = db.get(User, row.user_id)
+    return ResetTokenValidateOut(valid=True, email=user.email if user else None)
+
+
+@router.post("/reset-password", response_model=MessageResponse)
+def reset_password(
+    body: ResetPasswordRequest,
+    request: Request,
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    row = _valid_reset_token(db, body.token)
+    user = db.get(User, row.user_id) if row else None
+    if not row or not user or not user.is_active:
+        raise HTTPException(
+            status_code=400,
+            detail="This reset link is invalid or has expired. Please request a new one.",
+        )
+    user.password_hash = hash_password(body.new_password)
+    now = datetime.now(timezone.utc)
+    row.used_at = now
+    # Invalidate any other outstanding tokens for this user.
+    for other in db.scalars(
+        select(PasswordResetToken).where(
+            PasswordResetToken.user_id == user.id,
+            PasswordResetToken.used_at.is_(None),
+        )
+    ):
+        other.used_at = now
+    log_security_event(
+        db,
+        action="auth.password_reset_completed",
+        company_id=user.company_id,
+        actor_user_id=user.id,
+        ip_address=_client_ip(request),
+    )
+    db.commit()
+    return MessageResponse(
+        message="Your password has been reset. You can now sign in with your new password."
+    )

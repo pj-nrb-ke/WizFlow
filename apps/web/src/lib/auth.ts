@@ -58,3 +58,28 @@ export async function logout(): Promise<void> {
   }
   clearToken();
 }
+
+export async function forgotPassword(email: string): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/api/v1/auth/forgot-password", {
+    method: "POST",
+    body: JSON.stringify({ email }),
+  });
+}
+
+export async function validateResetToken(
+  token: string
+): Promise<{ valid: boolean; email?: string | null }> {
+  return apiFetch<{ valid: boolean; email?: string | null }>(
+    `/api/v1/auth/reset-password/validate?token=${encodeURIComponent(token)}`
+  );
+}
+
+export async function resetPassword(
+  token: string,
+  newPassword: string
+): Promise<{ message: string }> {
+  return apiFetch<{ message: string }>("/api/v1/auth/reset-password", {
+    method: "POST",
+    body: JSON.stringify({ token, new_password: newPassword }),
+  });
+}

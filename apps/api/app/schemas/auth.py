@@ -47,3 +47,21 @@ class UserProfile(BaseModel):
         default_factory=lambda: NotificationPreferences()
     )
     company_branding: CompanyBranding = Field(default_factory=lambda: CompanyBranding())
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: str = Field(min_length=3)
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str = Field(min_length=10)
+    new_password: str = Field(min_length=8)
+
+
+class ResetTokenValidateOut(BaseModel):
+    valid: bool
+    email: str | None = None
+
+
+class MessageResponse(BaseModel):
+    message: str

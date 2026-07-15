@@ -29,6 +29,8 @@ import { RecurringSchedulesPage } from "../pages/RecurringSchedulesPage";
 import { PublicFormPage } from "../pages/PublicFormPage";
 import { ChecklistsPage } from "../pages/ChecklistsPage";
 import { PublicTaskPage } from "../pages/PublicTaskPage";
+import { ForgotPasswordPage } from "../pages/ForgotPasswordPage";
+import { ResetPasswordPage } from "../pages/ResetPasswordPage";
 
 function LoadingScreen() {
   return (
@@ -79,6 +81,8 @@ export function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginRoute />} />
+      <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+      <Route path="/reset-password" element={<ResetPasswordPage />} />
       <Route path="/approve/:token" element={<PublicApprovePage />} />
       <Route path="/invite/:token" element={<AcceptInvitePage />} />
       <Route path="/p/:token" element={<PublicFormPage />} />
