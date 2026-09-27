@@ -6,6 +6,18 @@ from pydantic import BaseModel, Field
 
 class RequestSubmit(BaseModel):
     data: dict = Field(default_factory=dict)
+    # Optional originator note (may be dictated → transcribed → polished on the client).
+    comment: str | None = Field(default=None, max_length=5000)
+    voice_note_id: str | None = Field(default=None, max_length=64)
+    voice_note_ext: str | None = Field(default=None, max_length=8)
+
+
+class VoiceTranscriptOut(BaseModel):
+    text: str          # polished, ready to drop into the comment box
+    raw_text: str      # verbatim transcription
+    language: str | None = None
+    voice_note_id: str
+    voice_note_ext: str
 
 
 class RequestUpdate(BaseModel):

@@ -8,6 +8,7 @@ from app.config import settings
 
 
 _UPLOAD_MAX = 11 * 1024 * 1024  # 10 MB file + multipart overhead
+_AUDIO_MAX = 25 * 1024 * 1024  # voice notes (webm/opus ~1 MB/min)
 
 
 class MaxBodySizeMiddleware(BaseHTTPMiddleware):
@@ -16,8 +17,10 @@ class MaxBodySizeMiddleware(BaseHTTPMiddleware):
             raw = request.headers.get("content-length")
             if raw:
                 try:
-                    is_upload = "/public/forms/" in request.url.path and request.url.path.endswith("/upload")
-                    limit = _UPLOAD_MAX if is_upload else settings.max_request_body_bytes
+                    path = request.url.path
+                    is_upload = "/public/forms/" in path and path.endswith("/upload")
+                    is_audio = path.endswith("/documents/transcribe")
+                    limit = _AUDIO_MAX if is_audio else _UPLOAD_MAX if is_upload else settings.max_request_body_bytes
                     if int(raw) > limit:
                         return JSONResponse(
                             status_code=413,

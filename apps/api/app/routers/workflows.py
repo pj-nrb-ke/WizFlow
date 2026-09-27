@@ -567,6 +567,9 @@ def submit_request(
             user_id=user.id,
             company_id=user.company_id,
             data=body.data,
+            comment=body.comment,
+            voice_note_id=body.voice_note_id,
+            voice_note_ext=body.voice_note_ext,
         )
     except instance_engine.RequestError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))

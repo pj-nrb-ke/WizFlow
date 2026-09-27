@@ -3,6 +3,7 @@ import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { ThemeScope } from "../context/ThemeContext";
 import { HelpTip } from "../components/HelpTip";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
+import { VoiceNoteInput } from "../components/VoiceNoteInput";
 import { API_BASE, ApiError, apiFetch, apiUpload, FormField, WorkflowDefinition } from "../lib/api";
 import { getToken } from "../lib/auth";
 import {
@@ -58,6 +59,9 @@ export function SubmitRequestPage() {
   const [loading, setLoading] = useState(true);
   const [fieldsLoading, setFieldsLoading] = useState(false);
   const [dragOver, setDragOver] = useState(false);
+  const [comment, setComment] = useState("");
+  const [voiceNoteId, setVoiceNoteId] = useState<string | null>(null);
+  const [voiceNoteExt, setVoiceNoteExt] = useState<string | null>(null);
 
   const selected = workflows.find((w) => w.id === selectedId);
   const ui = parseUiSettings(selected?.settings);
@@ -198,7 +202,15 @@ export function SubmitRequestPage() {
     try {
       const inst = await apiFetch<{ id: string }>(
         `/api/v1/workflows/${selectedId}/submit`,
-        { method: "POST", body: JSON.stringify({ data: formToPayload(fields, form) }) },
+        {
+          method: "POST",
+          body: JSON.stringify({
+            data: formToPayload(fields, form),
+            comment: comment.trim() || undefined,
+            voice_note_id: voiceNoteId || undefined,
+            voice_note_ext: voiceNoteExt || undefined,
+          }),
+        },
         getToken()
       );
       if (file) {
@@ -325,6 +337,29 @@ export function SubmitRequestPage() {
                   />
                 </label>
                 {ocrHint && <p className="mt-1.5 text-xs text-slate-600">{ocrHint}</p>}
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-slate-700 mb-1.5">
+                  Comment <span className="font-normal text-slate-400">(optional)</span>
+                </label>
+                <VoiceNoteInput
+                  onTranscript={(t) => {
+                    setComment(t.text);
+                    setVoiceNoteId(t.voice_note_id);
+                    setVoiceNoteExt(t.voice_note_ext);
+                  }}
+                />
+                <textarea
+                  value={comment}
+                  onChange={(e) => setComment(e.target.value)}
+                  rows={3}
+                  placeholder="Add a note for the approver — or record a voice note above and we'll transcribe and tidy it up."
+                  className="wf-input mt-2"
+                />
+                <p className="mt-1 text-xs text-slate-400">
+                  Voice notes are transcribed and grammar-tidied automatically; the audio is kept with the request.
+                </p>
               </div>
 
               <button

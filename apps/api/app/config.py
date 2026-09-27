@@ -32,6 +32,12 @@ class Settings(BaseSettings):
     )
     expo_push_enabled: bool = True
     expo_push_access_token: str = ""
+    # Voice-note transcription (self-hosted faster-whisper, CPU). Model downloads on
+    # first use; point whisper_model_dir at a persistent volume so it survives rebuilds.
+    whisper_model: str = "base"
+    whisper_device: str = "cpu"
+    whisper_compute_type: str = "int8"
+    whisper_model_dir: str = ""
     # Background automation loop (SLA alerts, escalations, scheduled reports,
     # recurring workflow triggers). Disabled in tests.
     scheduler_enabled: bool = True

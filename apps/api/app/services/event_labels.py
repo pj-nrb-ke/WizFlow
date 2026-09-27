@@ -7,6 +7,7 @@ EVENT_LABELS: dict[str, str] = {
     "step.rejected": "Step rejected",
     "step.returned": "Returned to originator",
     "step.claimed": "Task claimed",
+    "request.commented": "Comment added",
     "workflow.completed": "Workflow completed",
     "file.uploaded": "File uploaded",
 }

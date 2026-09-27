@@ -7,7 +7,7 @@ import { RequestStatusPanel } from "../components/RequestStatusPanel";
 import { StatusBadge } from "../components/StatusBadge";
 import { eventLabel } from "../lib/eventLabels";
 import { WorkflowFormRenderer } from "../components/WorkflowFormRenderer";
-import { ApiError, apiDownload, apiFetch, FormField, RequestDetail, WorkflowEvent } from "../lib/api";
+import { API_BASE, ApiError, apiDownload, apiFetch, FormField, RequestDetail, WorkflowEvent } from "../lib/api";
 import { getToken } from "../lib/auth";
 import {
   formToPayload,
@@ -24,6 +24,38 @@ import {
   type AppTheme,
   type FormLayout,
 } from "../lib/themes";
+
+/** Fetches the request's voice-note audio with auth and plays it inline. */
+function VoiceNotePlayer({ requestId }: { requestId: string }) {
+  const [url, setUrl] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    let objectUrl = "";
+    (async () => {
+      try {
+        const token = getToken();
+        const res = await fetch(`${API_BASE}/api/v1/requests/${requestId}/voice-note`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error("no audio");
+        const blob = await res.blob();
+        objectUrl = URL.createObjectURL(blob);
+        if (!cancelled) setUrl(objectUrl);
+      } catch {
+        if (!cancelled) setFailed(true);
+      }
+    })();
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [requestId]);
+  if (failed) return null;
+  if (!url) return <p className="mt-1 text-xs text-slate-400">Loading voice note…</p>;
+  return <audio controls src={url} className="mt-1.5 w-full max-w-xs" />;
+}
 
 export function RequestDetailPage() {
   const { id } = useParams<{ id: string }>();
@@ -325,6 +357,9 @@ export function RequestDetailPage() {
                     </p>
                     {ev.payload?.comment != null && String(ev.payload.comment) !== "" && (
                       <p className="text-slate-600 mt-1">{String(ev.payload.comment)}</p>
+                    )}
+                    {ev.payload?.voice_note_id != null && id && (
+                      <VoiceNotePlayer requestId={id} />
                     )}
                   </li>
                 ))}

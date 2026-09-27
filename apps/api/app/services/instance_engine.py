@@ -134,6 +134,9 @@ def submit_request(
     user_id: UUID,
     company_id: UUID,
     data: dict,
+    comment: str | None = None,
+    voice_note_id: str | None = None,
+    voice_note_ext: str | None = None,
 ) -> WorkflowInstance:
     if defn.status != "published":
         raise RequestError("Workflow must be published before submitting requests")
@@ -180,6 +183,20 @@ def submit_request(
         instance_id=instance.id,
         payload={"workflow_name": defn.name, "data": strip_ui_keys(data)},
     )
+    comment = (comment or "").strip()
+    if comment or voice_note_id:
+        record_event(
+            db,
+            company_id=company_id,
+            event_type="request.commented",
+            actor_user_id=user_id,
+            instance_id=instance.id,
+            payload={
+                "comment": comment,
+                "voice_note_id": voice_note_id,
+                "voice_note_ext": voice_note_ext,
+            },
+        )
     record_event(
         db,
         company_id=company_id,

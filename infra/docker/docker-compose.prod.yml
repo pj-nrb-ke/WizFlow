@@ -45,9 +45,11 @@ services:
     environment:
       DATABASE_URL: postgresql://wizflow:${POSTGRES_PASSWORD}@postgres:5432/wizflow_live
       REDIS_URL: redis://redis:6379/0
+      WHISPER_MODEL_DIR: /models
     volumes:
       - ../../uploads:/app/uploads
       - ../../config:/config:ro
+      - wizflow_whisper_models:/models
     ports:
       - "127.0.0.1:8010:8000"
     depends_on:
@@ -58,3 +60,4 @@ services:
 
 volumes:
   wizflow_postgres_data:
+  wizflow_whisper_models:

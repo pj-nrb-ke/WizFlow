@@ -2,13 +2,14 @@ from datetime import datetime
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from fastapi.responses import PlainTextResponse, Response
+from fastapi.responses import FileResponse, PlainTextResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.deps import CurrentUser, require_company
 from app.db.models import Attachment, User, WorkflowDefinition, WorkflowEvent, WorkflowInstance
 from app.db.session import get_db
+from app.services import voice_notes
 from app.schemas.request import (
     AttachmentOut,
     RequestUpdate,
@@ -234,6 +235,47 @@ def get_request_events(
             )
         )
     return out
+
+
+_AUDIO_MEDIA = {
+    "webm": "audio/webm", "ogg": "audio/ogg", "oga": "audio/ogg", "wav": "audio/wav",
+    "mp3": "audio/mpeg", "m4a": "audio/mp4", "mp4": "audio/mp4", "aac": "audio/aac",
+    "flac": "audio/flac",
+}
+
+
+@router.get("/{request_id}/voice-note")
+def get_voice_note(
+    request_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    """Stream the audio of the request's voice-note comment (company-scoped)."""
+    inst = get_instance(db, request_id, user.company_id)
+    ev = db.scalars(
+        select(WorkflowEvent)
+        .where(
+            WorkflowEvent.instance_id == inst.id,
+            WorkflowEvent.event_type == "request.commented",
+        )
+        .order_by(WorkflowEvent.created_at.desc())
+    ).first()
+    payload = (ev.payload if ev else None) or {}
+    vid = payload.get("voice_note_id")
+    if not vid:
+        raise HTTPException(status_code=404, detail="No voice note on this request")
+    ext = voice_notes.safe_ext(payload.get("voice_note_ext"))
+    try:
+        path = voice_notes.audio_path(inst.company_id, vid, ext)
+    except ValueError:
+        raise HTTPException(status_code=404, detail="Voice note not found")
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="Voice note file missing")
+    return FileResponse(
+        str(path),
+        media_type=_AUDIO_MEDIA.get(ext, "application/octet-stream"),
+        filename=f"voice-note.{ext}",
+    )
 
 
 @router.get("/{request_id}/audit-export", response_class=PlainTextResponse)
