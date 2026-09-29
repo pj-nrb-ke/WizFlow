@@ -5,7 +5,7 @@ from fastapi.concurrency import run_in_threadpool
 
 from app.core.deps import CurrentUser, require_company
 from app.schemas.integrations import DocumentExtractOut
-from app.schemas.request import VoiceTranscriptOut
+from app.schemas.request import PolishCommentIn, PolishCommentOut, VoiceTranscriptOut
 from app.services import voice_notes
 from app.services.ocr import extract_document_fields
 
@@ -64,3 +64,13 @@ async def transcribe_voice_note(
         voice_note_id=voice_note_id,
         voice_note_ext=ext,
     )
+
+
+@router.post("/polish-comment", response_model=PolishCommentOut)
+async def polish_comment(
+    body: PolishCommentIn,
+    user: CurrentUser = Depends(require_company),
+) -> PolishCommentOut:
+    """Grammar-tidy a note transcribed on the client (e.g. mobile on-device speech)."""
+    cleaned = await run_in_threadpool(voice_notes.polish_comment, body.text, body.language)
+    return PolishCommentOut(text=cleaned)

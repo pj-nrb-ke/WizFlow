@@ -46,6 +46,10 @@ export default function TabsLayout() {
         options={{ title: "My requests", tabBarIcon: () => <TabIcon label="☰" /> }}
       />
       <Tabs.Screen
+        name="tasks"
+        options={{ title: "Tasks", tabBarIcon: () => <TabIcon label="☑" /> }}
+      />
+      <Tabs.Screen
         name="submit"
         options={{
           title: "Submit",

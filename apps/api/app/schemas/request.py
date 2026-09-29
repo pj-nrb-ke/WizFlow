@@ -20,6 +20,16 @@ class VoiceTranscriptOut(BaseModel):
     voice_note_ext: str
 
 
+class PolishCommentIn(BaseModel):
+    # For clients that transcribe on-device (mobile) and only need the grammar tidy-up.
+    text: str = Field(..., max_length=5000)
+    language: str | None = Field(default=None, max_length=16)
+
+
+class PolishCommentOut(BaseModel):
+    text: str
+
+
 class RequestUpdate(BaseModel):
     data: dict = Field(default_factory=dict)
 

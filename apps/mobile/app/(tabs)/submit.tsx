@@ -6,9 +6,11 @@ import {
   ScrollView,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import { useLocalSearchParams } from "expo-router";
 import { ExpoSpeechRecognitionModule, useSpeechRecognitionEvent } from "expo-speech-recognition";
 import { useAuth } from "../../src/auth/AuthContext";
 import { apiFetch, extractDocument, type WorkflowDefinition } from "../../src/api/client";
@@ -26,6 +28,7 @@ import { colors } from "../../src/theme/colors";
 
 export default function SubmitScreen() {
   const { token } = useAuth();
+  const { wf } = useLocalSearchParams<{ wf?: string }>();
   const { online, pendingSubmits, pendingUploads, pendingTotal } = useBackgroundSync(token);
   const [workflows, setWorkflows] = useState<WorkflowDefinition[]>([]);
   const [selectedId, setSelectedId] = useState("");
@@ -37,6 +40,9 @@ export default function SubmitScreen() {
   const [draftHint, setDraftHint] = useState("");
   const [dictating, setDictating] = useState(false);
   const [speech, setSpeech] = useState("");
+  const [comment, setComment] = useState("");
+  const [polishing, setPolishing] = useState(false);
+  const [voiceTarget, setVoiceTarget] = useState<"form" | "comment" | null>(null);
 
   const selected = workflows.find((w) => w.id === selectedId);
 
@@ -56,9 +62,10 @@ export default function SubmitScreen() {
     );
     setWorkflows(list);
     if (list.length && !selectedId) {
-      await pickWorkflow(list[0].id, list);
+      const initial = (wf && list.find((w) => w.id === wf)?.id) || list[0].id;
+      await pickWorkflow(initial, list);
     }
-  }, [token, selectedId]);
+  }, [token, selectedId, wf]);
 
   async function pickWorkflow(id: string, list = workflows) {
     setSelectedId(id);
@@ -75,6 +82,14 @@ export default function SubmitScreen() {
     loadWorkflows().finally(() => setLoading(false));
   }, [loadWorkflows]);
 
+  // Deep-link from an obligation ("Submit now") after the tab is already mounted.
+  useEffect(() => {
+    if (wf && workflows.length && wf !== selectedId && workflows.some((w) => w.id === wf)) {
+      void pickWorkflow(wf);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [wf, workflows]);
+
   function onChange(key: string, value: string) {
     const next = { ...form, [key]: value };
     setForm(next);
@@ -84,14 +99,43 @@ export default function SubmitScreen() {
     }
   }
 
-  async function startVoiceFill() {
+  async function startVoice(target: "form" | "comment") {
     try {
       const perm = await ExpoSpeechRecognitionModule.requestPermissionsAsync();
       if (!perm.granted) return;
       setSpeech("");
+      setVoiceTarget(target);
       ExpoSpeechRecognitionModule.start({ lang: "en-US", interimResults: true, continuous: false });
     } catch {
       /* optional */
+    }
+  }
+
+  function stopVoice() {
+    ExpoSpeechRecognitionModule.stop();
+    const heard = speech;
+    if (voiceTarget === "comment") void polishIntoComment(heard);
+    else applyVoice(heard);
+    setVoiceTarget(null);
+  }
+
+  async function polishIntoComment(text: string) {
+    const t = text.trim();
+    if (!t) return;
+    setComment(t); // show the raw transcript immediately
+    if (!token) return;
+    setPolishing(true);
+    try {
+      const res = await apiFetch<{ text: string }>(
+        "/api/v1/documents/polish-comment",
+        { method: "POST", body: JSON.stringify({ text: t }) },
+        token
+      );
+      if (res?.text) setComment(res.text);
+    } catch {
+      /* keep the raw transcript on any hiccup */
+    } finally {
+      setPolishing(false);
     }
   }
 
@@ -165,12 +209,13 @@ export default function SubmitScreen() {
       }
       const inst = await apiFetch<{ id: string }>(
         `/api/v1/workflows/${selectedId}/submit`,
-        { method: "POST", body: JSON.stringify({ data: payload }) },
+        { method: "POST", body: JSON.stringify({ data: payload, comment: comment.trim() || undefined }) },
         token
       );
       await clearDraft(selectedId);
       Alert.alert("Submitted", `Reference will appear in My Requests.`);
       setForm(buildInitialForm(fields));
+      setComment("");
     } catch (e) {
       Alert.alert("Error", e instanceof Error ? e.message : "Submit failed");
     } finally {
@@ -221,18 +266,33 @@ export default function SubmitScreen() {
           {ocrHint ? <Text style={styles.hint}>{ocrHint}</Text> : null}
           <Pressable
             style={styles.secondaryBtn}
-            onPress={() => {
-              if (dictating) {
-                ExpoSpeechRecognitionModule.stop();
-                applyVoice(speech);
-              } else {
-                void startVoiceFill();
-              }
-            }}
+            onPress={() => (dictating && voiceTarget === "form" ? stopVoice() : startVoice("form"))}
           >
-            <Text style={styles.secondaryText}>{dictating ? "Stop voice" : "Voice to form (amount/purpose)"}</Text>
+            <Text style={styles.secondaryText}>
+              {dictating && voiceTarget === "form" ? "Stop voice" : "Voice to form (amount/purpose)"}
+            </Text>
           </Pressable>
-          {speech ? <Text style={styles.hint}>Heard: {speech}</Text> : null}
+          {voiceTarget === "form" && speech ? <Text style={styles.hint}>Heard: {speech}</Text> : null}
+
+          <Text style={[styles.label, styles.commentLabel]}>Comment (optional)</Text>
+          <Pressable
+            style={styles.secondaryBtn}
+            onPress={() => (dictating && voiceTarget === "comment" ? stopVoice() : startVoice("comment"))}
+          >
+            <Text style={styles.secondaryText}>
+              {dictating && voiceTarget === "comment" ? "Stop recording" : "Record a voice note"}
+            </Text>
+          </Pressable>
+          <TextInput
+            style={styles.commentInput}
+            multiline
+            value={comment}
+            onChangeText={setComment}
+            placeholder="Add a note for the approver, or record a voice note — we'll transcribe and tidy it up."
+            placeholderTextColor={colors.muted}
+          />
+          {polishing ? <Text style={styles.hint}>Tidying up the transcript…</Text> : null}
+
           <Pressable style={styles.btn} onPress={onSubmit} disabled={submitting}>
             {submitting ? (
               <ActivityIndicator color="#fff" />
@@ -264,6 +324,19 @@ const styles = StyleSheet.create({
   chipText: { fontSize: 14, color: colors.text },
   chipTextActive: { color: "#fff" },
   hint: { fontSize: 13, color: colors.muted, marginVertical: 8 },
+  commentLabel: { marginTop: 20 },
+  commentInput: {
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: 10,
+    padding: 12,
+    minHeight: 84,
+    fontSize: 15,
+    color: colors.text,
+    backgroundColor: colors.card,
+    textAlignVertical: "top",
+  },
   offline: { color: colors.warning, marginBottom: 12, fontWeight: "600" },
   muted: { color: colors.muted },
   secondaryBtn: {

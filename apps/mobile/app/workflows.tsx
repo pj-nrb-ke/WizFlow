@@ -1,11 +1,13 @@
 import { useCallback, useEffect, useState } from "react";
-import { ActivityIndicator, Alert, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Alert, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { useAuth } from "../src/auth/AuthContext";
 import { apiFetch, type WorkflowDefinition } from "../src/api/client";
 import { colors } from "../src/theme/colors";
 
 export default function WorkflowsScreen() {
   const { token } = useAuth();
+  const router = useRouter();
   const [items, setItems] = useState<WorkflowDefinition[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -36,10 +38,10 @@ export default function WorkflowsScreen() {
         <Text style={styles.muted}>No published workflows.</Text>
       ) : (
         items.map((w) => (
-          <View key={w.id} style={styles.card}>
+          <Pressable key={w.id} style={styles.card} onPress={() => router.push(`/workflow/${w.id}`)}>
             <Text style={styles.name}>{w.name}</Text>
-            <Text style={styles.meta}>v{w.version} • {w.status}</Text>
-          </View>
+            <Text style={styles.meta}>v{w.version} • {w.status} • tap to preview</Text>
+          </Pressable>
         ))
       )}
     </ScrollView>

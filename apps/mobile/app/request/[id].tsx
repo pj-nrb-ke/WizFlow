@@ -182,7 +182,12 @@ export default function RequestDetailScreen() {
       {events.map((e) => (
         <View key={e.id} style={styles.event}>
           <Text style={styles.eventLabel}>{e.event_label || e.event_type}</Text>
-          <Text style={styles.muted}>{new Date(e.created_at).toLocaleString()}</Text>
+          <Text style={styles.muted}>
+            {(e.actor_name ? `${e.actor_name} · ` : "") + new Date(e.created_at).toLocaleString()}
+          </Text>
+          {typeof e.payload?.comment === "string" && e.payload.comment.trim() !== "" ? (
+            <Text style={styles.eventComment}>{e.payload.comment}</Text>
+          ) : null}
         </View>
       ))}
     </ScrollView>
@@ -231,6 +236,7 @@ const styles = StyleSheet.create({
   section: { fontSize: 12, fontWeight: "700", color: colors.muted, marginTop: 16, marginBottom: 8 },
   event: { paddingVertical: 8, borderBottomWidth: 1, borderBottomColor: colors.border },
   eventLabel: { fontSize: 14, fontWeight: "600" },
+  eventComment: { fontSize: 14, color: colors.text, marginTop: 4 },
   muted: { fontSize: 12, color: colors.muted },
   attach: { fontSize: 14, color: colors.text, marginBottom: 4 },
   btn: {

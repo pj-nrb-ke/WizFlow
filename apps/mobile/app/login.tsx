@@ -9,7 +9,7 @@ import {
   TextInput,
   View,
 } from "react-native";
-import { Redirect } from "expo-router";
+import { Link, Redirect } from "expo-router";
 import { useAuth } from "../src/auth/AuthContext";
 import { ApiError } from "../src/api/client";
 import { colors } from "../src/theme/colors";
@@ -92,6 +92,11 @@ export default function LoginScreen() {
             <Text style={styles.btnText}>Sign in</Text>
           )}
         </Pressable>
+        <Link href="/forgot-password" asChild>
+          <Pressable style={styles.forgot}>
+            <Text style={styles.forgotText}>Forgot password?</Text>
+          </Pressable>
+        </Link>
       </View>
     </KeyboardAvoidingView>
   );
@@ -137,4 +142,6 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   btnText: { color: "#fff", fontSize: 16, fontWeight: "600" },
+  forgot: { alignItems: "center", marginTop: 16 },
+  forgotText: { color: colors.primary, fontWeight: "600", fontSize: 14 },
 });

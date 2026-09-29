@@ -122,13 +122,73 @@ export type RequestSummary = {
   amount_preview?: string | null;
 };
 
+export type WorkflowStep = {
+  id?: string;
+  name?: string;
+  type?: string;
+  assignee?: { type?: string; value?: string; user_ids?: string[] };
+};
+
 export type WorkflowDefinition = {
   id: string;
   name: string;
   version?: number;
   status: string;
   form_schema: { fields?: import("../lib/formUtils").FormField[] };
+  steps?: WorkflowStep[];
   settings?: Record<string, unknown>;
+};
+
+export type TaskAttachment = {
+  id: string;
+  original_filename: string;
+  size_bytes: number;
+  created_at?: string;
+};
+
+export type ChecklistTask = {
+  id: string;
+  checklist_id: string;
+  checklist_name: string;
+  title: string;
+  description: string | null;
+  assignee_name: string | null;
+  due_date: string | null;
+  priority: string;
+  status: string;
+  attachment_required: boolean;
+  verification_required?: boolean;
+  attachments: TaskAttachment[];
+  link?: string | null;
+};
+
+export type Obligation = {
+  id: string;
+  schedule_id: string;
+  schedule_name: string;
+  target_id: string;
+  run_id: string;
+  due_date: string;
+  period_label: string;
+  status: string;
+  completed_at: string | null;
+  completion_mode: "submit_workflow" | "acknowledge";
+  workflow_definition_id: string | null;
+};
+
+export type GuestSubmission = {
+  id: string;
+  guest_name: string;
+  guest_email: string;
+  status: "pending" | "accepted" | "rejected";
+  submitted_at: string;
+  review_note: string | null;
+};
+
+export type GuestSubmissionDetail = GuestSubmission & {
+  data: Record<string, unknown>;
+  ip_address?: string | null;
+  reviewed_at?: string | null;
 };
 
 export type Attachment = {
