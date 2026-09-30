@@ -135,6 +135,17 @@ export type WorkflowSummary = {
   status: string;
 };
 
+// ── Process Designer (BPMN) — standalone module ──────────────────────────────
+export type BpmnDiagramSummary = {
+  id: string;
+  name: string;
+  description: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type BpmnDiagramDetail = BpmnDiagramSummary & { bpmn_xml: string };
+
 export type WorkflowDefinition = WorkflowSummary & {
   company_id: string;
   family_id: string;

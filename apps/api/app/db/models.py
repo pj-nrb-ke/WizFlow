@@ -844,6 +844,32 @@ class ChecklistEvent(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
 
+class BpmnDiagram(Base):
+    """Standalone BPMN 2.0 diagrams for the Process Designer module.
+
+    Deliberately independent of the approval-workflow engine — it stores raw BPMN
+    XML authored in the bpmn-js modeler and is never referenced by
+    instance_engine / workflow_engine. The existing linear flowchart is untouched.
+    """
+
+    __tablename__ = "bpmn_diagrams"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    bpmn_xml: Mapped[str] = mapped_column(Text, nullable=False)
+    created_by: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+
 # ── Recurring Schedules (reusable calendar rules driving many targets) ───────────
 #
 # A RecurringSchedule is the pure "WHEN" — a named calendar rule ("every 15th of

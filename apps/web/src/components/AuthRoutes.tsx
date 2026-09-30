@@ -14,6 +14,8 @@ import { SettingsPage } from "../pages/SettingsPage";
 import { WorkflowsPage } from "../pages/WorkflowsPage";
 import { FormDesignerPage } from "../pages/FormDesignerPage";
 import { CustomWorkflowPage } from "../pages/CustomWorkflowPage";
+import { ProcessDesignerPage } from "../pages/ProcessDesignerPage";
+import { BpmnEditorPage } from "../pages/BpmnEditorPage";
 import { PublicApprovePage } from "../pages/PublicApprovePage";
 import { NotificationsPage } from "../pages/NotificationsPage";
 import { SetupWizardPage } from "../pages/SetupWizardPage";
@@ -93,6 +95,8 @@ export function AppRoutes() {
           <Route path="workflows" element={<WorkflowsPage />} />
           <Route path="form-designer" element={<FormDesignerPage />} />
           <Route path="custom-workflow" element={<CustomWorkflowPage />} />
+          <Route path="process-designer" element={<ProcessDesignerPage />} />
+          <Route path="process-designer/:id" element={<BpmnEditorPage />} />
           <Route path="ai" element={<AiWorkflowPage />} />
           <Route path="submit" element={<SubmitRequestPage />} />
           <Route path="requests" element={<MyRequestsPage />} />

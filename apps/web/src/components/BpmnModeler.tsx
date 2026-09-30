@@ -1,0 +1,54 @@
+import { forwardRef, useEffect, useImperativeHandle, useRef } from "react";
+import BpmnModeler from "bpmn-js/lib/Modeler";
+import "bpmn-js/dist/assets/diagram-js.css";
+import "bpmn-js/dist/assets/bpmn-js.css";
+import "bpmn-js/dist/assets/bpmn-font/css/bpmn.css";
+
+export type BpmnHandle = {
+  getXml: () => Promise<string>;
+  getSvg: () => Promise<string>;
+};
+
+/**
+ * Thin React wrapper around the bpmn-js modeler (imperative library).
+ * Lazy-loaded so bpmn-js is code-split out of the core bundle.
+ */
+const BpmnCanvas = forwardRef<BpmnHandle, { xml: string }>(function BpmnCanvas({ xml }, ref) {
+  const containerRef = useRef<HTMLDivElement>(null);
+  const modelerRef = useRef<any>(null);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      getXml: async () => {
+        const res = await modelerRef.current.saveXML({ format: true });
+        return res.xml as string;
+      },
+      getSvg: async () => {
+        const res = await modelerRef.current.saveSVG();
+        return res.svg as string;
+      },
+    }),
+    []
+  );
+
+  useEffect(() => {
+    if (!containerRef.current) return;
+    const modeler = new BpmnModeler({ container: containerRef.current });
+    modelerRef.current = modeler;
+    (async () => {
+      try {
+        await modeler.importXML(xml);
+        modeler.get("canvas").zoom("fit-viewport");
+      } catch {
+        /* malformed XML — modeler stays blank rather than crashing */
+      }
+    })();
+    return () => modeler.destroy();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return <div ref={containerRef} style={{ height: "72vh", width: "100%" }} className="wf-card" />;
+});
+
+export default BpmnCanvas;

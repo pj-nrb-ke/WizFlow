@@ -47,6 +47,7 @@ export function AppLayout() {
     { to: "/ai", label: "AI creator", Icon: IconSparkles },
     { to: "/form-designer", label: "Form designer", Icon: IconForm },
     { to: "/custom-workflow", label: "Custom workflow", Icon: IconWorkflow },
+    { to: "/process-designer", label: "Process Designer", Icon: IconWorkflow },
     { to: "/templates", label: "Templates", Icon: IconTemplates },
   ];
 
