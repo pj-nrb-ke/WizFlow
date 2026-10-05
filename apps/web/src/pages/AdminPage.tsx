@@ -10,6 +10,7 @@ import { THEME_META } from "../lib/themes";
 const SECTIONS = [
   { id: "organization", label: "Organization", desc: "Departments and org structure." },
   { id: "users", label: "Users", desc: "People, emails, and assigned roles." },
+  { id: "roles", label: "Roles", desc: "Custom roles and what each one can do." },
   { id: "groups", label: "Groups", desc: "Approval teams for workflow routing." },
   { id: "branding", label: "Branding", desc: "Workspace look and company identity." },
 ] as const;
@@ -190,6 +191,152 @@ function InviteModal({
         </form>
       </div>
     </div>
+  );
+}
+
+interface PermissionDef { key: string; label: string; group: string }
+interface RoleDef { id: string; slug: string; name: string; permissions: string[]; is_builtin: boolean }
+
+function RolesSection() {
+  const [catalog, setCatalog] = useState<PermissionDef[]>([]);
+  const [roles, setRoles] = useState<RoleDef[]>([]);
+  const [error, setError] = useState("");
+  const [newName, setNewName] = useState("");
+  const [newPerms, setNewPerms] = useState<string[]>([]);
+  const [busy, setBusy] = useState(false);
+
+  function load() {
+    const token = getToken();
+    Promise.all([
+      apiFetch<PermissionDef[]>("/api/v1/admin/permissions", {}, token),
+      apiFetch<RoleDef[]>("/api/v1/admin/roles", {}, token),
+    ])
+      .then(([c, r]) => { setCatalog(c); setRoles(r); })
+      .catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed to load roles"));
+  }
+  useEffect(load, []);
+
+  const groups = Array.from(new Set(catalog.map((p) => p.group)));
+
+  async function createRole(e: FormEvent) {
+    e.preventDefault();
+    if (!newName.trim()) return;
+    setBusy(true); setError("");
+    try {
+      await apiFetch<RoleDef>("/api/v1/admin/roles", {
+        method: "POST",
+        body: JSON.stringify({ name: newName.trim(), permissions: newPerms }),
+      }, getToken());
+      setNewName(""); setNewPerms([]); load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Failed to create role");
+    } finally { setBusy(false); }
+  }
+
+  async function toggleRolePerm(role: RoleDef, key: string) {
+    const next = role.permissions.includes(key)
+      ? role.permissions.filter((p) => p !== key)
+      : [...role.permissions, key];
+    setRoles((prev) => prev.map((r) => (r.id === role.id ? { ...r, permissions: next } : r)));
+    try {
+      await apiFetch<RoleDef>(`/api/v1/admin/roles/${role.id}`, {
+        method: "PATCH",
+        body: JSON.stringify({ permissions: next }),
+      }, getToken());
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Failed to update role");
+      load();
+    }
+  }
+
+  async function removeRole(role: RoleDef) {
+    if (!confirm(`Delete the "${role.name}" role?`)) return;
+    try {
+      await apiFetch<void>(`/api/v1/admin/roles/${role.id}`, { method: "DELETE" }, getToken());
+      load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Failed to delete role");
+    }
+  }
+
+  return (
+    <section className="wf-card p-5">
+      <h2 className="font-semibold text-slate-800">Roles &amp; permissions</h2>
+      <p className="text-sm text-slate-500 mb-4">
+        Built-in roles are fixed. Create custom roles and tick exactly what each one can do.
+      </p>
+      {error && <p className="text-sm text-red-600 mb-3">{error}</p>}
+
+      <div className="space-y-4">
+        {roles.map((role) => (
+          <div key={role.id} className="border border-slate-200 rounded-lg p-4">
+            <div className="flex items-center justify-between gap-3 mb-3">
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-slate-800">{role.name}</span>
+                {role.is_builtin ? (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 border border-slate-200">Built-in</span>
+                ) : (
+                  <span className="text-xs px-2 py-0.5 rounded-full bg-purple-50 text-purple-700 border border-purple-200">Custom</span>
+                )}
+              </div>
+              {!role.is_builtin && (
+                <button type="button" onClick={() => removeRole(role)} className="text-xs text-red-600 hover:underline">
+                  Delete
+                </button>
+              )}
+            </div>
+            <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2">
+              {catalog.map((p) => {
+                const checked = role.permissions.includes(p.key);
+                return (
+                  <label key={p.key} className={`flex items-start gap-2 text-sm ${role.is_builtin ? "opacity-70" : "cursor-pointer"}`}>
+                    <input
+                      type="checkbox"
+                      className="mt-0.5"
+                      checked={checked}
+                      disabled={role.is_builtin}
+                      onChange={() => toggleRolePerm(role, p.key)}
+                    />
+                    <span className="text-slate-700">{p.label}</span>
+                  </label>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <form onSubmit={createRole} className="mt-6 border-t border-slate-200 pt-5">
+        <h3 className="font-medium text-slate-800 mb-2">New custom role</h3>
+        <input
+          value={newName}
+          onChange={(e) => setNewName(e.target.value)}
+          placeholder="Role name (e.g. Finance Reviewer)"
+          className="wf-input w-full max-w-sm mb-3"
+        />
+        <div className="grid gap-x-6 gap-y-1 sm:grid-cols-2 mb-4">
+          {groups.flatMap((g) => [
+            <p key={`h-${g}`} className="text-xs font-semibold text-slate-500 uppercase tracking-wide sm:col-span-2 mt-1">{g}</p>,
+            ...catalog.filter((p) => p.group === g).map((p) => (
+              <label key={p.key} className="flex items-start gap-2 text-sm cursor-pointer">
+                <input
+                  type="checkbox"
+                  className="mt-0.5"
+                  checked={newPerms.includes(p.key)}
+                  onChange={() =>
+                    setNewPerms((prev) => prev.includes(p.key) ? prev.filter((k) => k !== p.key) : [...prev, p.key])
+                  }
+                />
+                <span className="text-slate-700">{p.label}</span>
+              </label>
+            )),
+          ])}
+        </div>
+        <button type="submit" disabled={busy || !newName.trim()} className="wf-btn-primary px-4 py-2 text-sm disabled:opacity-50">
+          Create role
+        </button>
+      </form>
+    </section>
   );
 }
 
@@ -465,6 +612,9 @@ export function AdminPage() {
           )}
         </section>
       )}
+
+      {/* ─── Roles ─── */}
+      {section === "roles" && <RolesSection />}
 
       {/* ─── Groups ─── */}
       {section === "groups" && (
