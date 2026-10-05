@@ -108,6 +108,25 @@ const TOPICS: Topic[] = [
     ],
   },
   {
+    id: "process-designer",
+    icon: "🗺️",
+    title: "Process Designer (BPMN)",
+    summary: "Draw BPMN 2.0 process maps by drag-and-drop — or generate one from a workflow",
+    demo: "process-designer",
+    steps: [
+      { text: "Go to Build → Process Designer." },
+      { text: "Click Create & open for a blank diagram — or pick a published workflow and click Visualize as BPMN to generate one from it." },
+      { text: "Drag shapes from the palette onto the canvas — start/end events, tasks, and gateways — and connect them with sequence flows." },
+      { text: "Double-click a shape to rename it; drag to reposition. Click Save when done." },
+      { text: "Use Export BPMN (standard .bpmn) or Export SVG to download the diagram." },
+    ],
+    tips: [
+      "Process Designer is a modelling/documentation tool — it is separate from the approval workflows that actually run, so drawing here never changes a live workflow.",
+      "Exported .bpmn files are standard BPMN 2.0 — they open in Camunda, Signavio and other BPMN tools.",
+      "Use 'Visualize as BPMN' to turn an existing approval flow into a shareable diagram.",
+    ],
+  },
+  {
     id: "ai-creator",
     icon: "✨",
     title: "AI Workflow Creator",
@@ -395,6 +414,72 @@ function Demo2FA() {
   );
 }
 
+function DemoProcessDesigner() {
+  // Original BPMN-notation illustration (start/end events, task, gateway, bridge).
+  return (
+    <div className="help-demo-wrap">
+      <div className="help-demo-bar"><span /><span /><span /></div>
+      <div className="help-demo-body">
+        <svg
+          viewBox="0 0 600 236"
+          width="100%"
+          role="img"
+          aria-label="Example BPMN diagram: start, task, decision gateway, approve/reject, end — plus a workflow-to-BPMN bridge"
+          style={{ display: "block", color: "rgb(var(--wf-brand-600))" }}
+        >
+          <defs>
+            <marker id="pd-arrow" markerWidth="9" markerHeight="9" refX="6" refY="3" orient="auto">
+              <path d="M0,0 L6,3 L0,6 Z" fill="currentColor" />
+            </marker>
+          </defs>
+
+          {/* ── Sequence flows ── */}
+          <g stroke="currentColor" strokeWidth="2" fill="none" opacity="0.55" markerEnd="url(#pd-arrow)">
+            <path d="M54 72 H68" />
+            <path d="M158 72 H180" />
+            <path d="M226 60 Q248 40 262 40" />
+            <path d="M226 84 Q248 104 262 104" />
+            <path d="M350 40 Q404 40 416 66" />
+            <path d="M350 104 Q404 104 416 78" />
+          </g>
+
+          {/* ── Start event ── */}
+          <circle cx="38" cy="72" r="16" fill="none" stroke="currentColor" strokeWidth="2" />
+
+          {/* ── Task: Prepare ── */}
+          <rect x="68" y="54" width="90" height="36" rx="8" stroke="currentColor" strokeWidth="2" style={{ fill: "rgb(var(--wf-accent-muted))" }} />
+          <text x="113" y="76" textAnchor="middle" fontSize="12" fill="currentColor">Prepare</text>
+
+          {/* ── Gateway (decision) ── */}
+          <path d="M204 50 L226 72 L204 94 L182 72 Z" stroke="currentColor" strokeWidth="2" style={{ fill: "rgb(var(--wf-accent-muted))" }} />
+          <text x="204" y="77" textAnchor="middle" fontSize="14" fill="currentColor">?</text>
+
+          {/* ── Branch tasks ── */}
+          <rect x="262" y="24" width="90" height="32" rx="8" stroke="currentColor" strokeWidth="2" style={{ fill: "rgb(var(--wf-accent-muted))" }} />
+          <text x="307" y="44" textAnchor="middle" fontSize="12" fill="currentColor">Approve</text>
+          <rect x="262" y="88" width="90" height="32" rx="8" stroke="currentColor" strokeWidth="2" style={{ fill: "rgb(var(--wf-accent-muted))" }} />
+          <text x="307" y="108" textAnchor="middle" fontSize="12" fill="currentColor">Reject</text>
+
+          {/* ── End event (double ring) ── */}
+          <circle cx="432" cy="72" r="16" fill="none" stroke="currentColor" strokeWidth="3" />
+          <circle cx="432" cy="72" r="11" fill="none" stroke="currentColor" strokeWidth="1.5" />
+
+          {/* ── Bridge: workflow → BPMN ── */}
+          <line x1="40" y1="154" x2="560" y2="154" stroke="currentColor" strokeWidth="1" opacity="0.15" />
+          <rect x="70" y="172" width="156" height="42" rx="8" fill="none" stroke="currentColor" strokeWidth="1.5" opacity="0.8" />
+          <text x="148" y="197" textAnchor="middle" fontSize="12" fill="currentColor">Approval workflow</text>
+          <text x="300" y="186" textAnchor="middle" fontSize="10" fill="currentColor" opacity="0.8">Visualize as BPMN</text>
+          <path d="M232 196 H356" stroke="currentColor" strokeWidth="2" fill="none" markerEnd="url(#pd-arrow)" strokeDasharray="6 4">
+            <animate attributeName="stroke-dashoffset" from="0" to="-20" dur="1.1s" repeatCount="indefinite" />
+          </path>
+          <rect x="362" y="172" width="156" height="42" rx="8" stroke="currentColor" strokeWidth="2" style={{ fill: "rgb(var(--wf-accent-muted))" }} />
+          <text x="440" y="197" textAnchor="middle" fontSize="12" fill="currentColor">BPMN diagram</text>
+        </svg>
+      </div>
+    </div>
+  );
+}
+
 function Demo({ id }: { id?: string }) {
   if (id === "login")  return <DemoLogin />;
   if (id === "submit") return <DemoSubmit />;
@@ -402,6 +487,7 @@ function Demo({ id }: { id?: string }) {
   if (id === "build")  return <DemoBuild />;
   if (id === "ai")     return <DemoAI />;
   if (id === "twofa")  return <Demo2FA />;
+  if (id === "process-designer") return <DemoProcessDesigner />;
   return null;
 }
 
