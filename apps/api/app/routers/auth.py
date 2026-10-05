@@ -42,7 +42,7 @@ from app.schemas.auth import (
 from app.schemas.phase1 import CompanyBranding, NotificationPreferences
 from app.services.brevo_mail import send_password_reset_email
 from app.services.company_settings import branding_from_settings, user_notification_preferences
-from app.services.security_audit import log_security_event
+from app.services.security_audit import log_security_event, recent_failed_logins
 
 router = APIRouter(prefix="/auth", tags=["Auth"])
 
@@ -73,6 +73,17 @@ def login(
     db: Session = Depends(get_db),
 ) -> TokenResponse:
     email = body.email.strip().lower()
+
+    # Per-account lockout (complements the IP rate limiter): too many recent failures
+    # for this email → refuse for the cooldown window, without revealing if it exists.
+    if recent_failed_logins(db, email, within_minutes=settings.login_lockout_minutes) >= settings.login_lockout_threshold:
+        log_security_event(db, action="auth.login_locked", detail={"email": email}, ip_address=_client_ip(request))
+        db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+            detail=f"Too many failed attempts. Try again in about {settings.login_lockout_minutes} minutes.",
+        )
+
     user = db.scalar(
         select(User)
         .where(User.email == email, User.is_active.is_(True))
@@ -111,8 +122,8 @@ def login(
     db.commit()
 
     roles = [ur.role.slug for ur in user.user_roles if ur.role]
-    access = create_access_token(str(user.id), user.company_id, roles)
-    refresh = create_refresh_token(str(user.id), user.company_id, roles)
+    access = create_access_token(str(user.id), user.company_id, roles, user.token_version)
+    refresh = create_refresh_token(str(user.id), user.company_id, roles, user.token_version)
     set_auth_cookies(response, access, refresh)
     return TokenResponse(
         access_token=access,
@@ -123,6 +134,21 @@ def login(
 
 @router.post("/logout", status_code=status.HTTP_204_NO_CONTENT)
 def logout(response: Response) -> None:
+    clear_auth_cookies(response)
+
+
+@router.post("/logout-all", status_code=status.HTTP_204_NO_CONTENT)
+def logout_all(
+    response: Response,
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    """Sign out everywhere: bump the token version so all outstanding tokens are rejected."""
+    db_user = db.get(User, user.id)
+    if db_user:
+        db_user.token_version = (db_user.token_version or 0) + 1
+        log_security_event(db, action="auth.logout_all", company_id=db_user.company_id, actor_user_id=db_user.id)
+        db.commit()
     clear_auth_cookies(response)
 
 
@@ -148,9 +174,13 @@ def refresh(
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
+    tv = user.token_version or 0
+    if tv and payload.get("ver", 0) != tv:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired, please sign in again")
+
     roles = _user_roles(db, user)
-    access = create_access_token(str(user.id), user.company_id, roles)
-    refresh = create_refresh_token(str(user.id), user.company_id, roles)
+    access = create_access_token(str(user.id), user.company_id, roles, user.token_version)
+    refresh = create_refresh_token(str(user.id), user.company_id, roles, user.token_version)
     set_auth_cookies(response, access, refresh)
     return TokenResponse(
         access_token=access,
@@ -327,6 +357,7 @@ def reset_password(
             detail="This reset link is invalid or has expired. Please request a new one.",
         )
     user.password_hash = hash_password(body.new_password)
+    user.token_version = (user.token_version or 0) + 1  # sign out all existing sessions
     now = datetime.now(timezone.utc)
     row.used_at = now
     # Invalidate any other outstanding tokens for this user.

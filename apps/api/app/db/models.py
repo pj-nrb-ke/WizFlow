@@ -52,6 +52,8 @@ class User(Base):
     is_active: Mapped[bool] = mapped_column(default=True)
     totp_secret: Mapped[str | None] = mapped_column(String(255), nullable=True)
     totp_enabled: Mapped[bool] = mapped_column(default=False)
+    # Bumped to invalidate all outstanding tokens (password reset / logout-all).
+    token_version: Mapped[int] = mapped_column(default=0, nullable=False, server_default="0")
     notification_preferences: Mapped[dict] = mapped_column(
         JSONB,
         nullable=False,

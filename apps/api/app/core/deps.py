@@ -63,6 +63,13 @@ def get_current_user(
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
+    # Session invalidation: once a user's token_version is bumped (password reset /
+    # logout-all), tokens minted at an older version are rejected. Untouched users
+    # (version 0) are unaffected, so existing sessions survive deploy.
+    tv = user.token_version or 0
+    if tv and payload.get("ver", 0) != tv:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Session expired, please sign in again")
+
     roles = [ur.role.slug for ur in user.user_roles if ur.role]
     permissions: set[str] = set()
     for ur in user.user_roles:

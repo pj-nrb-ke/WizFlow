@@ -47,6 +47,10 @@ class Settings(BaseSettings):
     # recurring workflow triggers). Disabled in tests.
     scheduler_enabled: bool = True
     scheduler_interval_seconds: int = 300
+    # Account lockout: lock an account after this many failed logins within the window
+    # (per-email, across IPs — complements the IP rate limiter).
+    login_lockout_threshold: int = 8
+    login_lockout_minutes: int = 15
 
 
 settings = Settings()

@@ -31,6 +31,7 @@ def create_token(
     roles: list[str],
     token_type: str,
     expires_minutes: int,
+    token_version: int = 0,
 ) -> str:
     now = datetime.now(timezone.utc)
     payload: dict[str, Any] = {
@@ -38,29 +39,32 @@ def create_token(
         "company_id": str(company_id) if company_id else None,
         "roles": roles,
         "type": token_type,
+        "ver": token_version,
         "iat": now,
         "exp": now + timedelta(minutes=expires_minutes),
     }
     return jwt.encode(payload, settings.jwt_secret, algorithm=ALGORITHM)
 
 
-def create_access_token(subject: str, company_id: UUID | None, roles: list[str]) -> str:
+def create_access_token(subject: str, company_id: UUID | None, roles: list[str], token_version: int = 0) -> str:
     return create_token(
         subject=subject,
         company_id=company_id,
         roles=roles,
         token_type=ACCESS_TYPE,
         expires_minutes=settings.jwt_expire_minutes,
+        token_version=token_version,
     )
 
 
-def create_refresh_token(subject: str, company_id: UUID | None, roles: list[str]) -> str:
+def create_refresh_token(subject: str, company_id: UUID | None, roles: list[str], token_version: int = 0) -> str:
     return create_token(
         subject=subject,
         company_id=company_id,
         roles=roles,
         token_type=REFRESH_TYPE,
         expires_minutes=settings.jwt_expire_minutes * 24 * 7,
+        token_version=token_version,
     )
 
 
