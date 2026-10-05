@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>WizFlow — Project Tracker</title>
+<style>
+  :root{
+    --bg:#f6f7fb; --card:#ffffff; --ink:#1c2333; --muted:#5b6472;
+    --accent:#4f46e5; --accent-soft:#eef0fe; --line:#e6e8ef; --chip:#eef1f6;
+    --done:#0f9d6e; --done-bg:#e6f6ef; --prog:#2563eb; --prog-bg:#e7effe;
+    --plan:#64748b; --plan-bg:#eef1f6; --part:#b45309; --part-bg:#fdf1e3;
+    --future:#7c3aed; --future-bg:#f1ebfe;
+    --shadow:0 1px 2px rgba(16,24,40,.06),0 1px 3px rgba(16,24,40,.08);
+  }
+  @media (prefers-color-scheme:dark){
+    :root{
+      --bg:#0e1116; --card:#161b22; --ink:#e6e9ef; --muted:#9aa4b2;
+      --accent:#8b8bff; --accent-soft:#20233a; --line:#242a33; --chip:#1d232c;
+      --done:#4ade80; --done-bg:#123024; --prog:#7aa2ff; --prog-bg:#16233f;
+      --plan:#94a3b8; --plan-bg:#1d232c; --part:#f0b45e; --part-bg:#2c2313;
+      --future:#c4b5fd; --future-bg:#231b3a;
+      --shadow:0 1px 2px rgba(0,0,0,.4);
+    }
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--ink);
+    font:16px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased;}
+  .wrap{max-width:1000px;margin:0 auto;padding:32px 20px 80px}
+  h1{font-size:28px;margin:0 0 6px;letter-spacing:-.02em}
+  .sub{color:var(--muted);font-size:14px;margin:0}
+  .vision{margin:14px 0 0;padding:12px 16px;background:var(--accent-soft);border:1px solid var(--line);border-radius:10px;font-size:14px}
+  .vision b{color:var(--ink)}
+
+  .prog-wrap{margin:20px 0 6px}
+  .prog-top{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;color:var(--muted);margin-bottom:6px}
+  .prog-bar{height:10px;background:var(--chip);border-radius:999px;overflow:hidden;border:1px solid var(--line)}
+  .prog-fill{height:100%;background:var(--done);width:0;transition:width .6s ease}
+
+  .filters{display:flex;gap:8px;flex-wrap:wrap;margin:16px 0 4px}
+  .filters button{font-size:12.5px;border:1px solid var(--line);background:var(--card);color:var(--ink);
+    border-radius:999px;padding:5px 12px;cursor:pointer}
+  .filters button.active{background:var(--accent);border-color:var(--accent);color:#fff}
+
+  section.phase{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px 20px;margin:16px 0;box-shadow:var(--shadow)}
+  .phase h2{font-size:18px;margin:0 0 2px;letter-spacing:-.01em}
+  .phase .psub{color:var(--muted);font-size:13px;margin:0 0 12px}
+  .item{display:flex;align-items:flex-start;gap:12px;padding:10px 0;border-top:1px solid var(--line)}
+  .item:first-of-type{border-top:0}
+  .dot{width:10px;height:10px;border-radius:50%;margin-top:6px;flex:none}
+  .it-main{flex:1;min-width:0}
+  .it-name{font-size:14.5px;font-weight:600}
+  .it-desc{font-size:13px;color:var(--muted);margin-top:2px}
+  .tags{display:flex;gap:6px;align-items:center;flex:none}
+  .status{font-size:10.5px;font-weight:700;border-radius:6px;padding:2px 8px;text-transform:uppercase;letter-spacing:.03em;white-space:nowrap}
+  .eff{font-size:10.5px;font-weight:700;color:var(--muted);background:var(--chip);border-radius:6px;padding:2px 7px}
+
+  .s-done{color:var(--done)} .bg-done{background:var(--done-bg);color:var(--done)}
+  .s-progress{color:var(--prog)} .bg-progress{background:var(--prog-bg);color:var(--prog)}
+  .s-planned{color:var(--plan)} .bg-planned{background:var(--plan-bg);color:var(--plan)}
+  .s-partial{color:var(--part)} .bg-partial{background:var(--part-bg);color:var(--part)}
+  .s-future{color:var(--future)} .bg-future{background:var(--future-bg);color:var(--future)}
+
+  .legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--muted);margin-top:10px;align-items:center}
+  .legend span{display:inline-flex;align-items:center;gap:5px}
+  footer{color:var(--muted);font-size:12.5px;margin-top:24px;border-top:1px solid var(--line);padding-top:14px}
+  footer b{color:var(--ink)}
+  code{background:var(--chip);border-radius:5px;padding:1px 6px;font-size:12px}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>WizFlow — Project Tracker</h1>
+  <p class="sub">No-code platform roadmap · branch <code>feature/parity-enterprise</code> · generated <span id="gen"></span></p>
+  <div class="vision">
+    <b>Vision:</b> a 100%-no-code platform where <b>managers turn business logic into working apps</b> — describe, record, or upload a requirement and an AI copilot builds it step-by-step. Simple on top, a deep engine underneath.
+  </div>
+
+  <div class="prog-wrap">
+    <div class="prog-top"><span>Program progress (excludes already-live foundations)</span><span id="progLabel"></span></div>
+    <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
+  </div>
+
+  <div class="filters" id="filters"></div>
+  <div id="board"></div>
+
+  <footer>
+    <b>Principles:</b> no-code for the manager · deep engine kept invisible · AI drives, manager approves, everything reversible · test-before-publish (simulate/health-check) · governed by RBAC.
+    <div class="legend" id="legend"></div>
+  </footer>
+</div>
+
+<script>
+const DATA = [
+  { phase: "Already live — what this builds on", baseline: true, sub: "Shipped foundations the no-code platform assembles.",
+    items: [
+      { name: "Process Designer (BPMN)", desc: "bpmn-js drag-and-drop modeler + one-way workflow→BPMN bridge.", status: "done" },
+      { name: "Form Designer", desc: "Drag-and-drop forms, ~15 field types, calculated fields.", status: "done" },
+      { name: "Workflow engine + AI creator", desc: "Approval chains, simulate/health-check; AI drafts a workflow from a description.", status: "done" },
+      { name: "Requirement intake: voice + OCR", desc: "Voice-note transcription and document OCR already capture inputs.", status: "done" },
+      { name: "Core modules (22 total)", desc: "Approvals, analytics, recurring schedules, checklists, notifications, admin… (see features doc).", status: "done" },
+    ]},
+
+  { phase: "A0 · Engine primitives — the no-code substrate", sub: "Execution power absorbed by the platform, kept off the manager's screen. (Parity + enterprise.)",
+    items: [
+      { name: "Advanced routing / gateways", desc: "Compound AND/OR + contains, in/not_in, is_empty, date before/after. Backwards-compatible.", status: "done", eff: "M" },
+      { name: "SLA timers & enforcement", desc: "Deadline detection → auto-escalate/notify (the Appolo 14/30/90-day waits).", status: "progress", eff: "M" },
+      { name: "Service / automated steps (+ AI step)", desc: "Steps that call an API, send mail, or run an AI action with no human.", status: "planned", eff: "L" },
+      { name: "Parallel branches + sub-processes", desc: "Concurrent paths and reusable sub-flows (e.g. the litigation sub-process).", status: "planned", eff: "L" },
+      { name: "Document generation", desc: "Templates → PDF/DOCX (demand letters, legal docs, reports).", status: "planned", eff: "M" },
+      { name: "Multi-provider LLM", desc: "Provider-agnostic AI (OpenAI + others).", status: "planned", eff: "S" },
+      { name: "RBAC — custom roles + permissions", desc: "Who can build/publish apps; granular, enterprise-grade.", status: "planned", eff: "L" },
+      { name: "Security hardening", desc: "Account lockout/throttle, session management.", status: "planned", eff: "M" },
+    ]},
+
+  { phase: "A · Executable BPMN + no-code copilot", sub: '"Publish as app" — the diagram becomes a running application a manager built by talking to it.',
+    items: [
+      { name: "A1 · Task-form binding", desc: "Attach a WizFlow form to each BPMN user task (properties panel + form picker).", status: "planned", eff: "M" },
+      { name: "A2 · BPMN → workflow compiler", desc: "Parse a diagram into a runnable workflow + a validator for unsupported shapes.", status: "planned", eff: "L" },
+      { name: "A3 · Publish as app", desc: "Turn a diagram into a live workflow with its own entry point / app shell.", status: "planned", eff: "M" },
+      { name: "A4 · Conversational step-builder", desc: "AI copilot drives the canvas: say intent → it places the step, shows the form, asks only when needed, all reversible.", status: "planned", eff: "L" },
+      { name: "Template gallery", desc: "Starter processes + look-and-feel themes/layouts with live preview.", status: "planned", eff: "M" },
+      { name: "AI-from-requirements intake", desc: "Describe / record / upload a requirement → AI drafts the app end-to-end.", status: "partial", eff: "M" },
+    ]},
+
+  { phase: "B · Native BPMN execution (after A)", sub: "Full BPMN fidelity for the hard cases the native engine won't cover.",
+    items: [
+      { name: "Embed SpiffWorkflow", desc: "A Python BPMN engine runs diagrams directly (complex boundary/message/compensation events).", status: "future", eff: "XL" },
+    ]},
+
+  { phase: "C · Full low-code platform (after B)", sub: "Each process becomes a self-contained application.",
+    items: [
+      { name: "Business data model", desc: "Typed business entities + relationships, queryable across apps.", status: "future", eff: "XL" },
+      { name: "Page / menu builder", desc: "Assemble standalone app shells (Bonita 'Living Applications' scale).", status: "future", eff: "XL" },
+    ]},
+];
+
+const STATUS = {
+  done:     { label: "Done",        cls: "done" },
+  progress: { label: "In progress", cls: "progress" },
+  planned:  { label: "Planned",     cls: "planned" },
+  partial:  { label: "Partial",     cls: "partial" },
+  future:   { label: "Future",      cls: "future" },
+};
+
+const board = document.getElementById("board");
+let activeFilter = "all";
+
+function render() {
+  board.innerHTML = "";
+  DATA.forEach(ph => {
+    const items = ph.items.filter(it => activeFilter === "all" || it.status === activeFilter);
+    if (!items.length) return;
+    const sec = document.createElement("section");
+    sec.className = "phase";
+    sec.innerHTML = `<h2>${ph.phase}</h2><p class="psub">${ph.sub}</p>`;
+    items.forEach(it => {
+      const s = STATUS[it.status];
+      const row = document.createElement("div");
+      row.className = "item";
+      row.innerHTML = `
+        <span class="dot bg-${s.cls}" style="background:var(--${s.cls})"></span>
+        <div class="it-main">
+          <div class="it-name">${it.name}</div>
+          <div class="it-desc">${it.desc}</div>
+        </div>
+        <div class="tags">
+          ${it.eff ? `<span class="eff">${it.eff}</span>` : ""}
+          <span class="status bg-${s.cls}">${s.label}</span>
+        </div>`;
+      sec.appendChild(row);
+    });
+    board.appendChild(sec);
+  });
+}
+
+// progress (exclude baseline)
+const prog = DATA.filter(p => !p.baseline).flatMap(p => p.items);
+const doneN = prog.filter(i => i.status === "done").length;
+const pct = Math.round((doneN / prog.length) * 100);
+document.getElementById("progFill").style.width = pct + "%";
+document.getElementById("progLabel").textContent = `${doneN} / ${prog.length} done (${pct}%)`;
+
+// filters
+const counts = { all: prog.length };
+prog.forEach(i => counts[i.status] = (counts[i.status] || 0) + 1);
+const order = ["all", "progress", "planned", "partial", "future", "done"];
+const fdiv = document.getElementById("filters");
+order.forEach(k => {
+  if (k !== "all" && !counts[k]) return;
+  const b = document.createElement("button");
+  b.textContent = (k === "all" ? "All" : STATUS[k].label) + ` (${counts[k] || 0})`;
+  if (k === "all") b.classList.add("active");
+  b.onclick = () => {
+    activeFilter = k;
+    [...fdiv.children].forEach(c => c.classList.remove("active"));
+    b.classList.add("active");
+    render();
+  };
+  fdiv.appendChild(b);
+});
+
+// legend
+document.getElementById("legend").innerHTML = Object.values(STATUS)
+  .map(s => `<span><span class="dot" style="background:var(--${s.cls})"></span>${s.label}</span>`).join("");
+
+document.getElementById("gen").textContent = new Date().toISOString().slice(0, 10);
+render();
+</script>
+</body>
+</html>
