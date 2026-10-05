@@ -108,7 +108,7 @@ const DATA = [
       { name: "Service / automated steps (+ AI step)", desc: "Steps that run with no human then auto-advance: notify (in-app/email), webhook (SSRF-guarded POST to an external system), and AI (LLM writes a triage note to the timeline). Driven by the scheduler.", status: "done", eff: "L" },
       { name: "Parallel branches + sub-processes", desc: "Joint/committee approval (new 'parallel' mode — all assignees must approve before advancing) + design-time reusable sub-flows (insert a saved flow's steps+routing into a draft). Runtime call-activities deferred to phase B.", status: "done", eff: "L" },
       { name: "Document generation", desc: "Per-workflow templates with {{placeholders}} → PDF, filled with request data (demand letters, certificates, reports). On-demand endpoint + a 'document' service step for auto-generation; stored as a downloadable attachment. DOCX + rich letterhead are follow-ups.", status: "done", eff: "M" },
-      { name: "Multi-provider LLM", desc: "Provider-agnostic AI (OpenAI + others).", status: "planned", eff: "S" },
+      { name: "Multi-provider LLM", desc: "One ai_client.chat() behind all AI (drafting, insights, voice polish, AI steps). AI_PROVIDER=openai (any OpenAI-compatible host: OpenAI/Azure/Groq/Ollama/vLLM/…) or anthropic; AI_BASE_URL switch. Unified 4 duplicate call-sites.", status: "done", eff: "S" },
       { name: "RBAC — custom roles + permissions", desc: "Who can build/publish apps; granular, enterprise-grade.", status: "planned", eff: "L" },
       { name: "Security hardening", desc: "Account lockout/throttle, session management.", status: "planned", eff: "M" },
     ]},
