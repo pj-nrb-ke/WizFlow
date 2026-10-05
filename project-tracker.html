@@ -106,7 +106,7 @@ const DATA = [
       { name: "Advanced routing / gateways", desc: "Compound AND/OR + contains, in/not_in, is_empty, date before/after. Backwards-compatible.", status: "done", eff: "M" },
       { name: "SLA timers & enforcement", desc: "At-risk/breach alerts + manager escalation (pre-existing) + NEW timer/wait steps that auto-advance (the Appolo 14/90-day waits).", status: "done", eff: "M" },
       { name: "Service / automated steps (+ AI step)", desc: "Steps that run with no human then auto-advance: notify (in-app/email), webhook (SSRF-guarded POST to an external system), and AI (LLM writes a triage note to the timeline). Driven by the scheduler.", status: "done", eff: "L" },
-      { name: "Parallel branches + sub-processes", desc: "Concurrent paths and reusable sub-flows (e.g. the litigation sub-process).", status: "planned", eff: "L" },
+      { name: "Parallel branches + sub-processes", desc: "Joint/committee approval (new 'parallel' mode — all assignees must approve before advancing) + design-time reusable sub-flows (insert a saved flow's steps+routing into a draft). Runtime call-activities deferred to phase B.", status: "done", eff: "L" },
       { name: "Document generation", desc: "Templates → PDF/DOCX (demand letters, legal docs, reports).", status: "planned", eff: "M" },
       { name: "Multi-provider LLM", desc: "Provider-agnostic AI (OpenAI + others).", status: "planned", eff: "S" },
       { name: "RBAC — custom roles + permissions", desc: "Who can build/publish apps; granular, enterprise-grade.", status: "planned", eff: "L" },
