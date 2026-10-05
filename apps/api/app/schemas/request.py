@@ -48,6 +48,15 @@ class AttachmentOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class DocumentTemplateOut(BaseModel):
+    id: str
+    name: str
+
+
+class GenerateDocumentIn(BaseModel):
+    template_id: str
+
+
 class WorkflowInstanceSummary(BaseModel):
     id: UUID
     reference_number: str | None = None

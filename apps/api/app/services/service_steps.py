@@ -21,9 +21,11 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.db.models import WorkflowDefinition, WorkflowInstance
+from app.db.models import Attachment, WorkflowDefinition, WorkflowInstance
+from app.services import doc_templates
 from app.services.assignees import _users_for_role
 from app.services.events import record_event
+from app.services.files import save_bytes
 from app.services.notifications import notify_users
 from app.services.ui_settings import strip_ui_keys
 from app.services.webhooks import is_safe_webhook_url
@@ -40,7 +42,7 @@ def _render(template: str | None, data: dict) -> str:
     return out
 
 
-def _run_notify(db: Session, inst: WorkflowInstance, step: dict, data: dict) -> str:
+def _run_notify(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition, step: dict, data: dict) -> str:
     recipients: list[UUID] = []
     if inst.originator_user_id:
         recipients.append(inst.originator_user_id)
@@ -63,7 +65,7 @@ def _run_notify(db: Session, inst: WorkflowInstance, step: dict, data: dict) -> 
     return f"notify: {len(recipients)} recipient(s)"
 
 
-def _run_webhook(db: Session, inst: WorkflowInstance, step: dict, data: dict) -> str:
+def _run_webhook(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition, step: dict, data: dict) -> str:
     url = str(step.get("url") or "").strip()
     if not is_safe_webhook_url(url):
         return "webhook: blocked (unsafe or private URL)"
@@ -113,7 +115,7 @@ def _ai_note(prompt: str, data: dict) -> str:
         return f"[AI step] {prompt} — (AI unavailable)"
 
 
-def _run_ai(db: Session, inst: WorkflowInstance, step: dict, data: dict) -> str:
+def _run_ai(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition, step: dict, data: dict) -> str:
     prompt = str(step.get("prompt") or step.get("ai_prompt") or "").strip()
     note = _ai_note(prompt, data)
     # Surface the result in the timeline, same channel as a human/voice comment.
@@ -128,7 +130,37 @@ def _run_ai(db: Session, inst: WorkflowInstance, step: dict, data: dict) -> str:
     return "ai: note added"
 
 
-_RUNNERS = {"notify": _run_notify, "webhook": _run_webhook, "ai": _run_ai}
+def _run_document(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition, step: dict, data: dict) -> str:
+    template = doc_templates.find_template(defn, step.get("template_id") or "")
+    if not template:
+        return f"document: template {step.get('template_id')!r} not found"
+    pdf = doc_templates.render_pdf(template, inst)
+    rel, name, size = save_bytes(
+        inst.company_id, inst.id, pdf, doc_templates.output_filename(template, inst)
+    )
+    db.add(
+        Attachment(
+            company_id=inst.company_id,
+            instance_id=inst.id,
+            uploaded_by=None,
+            filename=name,
+            storage_path=rel,
+            content_type="application/pdf",
+            size_bytes=size,
+        )
+    )
+    record_event(
+        db,
+        company_id=inst.company_id,
+        event_type="document.generated",
+        actor_user_id=None,
+        instance_id=inst.id,
+        payload={"template_id": template["id"], "filename": name, "auto": True},
+    )
+    return f"document: {name}"
+
+
+_RUNNERS = {"notify": _run_notify, "webhook": _run_webhook, "ai": _run_ai, "document": _run_document}
 
 
 def execute_service_step(
@@ -144,7 +176,7 @@ def execute_service_step(
     if runner is None:
         return f"unknown service step type: {step.get('type')!r}"
     data = strip_ui_keys(inst.request_data or {})
-    return runner(db, inst, step, data)
+    return runner(db, inst, defn, step, data)
 
 
 if __name__ == "__main__":  # self-check: runner registry matches the engine's type set

@@ -1,4 +1,5 @@
 from datetime import datetime
+from pathlib import Path
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
@@ -9,9 +10,11 @@ from sqlalchemy.orm import Session
 from app.core.deps import CurrentUser, require_company
 from app.db.models import Attachment, User, WorkflowDefinition, WorkflowEvent, WorkflowInstance
 from app.db.session import get_db
-from app.services import voice_notes
+from app.services import doc_templates, voice_notes
 from app.schemas.request import (
     AttachmentOut,
+    DocumentTemplateOut,
+    GenerateDocumentIn,
     RequestUpdate,
     WorkflowEventOut,
     WorkflowInstanceOut,
@@ -20,9 +23,11 @@ from app.schemas.request import (
 from app.services import instance_engine
 from app.services.approval_notify import notify_approvers_for_step
 from app.services.csv_export import rows_to_csv
+from app.services.files import save_bytes
 from app.services.pdf_export import text_to_pdf
 from app.services.xlsx_export import rows_to_xlsx
 from app.services.event_labels import label_for_event
+from app.services.events import record_event
 from app.services.instance_queries import get_instance, to_out, to_summary
 from app.services.request_filters import list_my_requests as query_my_requests
 
@@ -200,6 +205,82 @@ def list_attachments(
             .order_by(Attachment.created_at.desc())
         )
     )
+
+
+@router.get("/{request_id}/attachments/{att_id}/download")
+def download_attachment(
+    request_id: UUID,
+    att_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> FileResponse:
+    """Download an instance attachment (uploads and generated documents alike)."""
+    inst = get_instance(db, request_id, user.company_id)
+    att = db.get(Attachment, att_id)
+    if not att or att.instance_id != inst.id or att.company_id != user.company_id:
+        raise HTTPException(status_code=404, detail="Attachment not found")
+    if not Path(att.storage_path).exists():
+        raise HTTPException(status_code=404, detail="Attachment file missing")
+    return FileResponse(
+        att.storage_path,
+        media_type=att.content_type or "application/octet-stream",
+        filename=att.filename,
+    )
+
+
+@router.get("/{request_id}/documents", response_model=list[DocumentTemplateOut])
+def list_document_templates(
+    request_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> list[DocumentTemplateOut]:
+    """Document templates available for this request (from its workflow settings)."""
+    inst = get_instance(db, request_id, user.company_id)
+    defn = db.get(WorkflowDefinition, inst.workflow_definition_id)
+    if not defn:
+        return []
+    return [DocumentTemplateOut(id=t["id"], name=t.get("name") or t["id"]) for t in doc_templates.list_templates(defn)]
+
+
+@router.post("/{request_id}/documents", response_model=AttachmentOut, status_code=201)
+def generate_document(
+    request_id: UUID,
+    body: GenerateDocumentIn,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> Attachment:
+    """Render a document template filled with this request's data → stored PDF attachment."""
+    inst = get_instance(db, request_id, user.company_id)
+    defn = db.get(WorkflowDefinition, inst.workflow_definition_id)
+    template = doc_templates.find_template(defn, body.template_id) if defn else None
+    if not template:
+        raise HTTPException(status_code=404, detail="Document template not found")
+
+    pdf = doc_templates.render_pdf(template, inst)
+    rel, name, size = save_bytes(
+        inst.company_id, inst.id, pdf, doc_templates.output_filename(template, inst)
+    )
+    att = Attachment(
+        company_id=inst.company_id,
+        instance_id=inst.id,
+        uploaded_by=user.id,
+        filename=name,
+        storage_path=rel,
+        content_type="application/pdf",
+        size_bytes=size,
+    )
+    db.add(att)
+    record_event(
+        db,
+        company_id=inst.company_id,
+        event_type="document.generated",
+        actor_user_id=user.id,
+        instance_id=inst.id,
+        payload={"template_id": template["id"], "template_name": template.get("name"), "filename": name},
+    )
+    db.commit()
+    db.refresh(att)
+    return att
 
 
 @router.get("/{request_id}/events", response_model=list[WorkflowEventOut])

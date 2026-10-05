@@ -12,7 +12,7 @@ class WorkflowValidationError(ValueError):
 
 
 # Service steps run automatically and *do* something (then auto-advance).
-SERVICE_STEP_TYPES = {"notify", "webhook", "ai"}
+SERVICE_STEP_TYPES = {"notify", "webhook", "ai", "document"}
 # Steps that run automatically (no human assignee); the scheduler progresses them.
 # Timers wait; service steps act. Both are driven by phase2_automation.
 AUTOMATED_STEP_TYPES = {"timer"} | SERVICE_STEP_TYPES
@@ -75,6 +75,8 @@ def validate_definition(defn: WorkflowDefinition) -> None:
                 raise WorkflowValidationError(f"Webhook step '{step.get('id')}' needs a url")
             if t == "ai" and not str(step.get("prompt") or step.get("ai_prompt") or "").strip():
                 raise WorkflowValidationError(f"AI step '{step.get('id')}' needs a prompt")
+            if t == "document" and not str(step.get("template_id") or "").strip():
+                raise WorkflowValidationError(f"Document step '{step.get('id')}' needs a template_id")
             # notify: message is optional (defaults to a generic update)
         else:
             _validate_assignee(step)
@@ -251,13 +253,16 @@ if __name__ == "__main__":  # self-check: routing condition evaluator
     assert is_automated_step({"type": "notify"})
     assert is_automated_step({"type": "webhook"})
     assert is_automated_step({"type": "ai"})
+    assert is_automated_step({"type": "document"})
     validate_definition(_NS(name="t", steps=[
         {"id": "n", "name": "Tell originator", "type": "notify", "message": "Done: {reference}"},
         {"id": "w", "name": "Post to ERP", "type": "webhook", "url": "https://erp.example.com/hook"},
         {"id": "a", "name": "Triage", "type": "ai", "prompt": "Summarise the risk"},
+        {"id": "d", "name": "Demand letter", "type": "document", "template_id": "demand"},
     ]))
     for bad in ({"id": "w", "name": "W", "type": "webhook"},
-                {"id": "a", "name": "A", "type": "ai"}):
+                {"id": "a", "name": "A", "type": "ai"},
+                {"id": "d", "name": "D", "type": "document"}):
         try:
             validate_definition(_NS(name="t", steps=[bad]))
             raise AssertionError(f"{bad['type']} without config should fail")

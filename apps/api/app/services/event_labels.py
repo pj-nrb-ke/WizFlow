@@ -10,6 +10,7 @@ EVENT_LABELS: dict[str, str] = {
     "step.timer_elapsed": "Timer elapsed — auto-advanced",
     "step.service_done": "Automated action completed",
     "request.commented": "Comment added",
+    "document.generated": "Document generated",
     "workflow.completed": "Workflow completed",
     "file.uploaded": "File uploaded",
 }
