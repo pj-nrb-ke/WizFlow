@@ -63,31 +63,66 @@ def _as_number(value: object) -> int | float | None:
     return None
 
 
+def _is_empty(v: object) -> bool:
+    return v is None or v == "" or v == [] or v == {}
+
+
 def _eval_condition(when: dict, data: dict) -> bool:
+    """Evaluate a routing condition against request data.
+
+    Backwards-compatible with the flat ``{field, op, value}`` shape (existing rules
+    evaluate identically). Adds compound groups and richer operators:
+      * compound: ``{"all": [cond, ...]}`` (AND) / ``{"any": [cond, ...]}`` (OR), nestable
+      * strings: eq, ne, contains, not_contains, in, not_in, is_empty, not_empty
+      * ordered: gt/gte/lt/lte (numeric), before/after (numeric or ISO-date/text)
+    """
+    if not isinstance(when, dict):
+        return False
+
+    # ── Compound groups (recursive) ──
+    if "all" in when:
+        subs = when.get("all")
+        return isinstance(subs, list) and all(_eval_condition(c, data) for c in subs)
+    if "any" in when:
+        subs = when.get("any")
+        return isinstance(subs, list) and any(_eval_condition(c, data) for c in subs)
+
     field = when.get("field")
     op = when.get("op")
     expected = when.get("value")
-    if field is None:
+    if field is None or op is None:
         return False
     actual = data.get(field)
+
     if op == "eq":
         return actual == expected
     if op == "ne":
         return actual != expected
-    if op in ("gt", "gte", "lt", "lte"):
-        a = _as_number(actual)
-        e = _as_number(expected)
-        if a is None or e is None:
-            return False
-        if op == "gt":
-            return a > e
-        if op == "gte":
-            return a >= e
-        if op == "lt":
-            return a < e
-        return a <= e
+    if op == "is_empty":
+        return _is_empty(actual)
+    if op == "not_empty":
+        return not _is_empty(actual)
     if op == "in":
         return actual in (expected if isinstance(expected, list) else [expected])
+    if op == "not_in":
+        return actual not in (expected if isinstance(expected, list) else [expected])
+    if op in ("contains", "not_contains"):
+        hit = expected is not None and str(expected).lower() in str(actual).lower()
+        return hit if op == "contains" else not hit
+    if op in ("gt", "gte", "lt", "lte", "before", "after"):
+        a: object = _as_number(actual)
+        e: object = _as_number(expected)
+        if a is None or e is None:  # not both numeric → compare as text (ISO dates sort correctly)
+            if actual is None or expected is None:
+                return False
+            a, e = str(actual), str(expected)
+        if op in ("gt", "after"):
+            return a > e  # type: ignore[operator]
+        if op == "gte":
+            return a >= e  # type: ignore[operator]
+        if op in ("lt", "before"):
+            return a < e  # type: ignore[operator]
+        return a <= e  # type: ignore[operator]
     return False
 
 
@@ -126,3 +161,35 @@ def simulate(defn: WorkflowDefinition, sample_data: dict) -> SimulationResult:
         final_status="in_progress",
         routing_applied=routing_applied,
     )
+
+
+if __name__ == "__main__":  # self-check: routing condition evaluator
+    ec = _eval_condition
+    # backwards-compat: numeric + eq + in
+    assert ec({"field": "amount", "op": "gt", "value": 5000}, {"amount": 9000})
+    assert not ec({"field": "amount", "op": "gt", "value": 5000}, {"amount": 100})
+    assert ec({"field": "amount", "op": "gt", "value": "5000"}, {"amount": "9000"})  # string digits
+    assert ec({"field": "type", "op": "eq", "value": "Own Damage"}, {"type": "Own Damage"})
+    assert ec({"field": "type", "op": "in", "value": ["A", "B"]}, {"type": "B"})
+    # new string ops
+    assert ec({"field": "type", "op": "not_in", "value": ["A", "B"]}, {"type": "C"})
+    assert ec({"field": "note", "op": "contains", "value": "urgent"}, {"note": "This is URGENT"})
+    assert ec({"field": "note", "op": "not_contains", "value": "urgent"}, {"note": "routine"})
+    assert ec({"field": "doc", "op": "is_empty"}, {"doc": ""})
+    assert ec({"field": "doc", "op": "not_empty"}, {"doc": "file.pdf"})
+    # boolean (checkbox) decisions
+    assert ec({"field": "deny", "op": "eq", "value": True}, {"deny": True})
+    # dates (ISO strings sort correctly)
+    assert ec({"field": "d", "op": "after", "value": "2026-01-01"}, {"d": "2026-06-01"})
+    assert ec({"field": "d", "op": "before", "value": "2026-01-01"}, {"d": "2025-12-31"})
+    # compound AND / OR, nestable
+    assert ec({"all": [{"field": "type", "op": "eq", "value": "3rd Party Injury"},
+                       {"field": "amount", "op": "gte", "value": 100000}]},
+              {"type": "3rd Party Injury", "amount": 150000})
+    assert not ec({"all": [{"field": "type", "op": "eq", "value": "3rd Party Injury"},
+                           {"field": "amount", "op": "gte", "value": 100000}]},
+                  {"type": "3rd Party Injury", "amount": 50000})
+    assert ec({"any": [{"field": "type", "op": "eq", "value": "Repudiation"},
+                       {"field": "deny", "op": "eq", "value": True}]},
+              {"type": "Own Damage", "deny": True})
+    print("workflow_engine routing self-check OK")
