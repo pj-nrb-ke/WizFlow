@@ -7,6 +7,7 @@ from jose import JWTError
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
+from app.core import permissions as perms
 from app.core.cookies import ACCESS_COOKIE
 from app.core.security import ACCESS_TYPE, decode_token
 from app.db.models import ApiKey, User, UserRole
@@ -23,6 +24,10 @@ class CurrentUser:
     full_name: str
     company_id: UUID | None
     roles: list[str]
+    permissions: frozenset[str] = frozenset()
+
+    def can(self, permission: str) -> bool:
+        return permission in self.permissions
 
 
 def _resolve_access_token(
@@ -59,12 +64,17 @@ def get_current_user(
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User not found")
 
     roles = [ur.role.slug for ur in user.user_roles if ur.role]
+    permissions: set[str] = set()
+    for ur in user.user_roles:
+        if ur.role:
+            permissions |= perms.permissions_for_role(ur.role.slug, ur.role.permissions)
     return CurrentUser(
         id=user.id,
         email=user.email,
         full_name=user.full_name,
         company_id=user.company_id,
         roles=roles,
+        permissions=frozenset(permissions),
     )
 
 
@@ -81,6 +91,21 @@ def require_roles(*allowed: str):
         return user
 
     return checker
+
+
+def require_permission(permission: str):
+    """Gate a route on an RBAC permission (works for built-in and custom roles)."""
+
+    def checker(user: CurrentUser = Depends(require_company)) -> CurrentUser:
+        if permission not in user.permissions:
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Insufficient permissions")
+        return user
+
+    return checker
+
+
+def user_can(user: CurrentUser, permission: str) -> bool:
+    return permission in user.permissions
 
 
 @dataclass

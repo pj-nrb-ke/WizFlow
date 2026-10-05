@@ -11,7 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.deps import CurrentUser, require_company, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, require_company, require_permission
 from app.db.models import BpmnDiagram, WorkflowDefinition
 from app.db.session import get_db
 from app.schemas.bpmn import (
@@ -50,7 +51,7 @@ def list_diagrams(
 @router.post("", response_model=BpmnDiagramOut, status_code=status.HTTP_201_CREATED)
 def create_diagram(
     body: BpmnDiagramCreate,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> BpmnDiagram:
     row = BpmnDiagram(
@@ -73,7 +74,7 @@ def create_diagram(
 )
 def import_from_workflow(
     workflow_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> BpmnDiagram:
     """Bridge: render an existing workflow's linear flow as a new (editable) BPMN diagram."""
@@ -106,7 +107,7 @@ def get_diagram(
 def update_diagram(
     diagram_id: UUID,
     body: BpmnDiagramUpdate,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> BpmnDiagram:
     row = _get_owned(db, diagram_id, user.company_id)
@@ -125,7 +126,7 @@ def update_diagram(
 @router.delete("/{diagram_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_diagram(
     diagram_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     row = _get_owned(db, diagram_id, user.company_id)

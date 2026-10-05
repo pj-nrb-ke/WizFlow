@@ -20,7 +20,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.deps import CurrentUser, require_company, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, require_company, require_permission
 from app.db.models import (
     Checklist,
     RecurringSchedule,
@@ -315,7 +316,7 @@ def _compliance(
 
 @router.get("", response_model=list[ScheduleOut])
 def list_schedules(
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[ScheduleOut]:
     rows = db.scalars(
@@ -329,7 +330,7 @@ def list_schedules(
 @router.post("", response_model=ScheduleOut, status_code=status.HTTP_201_CREATED)
 def create_schedule(
     body: ScheduleCreate,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ScheduleOut:
     _validate_recurrence(
@@ -405,7 +406,7 @@ def acknowledge(
 def target_compliance(
     target_id: UUID,
     run_id: UUID | None = Query(None),
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ComplianceSummaryOut:
     target = _get_owned_target(db, target_id, user.company_id)
@@ -417,7 +418,7 @@ def target_compliance(
 def export_target_compliance_csv(
     target_id: UUID,
     run_id: UUID | None = Query(None),
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     target = _get_owned_target(db, target_id, user.company_id)
@@ -449,7 +450,7 @@ def export_target_compliance_csv(
 def update_target(
     target_id: UUID,
     body: TargetUpdate,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> TargetOut:
     target = _get_owned_target(db, target_id, user.company_id)
@@ -493,7 +494,7 @@ def update_target(
 @router.delete("/targets/{target_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_target(
     target_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     target = _get_owned_target(db, target_id, user.company_id)
@@ -507,7 +508,7 @@ def delete_target(
 @router.get("/{schedule_id}", response_model=ScheduleOut)
 def get_schedule(
     schedule_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ScheduleOut:
     return _schedule_out(db, _get_owned(db, schedule_id, user.company_id))
@@ -517,7 +518,7 @@ def get_schedule(
 def update_schedule(
     schedule_id: UUID,
     body: ScheduleUpdate,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ScheduleOut:
     sched = _get_owned(db, schedule_id, user.company_id)
@@ -554,7 +555,7 @@ def update_schedule(
 @router.delete("/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_schedule(
     schedule_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     sched = _get_owned(db, schedule_id, user.company_id)
@@ -565,7 +566,7 @@ def delete_schedule(
 @router.post("/{schedule_id}/run-now", response_model=ScheduleOut)
 def run_now(
     schedule_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ScheduleOut:
     """Open today's runs for every active target immediately (idempotent) — demo / catch-up."""
@@ -582,7 +583,7 @@ def run_now(
 @router.get("/{schedule_id}/targets", response_model=list[TargetOut])
 def list_targets(
     schedule_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[TargetOut]:
     sched = _get_owned(db, schedule_id, user.company_id)
@@ -593,7 +594,7 @@ def list_targets(
 def add_target(
     schedule_id: UUID,
     body: TargetCreate,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> TargetOut:
     sched = _get_owned(db, schedule_id, user.company_id)

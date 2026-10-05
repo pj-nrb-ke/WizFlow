@@ -5,7 +5,8 @@ from fastapi.responses import Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.deps import CurrentUser, require_company, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, require_company, require_permission
 from app.db.models import User, UserGroup, UserGroupMember, WorkflowDefinition, WorkflowEvent
 from app.db.session import get_db
 from app.schemas.request import RequestSubmit, WorkflowInstanceOut
@@ -83,7 +84,7 @@ def org_directory(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> OrgDirectoryOut:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
     users = db.scalars(
         select(User)
@@ -149,7 +150,7 @@ def create_custom_workflow(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> WorkflowDefinition:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
 
     name = body.name.strip()
@@ -253,7 +254,7 @@ def create_workflow(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> WorkflowDefinition:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
 
     import uuid as _uuid
@@ -287,7 +288,7 @@ def tune_workflow(
     from app.services.versioning import snapshot_definition
     from app.services.workflow_commands import apply_plain_english_command
 
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
     defn = _get_definition(db, workflow_id, user.company_id)
     if defn.status != "draft":
@@ -337,7 +338,7 @@ def update_workflow(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> WorkflowDefinition:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
 
     defn = _get_definition(db, workflow_id, user.company_id)
@@ -410,7 +411,7 @@ def clone_workflow(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> WorkflowDefinition:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
     import copy
     import uuid as _uuid
@@ -452,7 +453,7 @@ def new_version(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> WorkflowDefinition:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=403, detail="Manager role required")
     defn = _get_definition(db, workflow_id, user.company_id)
     try:
@@ -471,7 +472,7 @@ def rollback_version(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> WorkflowDefinition:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=403, detail="Manager role required")
     defn = _get_definition(db, workflow_id, user.company_id)
     try:
@@ -492,7 +493,7 @@ def publish_workflow(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> WorkflowDefinition:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
 
     defn = _get_definition(db, workflow_id, user.company_id)
@@ -534,7 +535,7 @@ def insert_subprocess(
     db: Session = Depends(get_db),
 ) -> WorkflowDefinition:
     """Insert a saved workflow's steps as a reusable sub-process into this draft."""
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
     target = _get_definition(db, workflow_id, user.company_id)
     source = _get_definition(db, body.source_workflow_id, user.company_id)
@@ -642,7 +643,7 @@ def list_workflow_events(
 @router.delete("/{workflow_id}", status_code=204)
 def delete_workflow(
     workflow_id: UUID,
-    user: CurrentUser = Depends(require_roles("company_admin", "manager")),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     from sqlalchemy import text as sql

@@ -6,7 +6,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 from sqlalchemy.orm import Session
 
-from app.core.deps import CurrentUser, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, require_permission
 from app.db.session import get_db
 from app.schemas.integrations import AnomaliesOut, AnomalyFinding, NarrativeOut
 from app.schemas.web_phases import ComplianceOut
@@ -56,7 +57,7 @@ def get_executive(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> ExecutiveSummaryOut:
     return analytics_service.executive_summary(db, _ctx(user, from_date, to_date, workflow_id))
@@ -67,7 +68,7 @@ def get_workflows(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> WorkflowPerformanceOut:
     return analytics_service.workflow_performance(db, _ctx(user, from_date, to_date, workflow_id))
@@ -78,7 +79,7 @@ def get_users(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> UserPerformanceOut:
     return analytics_service.user_performance(db, _ctx(user, from_date, to_date, workflow_id))
@@ -89,7 +90,7 @@ def get_bottlenecks(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> BottlenecksOut:
     return analytics_service.bottlenecks(db, _ctx(user, from_date, to_date, workflow_id))
@@ -100,7 +101,7 @@ def get_financial(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> FinancialBreakdownOut:
     return analytics_service.financial_breakdown(db, _ctx(user, from_date, to_date, workflow_id))
@@ -111,7 +112,7 @@ def get_exceptions(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> ExceptionsOut:
     return analytics_service.exceptions_summary(db, _ctx(user, from_date, to_date, workflow_id))
@@ -122,7 +123,7 @@ def get_trends(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> TrendsOut:
     return analytics_service.submission_trends(db, _ctx(user, from_date, to_date, workflow_id))
@@ -133,7 +134,7 @@ def get_departments(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> DepartmentPerformanceOut:
     return analytics_service.department_performance(db, _ctx(user, from_date, to_date, workflow_id))
@@ -141,7 +142,7 @@ def get_departments(
 
 @router.get("/anomalies", response_model=AnomaliesOut)
 def get_anomalies(
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> AnomaliesOut:
     findings = anomaly.detect_anomalies(db, user.company_id)
@@ -156,7 +157,7 @@ def get_narrative(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> NarrativeOut:
     text = ai_insights.executive_narrative(db, _ctx(user, from_date, to_date, workflow_id))
@@ -168,7 +169,7 @@ def get_workload(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> WorkloadOut:
     return phase2_analytics.workload_snapshot(db, _ctx(user, from_date, to_date, workflow_id))
@@ -179,7 +180,7 @@ def get_workload_history(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> WorkloadHistoryOut:
     return phase2_analytics.workload_history(db, _ctx(user, from_date, to_date, workflow_id))
@@ -190,7 +191,7 @@ def get_journey(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> JourneyOut:
     return phase2_analytics.journey_analytics(db, _ctx(user, from_date, to_date, workflow_id))
@@ -201,7 +202,7 @@ def get_heatmap(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> HeatmapOut:
     return phase2_analytics.approval_heatmap(db, _ctx(user, from_date, to_date, workflow_id))
@@ -212,7 +213,7 @@ def get_scorecards(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> ScorecardsOut:
     return phase2_analytics.scorecards(db, _ctx(user, from_date, to_date, workflow_id))
@@ -223,7 +224,7 @@ def get_compliance(
     from_date: datetime | None = Query(None, alias="from"),
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> ComplianceOut:
     data = compliance_service.compliance_summary(db, _ctx(user, from_date, to_date, workflow_id))

@@ -13,11 +13,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session, joinedload
 
 from app.config import settings
-from app.core.deps import CurrentUser, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, require_permission
 from app.core.security import hash_password
 from app.db.models import Company, Role, User, UserInvite, UserRole
 from app.db.session import get_db
-from app.routers.admin import ADMIN_ROLES, _user_out
+from app.routers.admin import _user_out
 from app.schemas.org import UserOut
 from app.services.brevo_mail import send_invite_email
 
@@ -94,7 +95,7 @@ def _to_out(inv: UserInvite) -> InviteOut:
 )
 def create_invitation(
     body: InviteCreate,
-    current_user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    current_user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> InviteOut:
     email = body.email.strip().lower()
@@ -149,7 +150,7 @@ def create_invitation(
 
 @router.get("/admin/invitations", response_model=list[InviteOut])
 def list_invitations(
-    current_user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    current_user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[InviteOut]:
     invites = db.scalars(
@@ -165,7 +166,7 @@ def list_invitations(
 @router.post("/admin/invitations/{invite_id}/resend", response_model=InviteOut)
 def resend_invitation(
     invite_id: uuid.UUID,
-    current_user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    current_user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> InviteOut:
     invite = db.scalar(
@@ -204,7 +205,7 @@ def resend_invitation(
 @router.delete("/admin/invitations/{invite_id}", status_code=204)
 def revoke_invitation(
     invite_id: uuid.UUID,
-    current_user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    current_user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     invite = db.scalar(

@@ -33,6 +33,8 @@ class Role(Base):
     )
     slug: Mapped[str] = mapped_column(String(50), nullable=False)
     name: Mapped[str] = mapped_column(String(100), nullable=False)
+    # Custom-role permission keys; NULL = use the built-in default for this slug.
+    permissions: Mapped[list | None] = mapped_column(JSONB, nullable=True)
 
     __table_args__ = (UniqueConstraint("company_id", "slug", name="uq_roles_company_slug"),)
 

@@ -4,6 +4,7 @@ from fastapi import APIRouter, Depends, HTTPException, Query, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core import permissions as perms
 from app.core.deps import CurrentUser, require_company
 from app.db.models import MasterDataEntry
 from app.db.session import get_db
@@ -52,7 +53,7 @@ def create_entry(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> MasterDataEntry:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=403, detail="Manager role required")
     if body.category not in MASTER_CATEGORIES:
         raise HTTPException(status_code=400, detail=f"Invalid category. Use: {', '.join(MASTER_CATEGORIES)}")
@@ -85,7 +86,7 @@ def update_entry(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> MasterDataEntry:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=403, detail="Manager role required")
     row = db.get(MasterDataEntry, entry_id)
     if not row or row.company_id != user.company_id:
@@ -107,7 +108,7 @@ def delete_entry(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> None:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=403, detail="Manager role required")
     row = db.get(MasterDataEntry, entry_id)
     if not row or row.company_id != user.company_id:

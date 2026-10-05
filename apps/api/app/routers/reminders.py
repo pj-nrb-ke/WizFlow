@@ -12,7 +12,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.deps import CurrentUser, get_current_user, require_company, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, get_current_user, require_company, require_permission
 from app.db.models import ReminderOccurrence, ReminderRule, User
 from app.db.session import get_db
 from app.schemas.reminders import (
@@ -62,7 +63,7 @@ def _occ_out(occ: ReminderOccurrence, db: Session) -> ReminderOccurrenceOut:
 
 @router.get("/rules", response_model=list[ReminderRuleOut])
 def list_rules(
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[ReminderRuleOut]:
     rows = db.scalars(
@@ -76,7 +77,7 @@ def list_rules(
 @router.post("/rules", response_model=ReminderRuleOut, status_code=status.HTTP_201_CREATED)
 def create_rule(
     body: ReminderRuleCreate,
-    user: CurrentUser = Depends(require_roles("company_admin")),
+    user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ReminderRuleOut:
     rule = ReminderRule(
@@ -99,7 +100,7 @@ def create_rule(
 def update_rule(
     rule_id: UUID,
     body: ReminderRuleUpdate,
-    user: CurrentUser = Depends(require_roles("company_admin")),
+    user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ReminderRuleOut:
     rule = db.get(ReminderRule, rule_id)
@@ -127,7 +128,7 @@ def update_rule(
 @router.delete("/rules/{rule_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_rule(
     rule_id: UUID,
-    user: CurrentUser = Depends(require_roles("company_admin")),
+    user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     rule = db.get(ReminderRule, rule_id)
@@ -193,7 +194,7 @@ def compliance_report(
     from_date: date | None = Query(None),
     to_date: date | None = Query(None),
     status_filter: str | None = Query(None, alias="status"),
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ComplianceReportOut:
     occs = _build_report(db, user.company_id, rule_id, user_id, from_date, to_date, status_filter)
@@ -243,7 +244,7 @@ def export_report_csv(
     from_date: date | None = Query(None),
     to_date: date | None = Query(None),
     status_filter: str | None = Query(None, alias="status"),
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.AUTOMATION_MANAGE)),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     occs = _build_report(db, user.company_id, rule_id, user_id, from_date, to_date, status_filter)

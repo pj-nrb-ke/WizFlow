@@ -4,6 +4,7 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core import permissions as perms
 from app.core.deps import CurrentUser, require_company
 from app.data.workflow_templates import get_template, list_template_summaries
 from app.db.models import WorkflowDefinition
@@ -30,7 +31,7 @@ def clone_template(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> WorkflowTemplateCloneOut:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
 
     tpl = get_template(template_id)

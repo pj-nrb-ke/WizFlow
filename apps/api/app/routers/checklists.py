@@ -15,7 +15,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.core.deps import CurrentUser, require_company, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, require_company, require_permission
 from app.db.models import (
     Checklist,
     ChecklistEvent,
@@ -63,7 +64,7 @@ def _detect_mime(header: bytes) -> tuple[str, str] | None:
 
 
 def _can_manage(user: CurrentUser) -> bool:
-    return any(r in MANAGER_ROLES for r in user.roles)
+    return user.can(perms.CHECKLISTS_MANAGE)
 
 
 def _link(task: ChecklistTask) -> str:
@@ -290,7 +291,7 @@ def _apply_completion(db: Session, task: ChecklistTask, cl: Checklist, *, by: UU
 @router.post("", response_model=ChecklistDetail, status_code=status.HTTP_201_CREATED)
 def create_checklist(
     body: ChecklistCreate,
-    user: CurrentUser = Depends(require_roles(*MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.CHECKLISTS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ChecklistDetail:
     if not body.name.strip():
@@ -374,7 +375,7 @@ def create_checklist(
 
 @router.get("", response_model=list[ChecklistSummary])
 def list_checklists(
-    user: CurrentUser = Depends(require_roles(*MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.CHECKLISTS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[ChecklistSummary]:
     rows = db.scalars(
@@ -388,7 +389,7 @@ def list_checklists(
 @router.get("/task-library", response_model=list[TaskLibraryRow])
 def task_library(
     q: str | None = Query(None),
-    user: CurrentUser = Depends(require_roles(*MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.CHECKLISTS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[TaskLibraryRow]:
     """Tasks from every checklist's base instance (sequence 1) — for the clone/compose picker."""
@@ -442,7 +443,7 @@ def report(
     checklist_id: UUID | None = Query(None),
     from_date: date | None = Query(None),
     to_date: date | None = Query(None),
-    user: CurrentUser = Depends(require_roles(*MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.CHECKLISTS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ChecklistReport:
     return build_report(db, user.company_id, checklist_id=checklist_id, from_date=from_date, to_date=to_date)
@@ -453,7 +454,7 @@ def report_csv(
     checklist_id: UUID | None = Query(None),
     from_date: date | None = Query(None),
     to_date: date | None = Query(None),
-    user: CurrentUser = Depends(require_roles(*MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.CHECKLISTS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
     rep = build_report(db, user.company_id, checklist_id=checklist_id, from_date=from_date, to_date=to_date)
@@ -588,7 +589,7 @@ def reject_task(
 def skip_task(
     task_id: UUID,
     body: SkipBody,
-    user: CurrentUser = Depends(require_roles(*MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.CHECKLISTS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ChecklistTaskOut:
     task = _get_task(db, task_id, user.company_id)
@@ -615,7 +616,7 @@ def skip_task(
 def reassign_task(
     task_id: UUID,
     body: ReassignBody,
-    user: CurrentUser = Depends(require_roles(*MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.CHECKLISTS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ChecklistTaskOut:
     task = _get_task(db, task_id, user.company_id)
@@ -718,7 +719,7 @@ def download_attachment(
 @router.get("/{checklist_id}", response_model=ChecklistDetail)
 def get_checklist(
     checklist_id: UUID,
-    user: CurrentUser = Depends(require_roles(*MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.CHECKLISTS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ChecklistDetail:
     cl = db.get(Checklist, checklist_id)
@@ -731,7 +732,7 @@ def get_checklist(
 def update_checklist(
     checklist_id: UUID,
     body: ChecklistUpdate,
-    user: CurrentUser = Depends(require_roles(*MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.CHECKLISTS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ChecklistDetail:
     cl = db.get(Checklist, checklist_id)
@@ -757,7 +758,7 @@ def update_checklist(
 @router.delete("/{checklist_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_checklist(
     checklist_id: UUID,
-    user: CurrentUser = Depends(require_roles(*MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.CHECKLISTS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     cl = db.get(Checklist, checklist_id)

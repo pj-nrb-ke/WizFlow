@@ -4,7 +4,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session, joinedload
 
-from app.core.deps import CurrentUser, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, require_permission
 from app.db.models import User, UserGroup, UserGroupMember
 from app.db.session import get_db
 from app.schemas.user_group import UserGroupCreate, UserGroupMemberOut, UserGroupOut, UserGroupUpdate
@@ -36,7 +37,7 @@ def _group_out(group: UserGroup) -> UserGroupOut:
 
 @router.get("", response_model=list[UserGroupOut])
 def list_user_groups(
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[UserGroupOut]:
     groups = db.scalars(
@@ -51,7 +52,7 @@ def list_user_groups(
 @router.post("", response_model=UserGroupOut, status_code=status.HTTP_201_CREATED)
 def create_user_group(
     body: UserGroupCreate,
-    user: CurrentUser = Depends(require_roles("company_admin")),
+    user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> UserGroupOut:
     name = body.name.strip()
@@ -82,7 +83,7 @@ def create_user_group(
 def update_user_group(
     group_id: UUID,
     body: UserGroupUpdate,
-    user: CurrentUser = Depends(require_roles("company_admin")),
+    user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> UserGroupOut:
     group = db.scalar(
@@ -120,7 +121,7 @@ def update_user_group(
 @router.delete("/{group_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user_group(
     group_id: UUID,
-    user: CurrentUser = Depends(require_roles("company_admin")),
+    user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     group = db.get(UserGroup, group_id)

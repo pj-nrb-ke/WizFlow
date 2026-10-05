@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.deps import CurrentUser, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, require_permission
 from app.db.models import KpiTarget, ReportSubscription, WorkflowSchedule
 from app.db.session import get_db
 from app.schemas.phase2 import (
@@ -27,7 +28,7 @@ ADMIN_ROLES = ("company_admin", "manager")
 
 @router.get("/kpi-targets", response_model=list[KpiTargetOut])
 def list_kpi_targets(
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> list[KpiTargetOut]:
     rows = db.scalars(select(KpiTarget).where(KpiTarget.company_id == user.company_id).order_by(KpiTarget.metric_key))
@@ -46,7 +47,7 @@ def list_kpi_targets(
 @router.post("/kpi-targets", response_model=KpiTargetOut, status_code=status.HTTP_201_CREATED)
 def create_kpi_target(
     body: KpiTargetCreate,
-    user: CurrentUser = Depends(require_roles("company_admin")),
+    user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> KpiTargetOut:
     existing = db.scalar(
@@ -74,7 +75,7 @@ def create_kpi_target(
 def update_kpi_target(
     target_id: UUID,
     body: KpiTargetUpdate,
-    user: CurrentUser = Depends(require_roles("company_admin")),
+    user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> KpiTargetOut:
     row = db.get(KpiTarget, target_id)
@@ -94,7 +95,7 @@ def update_kpi_target(
 @router.delete("/kpi-targets/{target_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_kpi_target(
     target_id: UUID,
-    user: CurrentUser = Depends(require_roles("company_admin")),
+    user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     row = db.get(KpiTarget, target_id)
@@ -106,7 +107,7 @@ def delete_kpi_target(
 
 @router.get("/report-subscriptions", response_model=list[ReportSubscriptionOut])
 def list_report_subscriptions(
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> list[ReportSubscriptionOut]:
     rows = db.scalars(
@@ -132,7 +133,7 @@ def list_report_subscriptions(
 @router.post("/report-subscriptions", response_model=ReportSubscriptionOut, status_code=status.HTTP_201_CREATED)
 def create_report_subscription(
     body: ReportSubscriptionCreate,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> ReportSubscriptionOut:
     row = ReportSubscription(
@@ -161,7 +162,7 @@ def create_report_subscription(
 @router.delete("/report-subscriptions/{sub_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_report_subscription(
     sub_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> None:
     row = db.get(ReportSubscription, sub_id)
@@ -173,7 +174,7 @@ def delete_report_subscription(
 
 @router.get("/workflow-schedules", response_model=list[WorkflowScheduleOut])
 def list_workflow_schedules(
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> list[WorkflowScheduleOut]:
     rows = db.scalars(
@@ -200,7 +201,7 @@ def list_workflow_schedules(
 @router.post("/workflow-schedules", response_model=WorkflowScheduleOut, status_code=status.HTTP_201_CREATED)
 def create_workflow_schedule(
     body: WorkflowScheduleCreate,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> WorkflowScheduleOut:
     row = WorkflowSchedule(
@@ -230,7 +231,7 @@ def create_workflow_schedule(
 @router.delete("/workflow-schedules/{schedule_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_workflow_schedule(
     schedule_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> None:
     row = db.get(WorkflowSchedule, schedule_id)
@@ -242,7 +243,7 @@ def delete_workflow_schedule(
 
 @router.post("/automation/run", response_model=AutomationRunOut)
 def run_automation(
-    user: CurrentUser = Depends(require_roles("company_admin")),
+    user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> AutomationRunOut:
     """Run SLA alerts, escalations, scheduled reports, and recurring workflows."""

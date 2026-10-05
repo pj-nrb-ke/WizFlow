@@ -15,7 +15,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.core.deps import CurrentUser, require_company, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, require_company, require_permission
 from app.core.security import hash_password
 from app.db.models import Company, GuestAttachment, GuestSubmission, PublicFormToken, Role, User, UserRole, WorkflowDefinition
 from app.db.session import get_db
@@ -89,7 +90,7 @@ class RejectBody(BaseModel):
 @router.get("/workflows/{workflow_id}/public-link", response_model=PublicLinkOut | None)
 def get_public_link(
     workflow_id: uuid.UUID,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> PublicLinkOut | None:
     _get_workflow(db, workflow_id, user.company_id)
@@ -108,7 +109,7 @@ def get_public_link(
 @router.post("/workflows/{workflow_id}/public-link", response_model=PublicLinkOut, status_code=201)
 def create_public_link(
     workflow_id: uuid.UUID,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> PublicLinkOut:
     wf = _get_workflow(db, workflow_id, user.company_id)
@@ -144,7 +145,7 @@ def create_public_link(
 @router.delete("/workflows/{workflow_id}/public-link", status_code=204)
 def revoke_public_link(
     workflow_id: uuid.UUID,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     _get_workflow(db, workflow_id, user.company_id)
@@ -160,7 +161,7 @@ def revoke_public_link(
 @router.get("/workflows/{workflow_id}/guest-submissions", response_model=list[GuestSubOut])
 def list_guest_submissions(
     workflow_id: uuid.UUID,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[GuestSubOut]:
     _get_workflow(db, workflow_id, user.company_id)
@@ -189,7 +190,7 @@ def list_guest_submissions(
 def get_guest_submission(
     workflow_id: uuid.UUID,
     sub_id: uuid.UUID,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> GuestSubDetail:
     _get_workflow(db, workflow_id, user.company_id)
@@ -235,7 +236,7 @@ def get_guest_submission(
 def accept_guest_submission(
     workflow_id: uuid.UUID,
     sub_id: uuid.UUID,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> dict:
     _get_workflow(db, workflow_id, user.company_id)
@@ -300,7 +301,7 @@ def reject_guest_submission(
     workflow_id: uuid.UUID,
     sub_id: uuid.UUID,
     body: RejectBody,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> dict:
     _get_workflow(db, workflow_id, user.company_id)
@@ -340,7 +341,7 @@ def reject_guest_submission(
 @router.get("/guest-attachments/{att_id}/download")
 def download_guest_attachment(
     att_id: uuid.UUID,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> FileResponse:
     att = db.scalar(select(GuestAttachment).where(GuestAttachment.id == att_id))

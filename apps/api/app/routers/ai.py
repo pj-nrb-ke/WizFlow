@@ -3,6 +3,7 @@ import uuid
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 
+from app.core import permissions as perms
 from app.core.deps import CurrentUser, require_company
 from app.db.models import WorkflowDefinition
 from app.db.session import get_db
@@ -22,7 +23,7 @@ def ai_wizard_questions(
     body: AiDraftRequest,
     user: CurrentUser = Depends(require_company),
 ) -> WizardQuestionsOut:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=403, detail="Manager role required")
     return WizardQuestionsOut(**wizard_qa.wizard_questions(body.description))
 
@@ -32,7 +33,7 @@ def ai_wizard_finalize(
     body: WizardFinalizeIn,
     user: CurrentUser = Depends(require_company),
 ) -> AiDraftResponse:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=403, detail="Manager role required")
     result = wizard_qa.wizard_finalize(body.description, body.answers)
     return AiDraftResponse(**result)
@@ -43,7 +44,7 @@ def ai_policy_analyze(
     body: AiDraftRequest,
     user: CurrentUser = Depends(require_company),
 ) -> dict:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=403, detail="Manager role required")
     draft = ai_workflow.draft_from_description(
         f"Policy-based workflow. Requirements from document:\n{body.description}"
@@ -61,7 +62,7 @@ def ai_optimize_workflow(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> dict:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=403, detail="Manager role required")
     defn = db.get(WorkflowDefinition, workflow_id)
     if not defn or defn.company_id != user.company_id:
@@ -86,7 +87,7 @@ def ai_draft(
     body: AiDraftRequest,
     user: CurrentUser = Depends(require_company),
 ) -> AiDraftResponse:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=403, detail="Manager role required")
     try:
         result = ai_workflow.draft_from_description(body.description)
@@ -100,7 +101,7 @@ def ai_refine(
     body: AiRefineRequest,
     user: CurrentUser = Depends(require_company),
 ) -> AiDraftResponse:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=403, detail="Manager role required")
     try:
         result = ai_workflow.refine_draft(body.current_draft, body.instruction)
@@ -131,7 +132,7 @@ def ai_save(
     user: CurrentUser = Depends(require_company),
     db: Session = Depends(get_db),
 ) -> WorkflowDefinition:
-    if not any(r in MANAGER_ROLES for r in user.roles):
+    if not user.can(perms.WORKFLOWS_MANAGE):
         raise HTTPException(status_code=403, detail="Manager role required")
 
     draft = body.draft

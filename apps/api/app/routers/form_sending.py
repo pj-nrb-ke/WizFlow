@@ -15,7 +15,8 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.core.deps import CurrentUser, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, require_permission
 from app.db.models import (
     Company,
     GuestSubmission,
@@ -61,7 +62,7 @@ class SendFormOut(BaseModel):
 def send_form_now(
     workflow_id: uuid.UUID,
     body: SendFormBody,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> SendFormOut:
     wf = _get_published_wf(db, workflow_id, user.company_id)
@@ -138,7 +139,7 @@ def _to_schedule_out(s: WorkflowSchedule) -> FormScheduleOut:
 @router.get("/workflows/{workflow_id}/form-schedules", response_model=list[FormScheduleOut])
 def list_form_schedules(
     workflow_id: uuid.UUID,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[FormScheduleOut]:
     _get_published_wf(db, workflow_id, user.company_id)
@@ -156,7 +157,7 @@ def list_form_schedules(
 def create_form_schedule(
     workflow_id: uuid.UUID,
     body: FormScheduleCreate,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> FormScheduleOut:
     _get_published_wf(db, workflow_id, user.company_id)
@@ -191,7 +192,7 @@ def create_form_schedule(
 def toggle_form_schedule(
     workflow_id: uuid.UUID,
     sched_id: uuid.UUID,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> FormScheduleOut:
     sched = db.scalar(
@@ -213,7 +214,7 @@ def toggle_form_schedule(
 def delete_form_schedule(
     workflow_id: uuid.UUID,
     sched_id: uuid.UUID,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     sched = db.scalar(
@@ -314,7 +315,7 @@ def _agg_field(key: str, field_type: str, values: list[Any]) -> FieldAggregation
 @router.get("/workflows/{workflow_id}/form-report", response_model=FormReport)
 def get_form_report(
     workflow_id: uuid.UUID,
-    user: CurrentUser = Depends(require_roles(*_MANAGER_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> FormReport:
     wf = db.scalar(

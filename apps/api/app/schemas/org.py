@@ -53,5 +53,25 @@ class RoleOut(BaseModel):
     id: UUID
     slug: str
     name: str
+    permissions: list[str] = Field(default_factory=list)  # effective permissions
+    is_builtin: bool = False
 
-    model_config = {"from_attributes": True}
+
+class PermissionOut(BaseModel):
+    key: str
+    label: str
+    group: str
+
+
+class RoleCreate(BaseModel):
+    name: str = Field(min_length=1, max_length=100)
+    permissions: list[str] = Field(default_factory=list)
+
+
+class RoleUpdate(BaseModel):
+    name: str | None = Field(default=None, min_length=1, max_length=100)
+    permissions: list[str] | None = None
+
+
+class UserRolesUpdate(BaseModel):
+    role_slugs: list[str] = Field(default_factory=list)

@@ -6,7 +6,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.deps import CurrentUser, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, require_permission
 from app.db.models import ApiKey, WebhookDelivery, WebhookEndpoint
 from app.db.session import get_db
 from app.schemas.integrations import (
@@ -35,7 +36,7 @@ ADMIN_ONLY = ("company_admin",)
 
 @router.get("/api-keys", response_model=list[ApiKeyOut])
 def list_api_keys(
-    user: CurrentUser = Depends(require_roles(*ADMIN_ONLY)),
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[ApiKey]:
     return list(
@@ -48,7 +49,7 @@ def list_api_keys(
 @router.post("/api-keys", response_model=ApiKeyCreated, status_code=status.HTTP_201_CREATED)
 def create_api_key(
     body: ApiKeyCreate,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ONLY)),
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> ApiKeyCreated:
     try:
@@ -89,7 +90,7 @@ def create_api_key(
 @router.delete("/api-keys/{key_id}", status_code=status.HTTP_204_NO_CONTENT)
 def revoke_api_key(
     key_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ONLY)),
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     row = db.get(ApiKey, key_id)
@@ -109,7 +110,7 @@ def revoke_api_key(
 
 @router.get("/webhooks", response_model=list[WebhookOut])
 def list_webhooks(
-    user: CurrentUser = Depends(require_roles(*ADMIN_ONLY)),
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[WebhookEndpoint]:
     return list(
@@ -123,7 +124,7 @@ def list_webhooks(
 
 @router.get("/webhook-events")
 def list_webhook_event_types(
-    user: CurrentUser = Depends(require_roles(*ADMIN_ONLY)),
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
 ) -> dict:
     return {"events": list(WEBHOOK_EVENTS)}
 
@@ -131,7 +132,7 @@ def list_webhook_event_types(
 @router.post("/webhooks", response_model=WebhookCreated, status_code=status.HTTP_201_CREATED)
 def create_webhook(
     body: WebhookCreate,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ONLY)),
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> WebhookCreated:
     if not is_safe_webhook_url(body.url.strip()):
@@ -176,7 +177,7 @@ def create_webhook(
 @router.delete("/webhooks/{webhook_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_webhook(
     webhook_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ONLY)),
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> None:
     row = db.get(WebhookEndpoint, webhook_id)
@@ -189,7 +190,7 @@ def delete_webhook(
 @router.post("/webhooks/{webhook_id}/test", response_model=WebhookDeliveryOut)
 def test_webhook(
     webhook_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ONLY)),
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> WebhookDelivery:
     hook = db.get(WebhookEndpoint, webhook_id)
@@ -212,7 +213,7 @@ def test_webhook(
 @router.get("/webhooks/{webhook_id}/deliveries", response_model=list[WebhookDeliveryOut])
 def list_deliveries(
     webhook_id: UUID,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ONLY)),
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[WebhookDelivery]:
     hook = db.get(WebhookEndpoint, webhook_id)
@@ -231,7 +232,7 @@ def list_deliveries(
 @router.get("/security-logs", response_model=list[SecurityAuditOut])
 def security_logs(
     limit: int = 100,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ONLY)),
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
     db: Session = Depends(get_db),
 ) -> list[SecurityAuditOut]:
     return list_security_logs(db, user.company_id, limit=limit)

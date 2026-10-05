@@ -8,7 +8,8 @@ from fastapi.responses import PlainTextResponse, Response
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.core.deps import CurrentUser, require_roles
+from app.core import permissions as perms
+from app.core.deps import CurrentUser, require_permission
 from app.db.models import User, WorkflowDefinition, WorkflowEvent, WorkflowInstance
 from app.db.session import get_db
 from app.schemas.request import MisActionRow
@@ -82,7 +83,7 @@ def mis_actions(
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = Query(None),
     status: str | None = Query(None),
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> list[MisActionRow]:
     return _fetch_mis_actions(db, user, from_date, to_date, workflow_id, status)
@@ -94,7 +95,7 @@ def mis_actions_csv(
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = Query(None),
     status: str | None = Query(None),
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> str:
     rows = _fetch_mis_actions(db, user, from_date, to_date, workflow_id, status)
@@ -117,7 +118,7 @@ def mis_actions_xlsx(
     to_date: datetime | None = Query(None, alias="to"),
     workflow_id: UUID | None = None,
     status: str | None = None,
-    user: CurrentUser = Depends(require_roles(*ADMIN_ROLES)),
+    user: CurrentUser = Depends(require_permission(perms.ANALYTICS_VIEW)),
     db: Session = Depends(get_db),
 ) -> Response:
     rows = _fetch_mis_actions(db, user, from_date, to_date, workflow_id, status)
