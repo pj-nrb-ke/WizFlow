@@ -118,7 +118,7 @@ const DATA = [
       { name: "A1 · Task binding", desc: "Properties panel in the designer: per-task assignee + approval mode, service-step action + config, the request form fields, and gateway branch conditions. Stored as side-JSON bindings (bpmn-js drops custom XML), overlaid by the compiler.", status: "done", eff: "M" },
       { name: "A2 · BPMN → workflow compiler", desc: "bpmn_compile.py parses a diagram into a runnable workflow (form + steps + skip routing); validator rejects shapes the linear engine can't run. Round-trips with the exporter.", status: "done", eff: "L" },
       { name: "A3 · Publish as app", desc: "POST /bpmn/{id}/compile (preview) + /publish-as-app (→ draft WorkflowDefinition, published via the normal gated flow), plus a 'Publish as app' button in the BPMN editor that saves, compiles, and links to the new draft app.", status: "done", eff: "M" },
-      { name: "A4 · Conversational step-builder", desc: "AI copilot drives the canvas: say intent → it places the step, shows the form, asks only when needed, all reversible.", status: "planned", eff: "L" },
+      { name: "A4 · Conversational step-builder", desc: "Copilot chat in the designer: describe the process → it drafts/refines via the multi-provider AI (reuses ai_workflow), re-renders the canvas + request form each turn, reversibly. Degrades to templates with no AI key. POST /bpmn/{id}/assistant.", status: "done", eff: "L" },
       { name: "Template gallery", desc: "Starter processes + look-and-feel themes/layouts with live preview.", status: "planned", eff: "M" },
       { name: "AI-from-requirements intake", desc: "Describe / record / upload a requirement → AI drafts the app end-to-end.", status: "partial", eff: "M" },
     ]},

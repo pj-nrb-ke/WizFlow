@@ -49,3 +49,17 @@ class PublishAsAppOut(BaseModel):
     workflow_id: UUID
     name: str
     warnings: list[str] = Field(default_factory=list)
+
+
+class AssistantIn(BaseModel):
+    message: str = Field(min_length=1, max_length=2000)
+
+
+class AssistantOut(BaseModel):
+    """Conversational builder reply + the updated canvas state (A4)."""
+    reply: str
+    name: str
+    bpmn_xml: str
+    bindings: dict = Field(default_factory=dict)
+    warnings: list[str] = Field(default_factory=list)
+    source: str = "template"

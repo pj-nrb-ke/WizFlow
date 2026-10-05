@@ -7,6 +7,7 @@ import "bpmn-js/dist/assets/bpmn-font/css/bpmn.css";
 export type BpmnHandle = {
   getXml: () => Promise<string>;
   getSvg: () => Promise<string>;
+  importXml: (xml: string) => Promise<void>;
 };
 
 /**
@@ -32,6 +33,10 @@ const BpmnCanvas = forwardRef<BpmnHandle, { xml: string; onSelect?: (el: BpmnSel
       getSvg: async () => {
         const res = await modelerRef.current.saveSVG();
         return res.svg as string;
+      },
+      importXml: async (newXml: string) => {
+        await modelerRef.current.importXML(newXml);
+        modelerRef.current.get("canvas").zoom("fit-viewport");
       },
     }),
     []

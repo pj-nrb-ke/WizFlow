@@ -29,6 +29,9 @@ export function BpmnEditorPage() {
   const [published, setPublished] = useState<{ workflow_id: string; name: string; warnings: string[] } | null>(null);
   const [bindings, setBindings] = useState<BpmnBindings>({});
   const [selected, setSelected] = useState<BpmnSelection | null>(null);
+  const [chat, setChat] = useState<{ role: "you" | "copilot"; text: string }[]>([]);
+  const [prompt, setPrompt] = useState("");
+  const [asking, setAsking] = useState(false);
   const canvasRef = useRef<BpmnHandle>(null);
 
   useEffect(() => {
@@ -63,6 +66,26 @@ export function BpmnEditorPage() {
     } catch (e) {
       setError(e instanceof ApiError ? e.detail ?? e.message : "Could not publish as app");
     } finally { setPublishing(false); }
+  }
+
+  async function ask() {
+    const message = prompt.trim();
+    if (!id || !message || asking) return;
+    setAsking(true); setError("");
+    setChat((c) => [...c, { role: "you", text: message }]);
+    setPrompt("");
+    try {
+      const res = await apiFetch<{ reply: string; bpmn_xml: string; bindings: BpmnBindings; warnings: string[] }>(
+        `/api/v1/bpmn/${id}/assistant`, { method: "POST", body: JSON.stringify({ message }) }, getToken()
+      );
+      await canvasRef.current?.importXml(res.bpmn_xml);
+      setBindings(res.bindings ?? {});
+      const note = res.warnings?.length ? `\n• ${res.warnings.join("\n• ")}` : "";
+      setChat((c) => [...c, { role: "copilot", text: res.reply + note }]);
+    } catch (e) {
+      setChat((c) => [...c, { role: "copilot", text: "Sorry — I couldn't apply that." }]);
+      setError(e instanceof ApiError ? e.detail ?? e.message : "Copilot failed");
+    } finally { setAsking(false); }
   }
 
   async function download(kind: "xml" | "svg") {
@@ -107,6 +130,28 @@ export function BpmnEditorPage() {
           )}
         </div>
       ) : null}
+      <div className="wf-card p-3 mb-3">
+        <div className="flex items-center gap-2 mb-2">
+          <span className="text-sm font-semibold text-slate-800">🤖 Copilot</span>
+          <span className="text-xs text-slate-500">Describe the process and it builds the diagram & form.</span>
+        </div>
+        {chat.length > 0 && (
+          <div className="mb-2 max-h-36 overflow-y-auto space-y-1 text-sm">
+            {chat.map((m, i) => (
+              <p key={i} className={m.role === "you" ? "text-slate-700" : "text-[rgb(var(--wf-brand-700))] whitespace-pre-line"}>
+                <span className="font-medium">{m.role === "you" ? "You" : "Copilot"}:</span> {m.text}
+              </p>
+            ))}
+          </div>
+        )}
+        <form onSubmit={(e) => { e.preventDefault(); ask(); }} className="flex gap-2">
+          <input className="wf-input flex-1 text-sm" placeholder='e.g. "Start with a purchase request, then manager then finance approval; collect an amount field"'
+            value={prompt} onChange={(e) => setPrompt(e.target.value)} disabled={asking} />
+          <button type="submit" disabled={asking || !prompt.trim()} className="wf-btn-primary px-4 py-1.5 text-sm disabled:opacity-50">
+            {asking ? "Thinking…" : "Send"}
+          </button>
+        </form>
+      </div>
       <div className="flex gap-3 items-start">
         <div className="flex-1 min-w-0">
           <Suspense fallback={<p className="text-slate-500">Loading designer…</p>}>

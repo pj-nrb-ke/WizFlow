@@ -17,6 +17,8 @@ from app.core.deps import CurrentUser, require_company, require_permission
 from app.db.models import BpmnDiagram, WorkflowDefinition
 from app.db.session import get_db
 from app.schemas.bpmn import (
+    AssistantIn,
+    AssistantOut,
     BpmnDiagramCreate,
     BpmnDiagramOut,
     BpmnDiagramSummary,
@@ -25,6 +27,7 @@ from app.schemas.bpmn import (
     PublishAsAppOut,
 )
 from app.services import workflow_engine
+from app.services.bpmn_assistant import assist
 from app.services.bpmn_compile import compile_bpmn_to_workflow
 from app.services.bpmn_export import EMPTY_DIAGRAM_XML, workflow_to_bpmn
 from app.services.events import record_event
@@ -158,6 +161,25 @@ def publish_as_app(
     db.commit()
     db.refresh(defn)
     return PublishAsAppOut(workflow_id=defn.id, name=defn.name, warnings=r.warnings)
+
+
+@router.post("/{diagram_id}/assistant", response_model=AssistantOut)
+def assistant(
+    diagram_id: UUID,
+    body: AssistantIn,
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
+    db: Session = Depends(get_db),
+) -> AssistantOut:
+    """A4: conversational step-builder. Describe a change; the diagram + form update."""
+    row = _get_owned(db, diagram_id, user.company_id)
+    try:
+        r = assist(xml=row.bpmn_xml, bindings=row.bindings, message=body.message)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    row.bpmn_xml = r["bpmn_xml"]
+    row.bindings = r["bindings"]
+    db.commit()
+    return AssistantOut(**r)
 
 
 @router.get("/{diagram_id}", response_model=BpmnDiagramOut)
