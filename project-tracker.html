@@ -115,7 +115,7 @@ const DATA = [
 
   { phase: "A · Executable BPMN + no-code copilot", sub: '"Publish as app" — the diagram becomes a running application a manager built by talking to it.',
     items: [
-      { name: "A1 · Task-form binding", desc: "Attach a WizFlow form to each BPMN user task (properties panel + form picker).", status: "planned", eff: "M" },
+      { name: "A1 · Task binding", desc: "Properties panel in the designer: per-task assignee + approval mode, service-step action + config, the request form fields, and gateway branch conditions. Stored as side-JSON bindings (bpmn-js drops custom XML), overlaid by the compiler.", status: "done", eff: "M" },
       { name: "A2 · BPMN → workflow compiler", desc: "bpmn_compile.py parses a diagram into a runnable workflow (form + steps + skip routing); validator rejects shapes the linear engine can't run. Round-trips with the exporter.", status: "done", eff: "L" },
       { name: "A3 · Publish as app", desc: "POST /bpmn/{id}/compile (preview) + /publish-as-app (→ draft WorkflowDefinition, published via the normal gated flow), plus a 'Publish as app' button in the BPMN editor that saves, compiles, and links to the new draft app.", status: "done", eff: "M" },
       { name: "A4 · Conversational step-builder", desc: "AI copilot drives the canvas: say intent → it places the step, shows the form, asks only when needed, all reversible.", status: "planned", eff: "L" },

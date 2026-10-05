@@ -108,7 +108,7 @@ def compile_diagram(
 ) -> CompiledWorkflowOut:
     """A2: preview compiling this diagram into a runnable workflow (validation only, no write)."""
     row = _get_owned(db, diagram_id, user.company_id)
-    r = compile_bpmn_to_workflow(row.bpmn_xml, name=row.name)
+    r = compile_bpmn_to_workflow(row.bpmn_xml, name=row.name, bindings=row.bindings)
     return CompiledWorkflowOut(
         ok=r.ok, name=r.name, form_schema=r.form_schema, steps=r.steps,
         routing_rules=r.routing_rules, errors=r.errors, warnings=r.warnings,
@@ -124,7 +124,7 @@ def publish_as_app(
     """A3: turn the diagram into a draft workflow 'app'. The manager reviews & publishes it
     through the normal workflow preview (which runs the full publish gates)."""
     row = _get_owned(db, diagram_id, user.company_id)
-    r = compile_bpmn_to_workflow(row.bpmn_xml, name=row.name)
+    r = compile_bpmn_to_workflow(row.bpmn_xml, name=row.name, bindings=row.bindings)
     if not r.ok:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(r.errors))
 
@@ -184,6 +184,8 @@ def update_diagram(
         row.description = (data["description"] or "").strip() or None
     if data.get("bpmn_xml") is not None:
         row.bpmn_xml = data["bpmn_xml"]
+    if "bindings" in data:
+        row.bindings = data["bindings"]
     db.commit()
     db.refresh(row)
     return row

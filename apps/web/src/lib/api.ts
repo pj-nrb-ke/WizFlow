@@ -144,7 +144,12 @@ export type BpmnDiagramSummary = {
   updated_at: string;
 };
 
-export type BpmnDiagramDetail = BpmnDiagramSummary & { bpmn_xml: string };
+export type BpmnBindings = {
+  form?: { key: string; type: string; label: string; required: boolean }[];
+  tasks?: Record<string, { assignee?: Record<string, unknown>; service?: Record<string, unknown> }>;
+  flows?: Record<string, { field: string; op: string; value: string | number }>;
+};
+export type BpmnDiagramDetail = BpmnDiagramSummary & { bpmn_xml: string; bindings?: BpmnBindings | null };
 
 export type WorkflowDefinition = WorkflowSummary & {
   company_id: string;

@@ -98,7 +98,12 @@ def _find_process(root: ET.Element) -> ET.Element | None:
     return None
 
 
-def _assignee_for(task: ET.Element) -> dict:
+def _assignee_for(task: ET.Element, binding: dict | None = None) -> dict:
+    if binding:  # from the properties panel — takes precedence
+        atype = binding.get("type") or "role"
+        if atype == "users":
+            return {"type": "users", "user_ids": binding.get("user_ids") or [], "mode": binding.get("mode") or "claim"}
+        return {"type": "role", "value": binding.get("value") or "manager", "mode": binding.get("mode") or "claim"}
     node = _wf(task, "assignee")
     if node is None:
         return {"type": "role", "value": "manager"}  # sensible default
@@ -109,46 +114,70 @@ def _assignee_for(task: ET.Element) -> dict:
     return {"type": "role", "value": node.get("value") or "manager", "mode": node.get("mode") or "claim"}
 
 
-def _service_step(task: ET.Element, step_id: str, name: str) -> tuple[dict, list[str]]:
-    node = _wf(task, "service")
-    stype = (node.get("type") if node is not None else None) or "notify"
+def _service_step(task: ET.Element, step_id: str, name: str, binding: dict | None = None) -> tuple[dict, list[str]]:
+    src: dict = dict(binding) if binding else {}
+    if not src:
+        node = _wf(task, "service")
+        if node is not None:
+            src = {k: node.get(k) for k in ("type", "message", "title", "notify_role", "url", "prompt", "template_id") if node.get(k)}
+    stype = src.get("type") or "notify"
     warnings: list[str] = []
     if stype not in SERVICE_STEP_TYPES:
         warnings.append(f"Service task '{name}': unknown type '{stype}', defaulting to notify")
         stype = "notify"
     step = {"id": step_id, "name": name, "type": stype}
-    if node is not None:
-        for attr in ("message", "title", "notify_role", "url", "prompt", "template_id"):
-            if node.get(attr):
-                step[attr] = node.get(attr)
+    for attr in ("message", "title", "notify_role", "url", "prompt", "template_id"):
+        if src.get(attr):
+            step[attr] = src[attr]
     return step, warnings
 
 
-def _form_schema(process: ET.Element) -> dict:
-    form = _wf(process, "form")  # anywhere in the process (process-level or on the start event)
+def _form_schema(process: ET.Element, form_binding: list | None = None) -> dict:
     fields: list[dict] = []
-    if form is not None:
-        for f in form.findall(f"{{{WIZFLOW_NS}}}field"):
-            key = f.get("key")
+    if form_binding:  # from the properties panel
+        for f in form_binding:
+            key = (f or {}).get("key")
             if not key:
                 continue
             fields.append({
                 "key": key,
                 "type": f.get("type") or "text",
                 "label": f.get("label") or key.replace("_", " ").title(),
-                "required": (f.get("required") or "").lower() in ("1", "true", "yes"),
+                "required": bool(f.get("required")),
             })
+    else:
+        form = _wf(process, "form")  # process-level or on the start event
+        if form is not None:
+            for f in form.findall(f"{{{WIZFLOW_NS}}}field"):
+                key = f.get("key")
+                if not key:
+                    continue
+                fields.append({
+                    "key": key,
+                    "type": f.get("type") or "text",
+                    "label": f.get("label") or key.replace("_", " ").title(),
+                    "required": (f.get("required") or "").lower() in ("1", "true", "yes"),
+                })
     if not fields:
         # An app needs something to submit; the manager refines this in the form editor.
         fields = [{"key": "title", "type": "text", "label": "Title", "required": True}]
     return {"fields": fields}
 
 
-def _condition_for(flow: ET.Element) -> dict | None:
+def _condition_for(flow: ET.Element, binding: dict | None = None) -> dict | None:
+    if binding and binding.get("field") and binding.get("op"):
+        return {"field": binding["field"], "op": binding["op"], "value": _coerce_value(binding.get("value"))}
     c = _wf(flow, "condition")
     if c is None or not c.get("field") or not c.get("op"):
         return None
     return {"field": c.get("field"), "op": c.get("op"), "value": _coerce(c.get("value"))}
+
+
+def _coerce_value(v):
+    """Coerce a condition value from the panel (may already be a number)."""
+    if isinstance(v, (int, float)) or v is None:
+        return v
+    return _coerce(str(v))
 
 
 def _has_cycle(start_ids: list[str], adj: dict[str, list[tuple[str, ET.Element]]]) -> bool:
@@ -186,7 +215,7 @@ def _next_task(target: str, nodes: dict, adj: dict) -> str | None:
     return None
 
 
-def compile_bpmn_to_workflow(xml: str, *, name: str | None = None) -> CompileResult:
+def compile_bpmn_to_workflow(xml: str, *, name: str | None = None, bindings: dict | None = None) -> CompileResult:
     errors: list[str] = []
     warnings: list[str] = []
     try:
@@ -199,6 +228,10 @@ def compile_bpmn_to_workflow(xml: str, *, name: str | None = None) -> CompileRes
         return CompileResult(name or "Untitled", {"fields": []}, [], [], ["No <process> found in the diagram"])
 
     wf_name = name or process.get("name") or "Untitled process"
+    b = bindings or {}
+    tasks_b: dict = b.get("tasks") or {}
+    flows_b: dict = b.get("flows") or {}
+    form_b: list | None = b.get("form")
 
     nodes: dict[str, dict] = {}
     flows: list[dict] = []
@@ -234,7 +267,7 @@ def compile_bpmn_to_workflow(xml: str, *, name: str | None = None) -> CompileRes
         errors.append("Loops are not supported — the flow must move forward to an end.")
 
     if errors:
-        return CompileResult(wf_name, _form_schema(process), [], [], errors, warnings)
+        return CompileResult(wf_name, _form_schema(process, form_b), [], [], errors, warnings)
 
     # ── Order task nodes along the flow (BFS from start) ──
     order: list[str] = []
@@ -260,10 +293,11 @@ def compile_bpmn_to_workflow(xml: str, *, name: str | None = None) -> CompileRes
     steps: list[dict] = []
     for nid in order:
         n = nodes[nid]
+        tb = tasks_b.get(nid) or {}
         if n["kind"] in _APPROVAL_KINDS:
-            steps.append({"id": nid, "name": n["name"], "type": "approval", "assignee": _assignee_for(n["el"])})
+            steps.append({"id": nid, "name": n["name"], "type": "approval", "assignee": _assignee_for(n["el"], tb.get("assignee"))})
         else:  # service kind
-            step, w = _service_step(n["el"], nid, n["name"])
+            step, w = _service_step(n["el"], nid, n["name"], tb.get("service"))
             steps.append(step)
             warnings.extend(w)
 
@@ -275,7 +309,7 @@ def compile_bpmn_to_workflow(xml: str, *, name: str | None = None) -> CompileRes
         outs = adj.get(nid, [])
         conditioned = 0
         for tgt, flow_el in outs:
-            cond = _condition_for(flow_el)
+            cond = _condition_for(flow_el, flows_b.get(flow_el.get("id")))
             if not cond:
                 continue
             skip_to = _next_task(tgt, nodes, adj)
@@ -288,7 +322,7 @@ def compile_bpmn_to_workflow(xml: str, *, name: str | None = None) -> CompileRes
                 f"otherwise it always takes the default path."
             )
 
-    return CompileResult(wf_name, _form_schema(process), steps, routing, errors, warnings)
+    return CompileResult(wf_name, _form_schema(process, form_b), steps, routing, errors, warnings)
 
 
 if __name__ == "__main__":  # self-check: round-trip, routing, unsupported rejection
@@ -332,4 +366,15 @@ if __name__ == "__main__":  # self-check: round-trip, routing, unsupported rejec
     kinds = {s["id"]: s["type"] for s in rs.steps}
     assert kinds.get("A") == "approval" and kinds.get("B") == "notify", kinds
     assert any(rl["skip_to"] == "A" and rl["when"]["value"] == 5000 for rl in rs.routing_rules), rs.routing_rules
+
+    # bindings overlay (properties panel) takes precedence over XML/defaults
+    xml2 = workflow_to_bpmn("Leave", [{"name": "Approval"}])
+    task_id = next(s["id"] for s in compile_bpmn_to_workflow(xml2).steps)
+    rb2 = compile_bpmn_to_workflow(xml2, bindings={
+        "form": [{"key": "days", "type": "number", "label": "Days", "required": True}],
+        "tasks": {task_id: {"assignee": {"type": "role", "value": "hr", "mode": "parallel"}}},
+    })
+    assert rb2.ok, rb2.errors
+    assert rb2.steps[0]["assignee"] == {"type": "role", "value": "hr", "mode": "parallel"}, rb2.steps[0]
+    assert [f["key"] for f in rb2.form_schema["fields"]] == ["days"], rb2.form_schema
     print("bpmn_compile self-check OK")

@@ -13,9 +13,14 @@ export type BpmnHandle = {
  * Thin React wrapper around the bpmn-js modeler (imperative library).
  * Lazy-loaded so bpmn-js is code-split out of the core bundle.
  */
-const BpmnCanvas = forwardRef<BpmnHandle, { xml: string }>(function BpmnCanvas({ xml }, ref) {
+export type BpmnSelection = { id: string; type: string; name?: string };
+
+const BpmnCanvas = forwardRef<BpmnHandle, { xml: string; onSelect?: (el: BpmnSelection | null) => void }>(
+  function BpmnCanvas({ xml, onSelect }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const modelerRef = useRef<any>(null);
+  const onSelectRef = useRef(onSelect);
+  onSelectRef.current = onSelect;
 
   useImperativeHandle(
     ref,
@@ -36,6 +41,12 @@ const BpmnCanvas = forwardRef<BpmnHandle, { xml: string }>(function BpmnCanvas({
     if (!containerRef.current) return;
     const modeler = new BpmnModeler({ container: containerRef.current });
     modelerRef.current = modeler;
+    modeler.get("eventBus").on("selection.changed", (e: any) => {
+      const el = e?.newSelection?.[0];
+      onSelectRef.current?.(
+        el ? { id: el.id, type: el.businessObject?.$type ?? el.type, name: el.businessObject?.name } : null
+      );
+    });
     (async () => {
       try {
         await modeler.importXML(xml);

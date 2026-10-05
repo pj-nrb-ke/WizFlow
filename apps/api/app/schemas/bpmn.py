@@ -15,6 +15,7 @@ class BpmnDiagramUpdate(BaseModel):
     name: str | None = Field(default=None, min_length=1, max_length=200)
     description: str | None = Field(default=None, max_length=2000)
     bpmn_xml: str | None = None
+    bindings: dict | None = None
 
 
 class BpmnDiagramSummary(BaseModel):
@@ -29,6 +30,7 @@ class BpmnDiagramSummary(BaseModel):
 
 class BpmnDiagramOut(BpmnDiagramSummary):
     bpmn_xml: str
+    bindings: dict | None = None
 
 
 class CompiledWorkflowOut(BaseModel):

@@ -865,6 +865,9 @@ class BpmnDiagram(Base):
     name: Mapped[str] = mapped_column(String(200), nullable=False)
     description: Mapped[str | None] = mapped_column(Text, nullable=True)
     bpmn_xml: Mapped[str] = mapped_column(Text, nullable=False)
+    # No-code config written by the properties panel (assignees, form fields,
+    # gateway conditions), keyed by BPMN element id. See bpmn_compile overlay.
+    bindings: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
     created_by: Mapped[uuid.UUID | None] = mapped_column(
         UUID(as_uuid=True), ForeignKey("users.id", ondelete="SET NULL"), nullable=True
     )
