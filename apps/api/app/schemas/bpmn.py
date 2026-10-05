@@ -29,3 +29,21 @@ class BpmnDiagramSummary(BaseModel):
 
 class BpmnDiagramOut(BpmnDiagramSummary):
     bpmn_xml: str
+
+
+class CompiledWorkflowOut(BaseModel):
+    """Preview of compiling a diagram into a runnable workflow (A2)."""
+    ok: bool
+    name: str
+    form_schema: dict = Field(default_factory=dict)
+    steps: list[dict] = Field(default_factory=list)
+    routing_rules: list[dict] = Field(default_factory=list)
+    errors: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class PublishAsAppOut(BaseModel):
+    """Result of turning a diagram into a draft workflow app (A3)."""
+    workflow_id: UUID
+    name: str
+    warnings: list[str] = Field(default_factory=list)

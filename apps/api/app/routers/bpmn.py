@@ -5,6 +5,7 @@ and (for the bridge) reads a WorkflowDefinition to render it as BPMN. It never
 mutates workflows or drives execution.
 """
 
+import uuid as _uuid
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -20,8 +21,13 @@ from app.schemas.bpmn import (
     BpmnDiagramOut,
     BpmnDiagramSummary,
     BpmnDiagramUpdate,
+    CompiledWorkflowOut,
+    PublishAsAppOut,
 )
+from app.services import workflow_engine
+from app.services.bpmn_compile import compile_bpmn_to_workflow
 from app.services.bpmn_export import EMPTY_DIAGRAM_XML, workflow_to_bpmn
+from app.services.events import record_event
 
 router = APIRouter(prefix="/bpmn", tags=["Process Designer (BPMN)"])
 ADMIN_ROLES = ("company_admin", "manager")
@@ -92,6 +98,66 @@ def import_from_workflow(
     db.commit()
     db.refresh(row)
     return row
+
+
+@router.post("/{diagram_id}/compile", response_model=CompiledWorkflowOut)
+def compile_diagram(
+    diagram_id: UUID,
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
+    db: Session = Depends(get_db),
+) -> CompiledWorkflowOut:
+    """A2: preview compiling this diagram into a runnable workflow (validation only, no write)."""
+    row = _get_owned(db, diagram_id, user.company_id)
+    r = compile_bpmn_to_workflow(row.bpmn_xml, name=row.name)
+    return CompiledWorkflowOut(
+        ok=r.ok, name=r.name, form_schema=r.form_schema, steps=r.steps,
+        routing_rules=r.routing_rules, errors=r.errors, warnings=r.warnings,
+    )
+
+
+@router.post("/{diagram_id}/publish-as-app", response_model=PublishAsAppOut, status_code=status.HTTP_201_CREATED)
+def publish_as_app(
+    diagram_id: UUID,
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
+    db: Session = Depends(get_db),
+) -> PublishAsAppOut:
+    """A3: turn the diagram into a draft workflow 'app'. The manager reviews & publishes it
+    through the normal workflow preview (which runs the full publish gates)."""
+    row = _get_owned(db, diagram_id, user.company_id)
+    r = compile_bpmn_to_workflow(row.bpmn_xml, name=row.name)
+    if not r.ok:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="; ".join(r.errors))
+
+    defn = WorkflowDefinition(
+        company_id=user.company_id,
+        family_id=_uuid.uuid4(),
+        name=r.name,
+        version=1,
+        status="draft",
+        form_schema=r.form_schema,
+        steps=r.steps,
+        routing_rules=r.routing_rules,
+        settings={"source": "bpmn", "bpmn_diagram_id": str(row.id)},
+    )
+    # Engine-level validation beyond the compiler's shape checks.
+    try:
+        workflow_engine.validate_definition(defn)
+    except workflow_engine.WorkflowValidationError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    db.add(defn)
+    db.flush()
+    defn.family_id = defn.id
+    record_event(
+        db,
+        company_id=user.company_id,
+        event_type="workflow.created_from_bpmn",
+        actor_user_id=user.id,
+        workflow_definition_id=defn.id,
+        payload={"bpmn_diagram_id": str(row.id), "name": r.name, "steps": len(r.steps)},
+    )
+    db.commit()
+    db.refresh(defn)
+    return PublishAsAppOut(workflow_id=defn.id, name=defn.name, warnings=r.warnings)
 
 
 @router.get("/{diagram_id}", response_model=BpmnDiagramOut)

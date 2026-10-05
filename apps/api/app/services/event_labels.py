@@ -12,6 +12,7 @@ EVENT_LABELS: dict[str, str] = {
     "request.commented": "Comment added",
     "document.generated": "Document generated",
     "workflow.completed": "Workflow completed",
+    "workflow.created_from_bpmn": "App created from BPMN diagram",
     "file.uploaded": "File uploaded",
 }
 
