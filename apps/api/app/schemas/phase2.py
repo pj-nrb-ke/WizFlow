@@ -127,6 +127,7 @@ class AutomationRunOut(BaseModel):
     sla_breaches: int = 0
     escalations: int = 0
     timers_advanced: int = 0
+    services_run: int = 0
     reports_sent: int = 0
     schedules_run: int = 0
     reminders_sent: int = 0

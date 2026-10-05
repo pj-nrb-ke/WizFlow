@@ -27,10 +27,11 @@ from app.services.assignees import _users_for_role
 from app.services.brevo_mail import send_form_invitation_email, send_plain_email
 from app.services.approval_notify import notify_approvers_for_step
 from app.services.events import record_event
-from app.services.instance_engine import advance_timer_step, submit_request
+from app.services.instance_engine import advance_automated_step, advance_timer_step, submit_request
 from app.services.notifications import notify_users
+from app.services.service_steps import execute_service_step
 from app.services.sla_engine import effective_sla_hours, find_step, is_step_at_risk, is_step_overdue, step_started_at
-from app.services.workflow_engine import timer_wait_hours
+from app.services.workflow_engine import SERVICE_STEP_TYPES, timer_wait_hours
 
 logger = logging.getLogger("wizflow.phase2")
 
@@ -183,6 +184,36 @@ def process_timer_steps(db: Session, *, company_id: UUID | None = None) -> int:
             logger.warning("Timer advance failed for %s: %s", inst.id, e)
     db.commit()
     return advanced
+
+
+def process_service_steps(db: Session, *, company_id: UUID | None = None) -> int:
+    """Run instances parked on a service step (notify/webhook/ai), then advance them.
+
+    Service steps have no human assignee; this executes the action and progresses
+    the instance (and alerts the next step's approvers), implementing BPMN-style
+    service tasks. Instantaneous — unlike a timer there is no wait to check.
+    """
+    q = select(WorkflowInstance).where(WorkflowInstance.status == "in_progress")
+    if company_id:
+        q = q.where(WorkflowInstance.company_id == company_id)
+    ran = 0
+    for inst in db.scalars(q):
+        if not inst.current_step_id:
+            continue
+        defn = db.get(WorkflowDefinition, inst.workflow_definition_id)
+        step = find_step(defn, inst.current_step_id)
+        if not step or (step.get("type") or "") not in SERVICE_STEP_TYPES:
+            continue
+        try:
+            summary = execute_service_step(db, inst, defn, step)
+            advance_automated_step(db, inst, defn, comment=summary)
+            if inst.status == "in_progress" and inst.current_step_id:
+                notify_approvers_for_step(db, instance=inst, defn=defn, step_id=inst.current_step_id)
+            ran += 1
+        except Exception as e:  # pragma: no cover - keep other instances alive
+            logger.warning("Service step failed for %s: %s", inst.id, e)
+    db.commit()
+    return ran
 
 
 def _frequency_due(last: datetime | None, frequency: str, now: datetime) -> bool:
@@ -366,6 +397,7 @@ def run_all_automation(db: Session, *, company_id: UUID | None = None) -> Automa
     db.commit()
     escalations = process_escalations(db, company_id=company_id)
     timers_advanced = process_timer_steps(db, company_id=company_id)
+    services_run = process_service_steps(db, company_id=company_id)
     reports = process_report_subscriptions(db, company_id=company_id)
     schedules = process_workflow_schedules(db, company_id=company_id)
     reminders = process_reminder_rules(db, company_id=company_id)
@@ -376,6 +408,7 @@ def run_all_automation(db: Session, *, company_id: UUID | None = None) -> Automa
         sla_breaches=breaches,
         escalations=escalations,
         timers_advanced=timers_advanced,
+        services_run=services_run,
         reports_sent=reports,
         schedules_run=schedules,
         reminders_sent=reminders,

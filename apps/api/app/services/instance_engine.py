@@ -249,7 +249,9 @@ def _advance_or_complete(
     next_idx = idx + 1
     if next_idx >= len(step_sequence):
         instance.status = (
-            "approved" if event_type in ("step.approved", "step.timer_elapsed") else instance.status
+            "approved"
+            if event_type in ("step.approved", "step.timer_elapsed", "step.service_done")
+            else instance.status
         )
         instance.current_step_id = None
         instance.assignees = []
@@ -296,17 +298,30 @@ def approve_request(
     return _advance_or_complete(db, instance, defn, actor_id, "step.approved", comment)
 
 
+def advance_automated_step(
+    db: Session,
+    instance: WorkflowInstance,
+    defn: WorkflowDefinition,
+    *,
+    event_type: str = "step.service_done",
+    comment: str = "Automated step completed",
+) -> WorkflowInstance:
+    """Auto-advance an automated step (timer/service) — driven by the scheduler, no human actor."""
+    return _advance_or_complete(
+        db, instance, defn, actor_id=None, event_type=event_type, comment=comment
+    )
+
+
 def advance_timer_step(
     db: Session,
     instance: WorkflowInstance,
     defn: WorkflowDefinition,
 ) -> WorkflowInstance:
     """Auto-advance a timer/wait step once its wait has elapsed (driven by the scheduler)."""
-    return _advance_or_complete(
+    return advance_automated_step(
         db,
         instance,
         defn,
-        actor_id=None,
         event_type="step.timer_elapsed",
         comment="Auto-advanced (timer elapsed)",
     )

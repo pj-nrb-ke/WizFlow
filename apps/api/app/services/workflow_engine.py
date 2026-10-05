@@ -11,8 +11,11 @@ class WorkflowValidationError(ValueError):
     pass
 
 
+# Service steps run automatically and *do* something (then auto-advance).
+SERVICE_STEP_TYPES = {"notify", "webhook", "ai"}
 # Steps that run automatically (no human assignee); the scheduler progresses them.
-AUTOMATED_STEP_TYPES = {"timer"}
+# Timers wait; service steps act. Both are driven by phase2_automation.
+AUTOMATED_STEP_TYPES = {"timer"} | SERVICE_STEP_TYPES
 
 
 def is_automated_step(step: dict) -> bool:
@@ -63,10 +66,16 @@ def validate_definition(defn: WorkflowDefinition) -> None:
         if not step.get("id") or not step.get("name"):
             raise WorkflowValidationError("Each step requires id and name")
         if is_automated_step(step):
-            if step.get("type") == "timer" and timer_wait_hours(step) is None:
+            t = step.get("type")
+            if t == "timer" and timer_wait_hours(step) is None:
                 raise WorkflowValidationError(
                     f"Timer step '{step.get('id')}' needs wait_hours or wait_days"
                 )
+            if t == "webhook" and not str(step.get("url") or "").strip():
+                raise WorkflowValidationError(f"Webhook step '{step.get('id')}' needs a url")
+            if t == "ai" and not str(step.get("prompt") or step.get("ai_prompt") or "").strip():
+                raise WorkflowValidationError(f"AI step '{step.get('id')}' needs a prompt")
+            # notify: message is optional (defaults to a generic update)
         else:
             _validate_assignee(step)
 
@@ -237,4 +246,21 @@ if __name__ == "__main__":  # self-check: routing condition evaluator
         raise AssertionError("timer without wait_hours/wait_days should fail")
     except WorkflowValidationError:
         pass
-    print("workflow_engine routing + timer self-check OK")
+
+    # ── service / automated steps ──
+    assert is_automated_step({"type": "notify"})
+    assert is_automated_step({"type": "webhook"})
+    assert is_automated_step({"type": "ai"})
+    validate_definition(_NS(name="t", steps=[
+        {"id": "n", "name": "Tell originator", "type": "notify", "message": "Done: {reference}"},
+        {"id": "w", "name": "Post to ERP", "type": "webhook", "url": "https://erp.example.com/hook"},
+        {"id": "a", "name": "Triage", "type": "ai", "prompt": "Summarise the risk"},
+    ]))
+    for bad in ({"id": "w", "name": "W", "type": "webhook"},
+                {"id": "a", "name": "A", "type": "ai"}):
+        try:
+            validate_definition(_NS(name="t", steps=[bad]))
+            raise AssertionError(f"{bad['type']} without config should fail")
+        except WorkflowValidationError:
+            pass
+    print("workflow_engine routing + timer + service self-check OK")
