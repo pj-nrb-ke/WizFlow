@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     ai_model: str = Field(
         default="gpt-4o-mini", validation_alias=AliasChoices("ai_model", "openai_model")
     )
+    # Provider: "openai" (any OpenAI-compatible /chat/completions endpoint — OpenAI,
+    # Azure, Groq, Together, OpenRouter, Ollama, vLLM, DeepSeek, ...) or "anthropic".
+    # Leave ai_base_url blank to use the provider's default host.
+    ai_provider: str = "openai"
+    ai_base_url: str = ""
     expo_push_enabled: bool = True
     expo_push_access_token: str = ""
     # Voice-note transcription (self-hosted faster-whisper, CPU). Model downloads on

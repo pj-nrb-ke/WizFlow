@@ -20,9 +20,8 @@ from uuid import UUID
 import httpx
 from sqlalchemy.orm import Session
 
-from app.config import settings
 from app.db.models import Attachment, WorkflowDefinition, WorkflowInstance
-from app.services import doc_templates
+from app.services import ai_client, doc_templates
 from app.services.assignees import _users_for_role
 from app.services.events import record_event
 from app.services.files import save_bytes
@@ -86,10 +85,8 @@ def _run_webhook(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition, 
 
 
 def _ai_note(prompt: str, data: dict) -> str:
-    if not settings.ai_api_key:
+    if not ai_client.is_configured():
         return f"[AI step] {prompt} — (no AI key configured)"
-    # ponytail: 3rd OpenAI chat call-site (also voice_notes, ai_workflow);
-    # unify into one ai_client.chat(system, user) helper if a 4th appears.
     try:
         system = (
             "You are an automated step inside a business approval workflow. "
@@ -97,19 +94,7 @@ def _ai_note(prompt: str, data: dict) -> str:
             "a concise note (2-4 sentences) to add to the request's timeline."
         )
         user = f"Instruction: {prompt}\n\nRequest data (JSON):\n{json.dumps(data, default=str)}"
-        payload = {
-            "model": settings.ai_model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            "temperature": 0.3,
-        }
-        headers = {"Authorization": f"Bearer {settings.ai_api_key}", "Content-Type": "application/json"}
-        with httpx.Client(timeout=30.0) as client:
-            r = client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
-            r.raise_for_status()
-            return (r.json()["choices"][0]["message"]["content"] or "").strip() or f"[AI step] {prompt}"
+        return ai_client.chat(system, user, temperature=0.3) or f"[AI step] {prompt}"
     except Exception as e:  # pragma: no cover - LLM/network hiccup
         logger.warning("ai step fell back for prompt %r: %s", prompt[:40], e)
         return f"[AI step] {prompt} — (AI unavailable)"

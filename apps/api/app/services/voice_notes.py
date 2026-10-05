@@ -17,6 +17,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from app.config import settings
+from app.services import ai_client
 
 logger = logging.getLogger("wizflow.voice")
 
@@ -95,31 +96,16 @@ def polish_comment(text: str, language: str | None = None) -> str:
     the feature must never lose the user's words to a cleanup hiccup.
     """
     text = (text or "").strip()
-    if not text or not settings.ai_api_key:
+    if not text or not ai_client.is_configured():
         return text
     try:
-        import httpx
-
         system = (
             "You clean up dictated notes for a business approval request. "
             "Fix grammar, spelling and punctuation and make it read clearly. "
             "Keep the original meaning and the original language, do not translate, "
             "and do not add information that isn't there. Return only the cleaned note."
         )
-        payload = {
-            "model": settings.ai_model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": text},
-            ],
-            "temperature": 0.2,
-        }
-        headers = {"Authorization": f"Bearer {settings.ai_api_key}", "Content-Type": "application/json"}
-        with httpx.Client(timeout=30.0) as client:
-            r = client.post("https://api.openai.com/v1/chat/completions", json=payload, headers=headers)
-            r.raise_for_status()
-            out = (r.json()["choices"][0]["message"]["content"] or "").strip()
-        return out or text
+        return ai_client.chat(system, text, temperature=0.2) or text
     except Exception as e:  # pragma: no cover - network/LLM hiccup → keep raw
         logger.warning("polish_comment fell back to raw transcript: %s", e)
         return text

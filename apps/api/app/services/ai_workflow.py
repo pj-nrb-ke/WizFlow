@@ -6,10 +6,7 @@ import json
 import re
 from typing import Any
 
-import httpx
-
-from app.config import settings
-from app.services import workflow_engine
+from app.services import ai_client, workflow_engine
 from app.services.ui_settings import suggest_ui_for_workflow_name
 
 
@@ -126,25 +123,9 @@ def _explain_draft(draft: dict, description: str) -> str:
     )
 
 
-def _call_openai(system: str, user: str) -> dict[str, Any]:
-    if not settings.ai_api_key:
-        raise AiWorkflowError("No AI API key configured")
-    url = "https://api.openai.com/v1/chat/completions"
-    payload = {
-        "model": settings.ai_model,
-        "messages": [
-            {"role": "system", "content": system},
-            {"role": "user", "content": user},
-        ],
-        "response_format": {"type": "json_object"},
-        "temperature": 0.3,
-    }
-    headers = {"Authorization": f"Bearer {settings.ai_api_key}", "Content-Type": "application/json"}
-    with httpx.Client(timeout=60.0) as client:
-        r = client.post(url, json=payload, headers=headers)
-        r.raise_for_status()
-        content = r.json()["choices"][0]["message"]["content"]
-    return json.loads(content)
+def _call_ai(system: str, user: str) -> dict[str, Any]:
+    """Provider-agnostic JSON completion (OpenAI/Anthropic/compatible). Raises if unconfigured."""
+    return ai_client.parse_json(ai_client.chat(system, user, json_mode=True))
 
 
 SYSTEM_PROMPT = """You are WizFlow's workflow designer. Output JSON only with keys:
@@ -214,9 +195,9 @@ def draft_from_description(description: str) -> dict[str, Any]:
     if len(description) < 10:
         raise AiWorkflowError("Please describe the workflow in at least 10 characters")
 
-    if settings.ai_api_key:
+    if ai_client.is_configured():
         try:
-            result = _call_openai(SYSTEM_PROMPT, f"Create a workflow for: {description}")
+            result = _call_ai(SYSTEM_PROMPT, f"Create a workflow for: {description}")
             draft = result.get("draft") or result
             draft["routing_rules"] = _normalize_routing_rules(draft.get("steps") or [], draft.get("routing_rules"))
             workflow_engine.validate_definition(_MockDefn(draft))
@@ -239,9 +220,9 @@ def refine_draft(current: dict, instruction: str) -> dict[str, Any]:
 
     merged = json.loads(json.dumps(current))
 
-    if settings.ai_api_key:
+    if ai_client.is_configured():
         try:
-            result = _call_openai(
+            result = _call_ai(
                 SYSTEM_PROMPT,
                 f"Current workflow JSON:\n{json.dumps(merged)}\n\nApply this change: {instruction}",
             )

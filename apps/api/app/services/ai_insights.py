@@ -4,10 +4,9 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-import httpx
 from sqlalchemy.orm import Session
 
-from app.config import settings
+from app.services import ai_client
 from app.services import analytics as analytics_service
 
 
@@ -15,7 +14,7 @@ def executive_narrative(db: Session, ctx: analytics_service.AnalyticsContext) ->
     summary = analytics_service.executive_summary(db, ctx)
     bottlenecks = analytics_service.bottlenecks(db, ctx)
 
-    if not settings.ai_api_key:
+    if not ai_client.is_configured():
         return _template_narrative(summary, bottlenecks)
 
     prompt = (
@@ -23,21 +22,11 @@ def executive_narrative(db: Session, ctx: analytics_service.AnalyticsContext) ->
         f"Data: {summary.model_dump()}, bottlenecks: {bottlenecks.model_dump()}"
     )
     try:
-        with httpx.Client(timeout=30.0) as client:
-            resp = client.post(
-                "https://api.openai.com/v1/chat/completions",
-                headers={"Authorization": f"Bearer {settings.ai_api_key}"},
-                json={
-                    "model": settings.ai_model,
-                    "messages": [
-                        {"role": "system", "content": "You are a concise business analyst for workflow KPIs."},
-                        {"role": "user", "content": prompt[:8000]},
-                    ],
-                    "temperature": 0.4,
-                },
-            )
-            resp.raise_for_status()
-            return resp.json()["choices"][0]["message"]["content"].strip()
+        return ai_client.chat(
+            "You are a concise business analyst for workflow KPIs.",
+            prompt[:8000],
+            temperature=0.4,
+        ) or _template_narrative(summary, bottlenecks)
     except Exception:
         return _template_narrative(summary, bottlenecks)
 
