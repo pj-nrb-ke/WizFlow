@@ -116,6 +116,13 @@ def _apply_step_to_instance(
     defn: WorkflowDefinition,
     step: dict,
 ) -> None:
+    if workflow_engine.is_automated_step(step):
+        # Automated step (e.g. a timer/wait): no human assignee — the scheduler
+        # progresses it once its wait elapses.
+        instance.assignees = []
+        instance.assignment_mode = None
+        instance.claimed_by_user_id = None
+        return
     assignment = resolve_step_assignment(
         db,
         company_id=instance.company_id,
@@ -241,7 +248,9 @@ def _advance_or_complete(
 
     next_idx = idx + 1
     if next_idx >= len(step_sequence):
-        instance.status = "approved" if event_type == "step.approved" else instance.status
+        instance.status = (
+            "approved" if event_type in ("step.approved", "step.timer_elapsed") else instance.status
+        )
         instance.current_step_id = None
         instance.assignees = []
         instance.assignment_mode = None
@@ -285,6 +294,22 @@ def approve_request(
     if not user_can_act(instance, actor_id):
         raise RequestError("You are not assigned to approve this step")
     return _advance_or_complete(db, instance, defn, actor_id, "step.approved", comment)
+
+
+def advance_timer_step(
+    db: Session,
+    instance: WorkflowInstance,
+    defn: WorkflowDefinition,
+) -> WorkflowInstance:
+    """Auto-advance a timer/wait step once its wait has elapsed (driven by the scheduler)."""
+    return _advance_or_complete(
+        db,
+        instance,
+        defn,
+        actor_id=None,
+        event_type="step.timer_elapsed",
+        comment="Auto-advanced (timer elapsed)",
+    )
 
 
 def reject_request(

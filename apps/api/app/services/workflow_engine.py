@@ -11,6 +11,26 @@ class WorkflowValidationError(ValueError):
     pass
 
 
+# Steps that run automatically (no human assignee); the scheduler progresses them.
+AUTOMATED_STEP_TYPES = {"timer"}
+
+
+def is_automated_step(step: dict) -> bool:
+    return (step.get("type") or "approval") in AUTOMATED_STEP_TYPES
+
+
+def timer_wait_hours(step: dict) -> int | None:
+    """Resolve a timer step's wait, in hours (from wait_hours, else wait_days)."""
+    for key, mult in (("wait_hours", 1), ("wait_days", 24)):
+        raw = step.get(key)
+        if raw is not None:
+            try:
+                return max(1, int(raw) * mult)
+            except (TypeError, ValueError):
+                pass
+    return None
+
+
 def _validate_assignee(step: dict) -> None:
     assignee = step.get("assignee") or {}
     atype = assignee.get("type")
@@ -42,7 +62,13 @@ def validate_definition(defn: WorkflowDefinition) -> None:
             raise WorkflowValidationError("Each step must be an object")
         if not step.get("id") or not step.get("name"):
             raise WorkflowValidationError("Each step requires id and name")
-        _validate_assignee(step)
+        if is_automated_step(step):
+            if step.get("type") == "timer" and timer_wait_hours(step) is None:
+                raise WorkflowValidationError(
+                    f"Timer step '{step.get('id')}' needs wait_hours or wait_days"
+                )
+        else:
+            _validate_assignee(step)
 
 
 def _as_number(value: object) -> int | float | None:
@@ -192,4 +218,23 @@ if __name__ == "__main__":  # self-check: routing condition evaluator
     assert ec({"any": [{"field": "type", "op": "eq", "value": "Repudiation"},
                        {"field": "deny", "op": "eq", "value": True}]},
               {"type": "Own Damage", "deny": True})
-    print("workflow_engine routing self-check OK")
+
+    # ── timer / automated steps ──
+    from types import SimpleNamespace as _NS
+    assert is_automated_step({"type": "timer"})
+    assert not is_automated_step({"type": "approval"})
+    assert not is_automated_step({})  # defaults to approval
+    assert timer_wait_hours({"wait_days": 14}) == 336
+    assert timer_wait_hours({"wait_hours": 48}) == 48
+    assert timer_wait_hours({}) is None
+    # a timer step needs no assignee; a human step still does
+    validate_definition(_NS(name="t", steps=[
+        {"id": "s1", "name": "Wait", "type": "timer", "wait_days": 14},
+        {"id": "s2", "name": "Review", "type": "approval", "assignee": {"type": "role", "value": "manager"}},
+    ]))
+    try:
+        validate_definition(_NS(name="t", steps=[{"id": "s1", "name": "Wait", "type": "timer"}]))
+        raise AssertionError("timer without wait_hours/wait_days should fail")
+    except WorkflowValidationError:
+        pass
+    print("workflow_engine routing + timer self-check OK")
