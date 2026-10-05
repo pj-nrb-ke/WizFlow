@@ -10,7 +10,9 @@ from sqlalchemy.orm import Session
 
 from app.db.models import AssignmentRoundRobinState, Role, User, UserRole, WorkflowDefinition, WorkflowInstance
 
-ASSIGNMENT_MODES = frozenset({"claim", "load_balance", "round_robin"})
+# parallel = every candidate must approve (joint/committee approval); the others
+# each pick ONE actual assignee.
+ASSIGNMENT_MODES = frozenset({"claim", "load_balance", "round_robin", "parallel"})
 
 
 @dataclass
@@ -156,6 +158,13 @@ def resolve_step_assignment(
         )
 
     step_id = step.get("id") or ""
+    if mode == "parallel":
+        # Everyone stays assigned; each must approve (drained one-by-one on approval).
+        return StepAssignment(
+            assignees=[_user_dict(u) for u in users],
+            assignment_mode="parallel",
+            candidate_user_ids=[str(u.id) for u in users],
+        )
     if mode == "load_balance":
         picked = _pick_load_balance(db, company_id, users)
         return StepAssignment(

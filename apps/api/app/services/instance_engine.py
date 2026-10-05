@@ -286,6 +286,12 @@ def _advance_or_complete(
     return instance
 
 
+def _parallel_remaining(assignees: list[dict] | None, actor_id: UUID) -> list[dict]:
+    """Assignees still owing approval on a parallel step after `actor_id` approves."""
+    uid = str(actor_id)
+    return [a for a in (assignees or []) if a.get("user_id") != uid]
+
+
 def approve_request(
     db: Session,
     instance: WorkflowInstance,
@@ -295,6 +301,26 @@ def approve_request(
 ) -> WorkflowInstance:
     if not user_can_act(instance, actor_id):
         raise RequestError("You are not assigned to approve this step")
+    # Parallel (joint) approval: hold on the step until every assignee has approved.
+    if instance.assignment_mode == "parallel":
+        remaining = _parallel_remaining(instance.assignees, actor_id)
+        if remaining:
+            instance.assignees = remaining
+            record_event(
+                db,
+                company_id=instance.company_id,
+                event_type="step.approved",
+                actor_user_id=actor_id,
+                instance_id=instance.id,
+                payload={
+                    "step_id": instance.current_step_id,
+                    "comment": comment or "",
+                    "partial": True,
+                    "awaiting": len(remaining),
+                },
+            )
+            return instance
+        # last approver falls through to advance
     return _advance_or_complete(db, instance, defn, actor_id, "step.approved", comment)
 
 
@@ -427,3 +453,17 @@ def resubmit_returned(
         payload={"step_id": first_step_id},
     )
     return instance
+
+
+if __name__ == "__main__":  # self-check: parallel (joint) approval draining
+    from uuid import uuid4
+
+    a, b, c = uuid4(), uuid4(), uuid4()
+    pool = [{"user_id": str(a)}, {"user_id": str(b)}, {"user_id": str(c)}]
+    r1 = _parallel_remaining(pool, a)
+    assert len(r1) == 2 and {x["user_id"] for x in r1} == {str(b), str(c)}
+    r2 = _parallel_remaining(r1, b)
+    assert len(r2) == 1 and r2[0]["user_id"] == str(c)
+    assert _parallel_remaining(r2, c) == []  # last approver → advance
+    assert _parallel_remaining(pool, uuid4()) == pool  # non-member approves nothing away
+    print("instance_engine parallel-approval self-check OK")

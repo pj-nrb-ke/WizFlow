@@ -16,6 +16,7 @@ from app.schemas.workflow import (
     PublishRequest,
     SimulationRequest,
     SimulationResult,
+    SubprocessInsert,
     WorkflowDefinitionCreate,
     WorkflowDefinitionOut,
     WorkflowDefinitionListOut,
@@ -33,7 +34,7 @@ from app.schemas.user_group import (
     UserGroupOut,
     UserGroupMemberOut,
 )
-from app.services import instance_engine, workflow_engine
+from app.services import instance_engine, subprocesses, workflow_engine
 from app.services.recurring_schedules import close_obligations_for_instance
 from app.services.custom_workflow import (
     CustomWorkflowError,
@@ -523,6 +524,35 @@ def publish_workflow(
     db.commit()
     db.refresh(defn)
     return defn
+
+
+@router.post("/{workflow_id}/insert-subprocess", response_model=WorkflowDefinitionOut)
+def insert_subprocess(
+    workflow_id: UUID,
+    body: SubprocessInsert,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> WorkflowDefinition:
+    """Insert a saved workflow's steps as a reusable sub-process into this draft."""
+    if not any(r in MANAGER_ROLES for r in user.roles):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Manager role required")
+    target = _get_definition(db, workflow_id, user.company_id)
+    source = _get_definition(db, body.source_workflow_id, user.company_id)
+    try:
+        count = subprocesses.insert_subprocess(target, source)
+    except subprocesses.SubprocessError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    record_event(
+        db,
+        company_id=user.company_id,
+        event_type="workflow.subprocess_inserted",
+        actor_user_id=user.id,
+        workflow_definition_id=target.id,
+        payload={"source_id": str(source.id), "source_name": source.name, "steps": count},
+    )
+    db.commit()
+    db.refresh(target)
+    return target
 
 
 @router.post("/{workflow_id}/simulate", response_model=SimulationResult)

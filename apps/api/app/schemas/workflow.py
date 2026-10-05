@@ -97,6 +97,10 @@ class WorkflowDefinitionListOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class SubprocessInsert(BaseModel):
+    source_workflow_id: UUID
+
+
 class SimulationRequest(BaseModel):
     data: dict = Field(default_factory=dict)
 
