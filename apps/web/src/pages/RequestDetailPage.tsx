@@ -2,6 +2,7 @@ import { FormEvent, useCallback, useEffect, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { ThemeScope } from "../context/ThemeContext";
 import { ApprovalActions } from "../components/ApprovalActions";
+import { RequestCopilot } from "../components/RequestCopilot";
 import { RequestMetaBar } from "../components/RequestMetaBar";
 import { RequestStatusPanel } from "../components/RequestStatusPanel";
 import { StatusBadge } from "../components/StatusBadge";
@@ -228,6 +229,12 @@ export function RequestDetailPage() {
               This request was returned for correction. Update the highlighted fields below and
               resubmit to continue approval.
             </p>
+          </div>
+        )}
+
+        {id && (
+          <div className="max-w-6xl mb-6">
+            <RequestCopilot requestId={id} />
           </div>
         )}
 

@@ -28,6 +28,8 @@ from app.services.pdf_export import text_to_pdf
 from app.services.xlsx_export import rows_to_xlsx
 from app.services.event_labels import label_for_event
 from app.services.events import record_event
+from app.services import request_copilot
+from app.schemas.copilot import CopilotOut
 from app.services.instance_queries import get_instance, to_out, to_summary
 from app.services.request_filters import list_my_requests as query_my_requests
 
@@ -167,6 +169,26 @@ def get_request(
     inst = get_instance(db, request_id, user.company_id)
     defn = db.get(WorkflowDefinition, inst.workflow_definition_id)
     return to_out(db, inst, defn, user.id)
+
+
+@router.post("/{request_id}/copilot", response_model=CopilotOut)
+def request_copilot_analyze(
+    request_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> CopilotOut:
+    """Advisory copilot briefing for a request (D2): summary, missing info, flags, a
+    recommended decision + similar past cases. Read-only; the human decides."""
+    inst = get_instance(db, request_id, user.company_id)
+    defn = db.get(WorkflowDefinition, inst.workflow_definition_id)
+    grounding = None
+    try:
+        from app.services import knowledge  # D3 (optional until shipped)
+
+        grounding = knowledge.grounding_for_request(db, inst, defn)
+    except Exception:
+        grounding = None
+    return CopilotOut(**request_copilot.analyze(db, inst, defn, grounding=grounding))
 
 
 @router.patch("/{request_id}", response_model=WorkflowInstanceOut)

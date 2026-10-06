@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { ThemeScope } from "../context/ThemeContext";
 import { ApprovalActions } from "../components/ApprovalActions";
+import { RequestCopilot } from "../components/RequestCopilot";
 import { HelpTip } from "../components/HelpTip";
 import { CardSkeleton } from "../components/LoadingSkeleton";
 import { PageHeader } from "../components/PageHeader";
@@ -675,6 +676,7 @@ export function InboxPage() {
                   submittedAt={detail.submitted_at}
                   createdAt={detail.created_at}
                 />
+                {selectedId && <RequestCopilot requestId={selectedId} />}
                 {fields.length > 0 ? (
                   <WorkflowFormRenderer
                     fields={fields}
