@@ -30,6 +30,7 @@ from app.routers import (
     master_data,
     notifications,
     phase2,
+    process_intel,
     public_approval,
     public_forms,
     recurring_schedules,
@@ -117,6 +118,7 @@ v1.include_router(recurring_schedules.router)
 v1.include_router(bpmn.router)
 v1.include_router(business.router)
 v1.include_router(knowledge.router)
+v1.include_router(process_intel.router)
 app.include_router(v1)
 
 

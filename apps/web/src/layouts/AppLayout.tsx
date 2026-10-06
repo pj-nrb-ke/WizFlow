@@ -57,6 +57,7 @@ export function AppLayout() {
   const insightItems: NavItem[] = showAnalytics
     ? [
         { to: "/analytics", label: "Analytics", Icon: IconChartBar },
+        { to: "/process-intel", label: "Process Intel", Icon: IconChartBar },
         { to: "/reports", label: "Reports", Icon: IconClipboardList },
       ]
     : [];

@@ -27,6 +27,7 @@ import { IntegrationsPage } from "../pages/IntegrationsPage";
 import { AiControlsPage } from "../pages/AiControlsPage";
 import { KnowledgePage } from "../pages/KnowledgePage";
 import { AppBuilderPage } from "../pages/AppBuilderPage";
+import { ProcessIntelPage } from "../pages/ProcessIntelPage";
 import { MasterDataPage } from "../pages/MasterDataPage";
 import { HelpPage } from "../pages/HelpPage";
 import { AcceptInvitePage } from "../pages/AcceptInvitePage";
@@ -113,6 +114,7 @@ export function AppRoutes() {
           <Route path="notifications" element={<NotificationsPage />} />
           <Route path="setup" element={<SetupWizardPage />} />
           <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="process-intel" element={<ProcessIntelPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="integrations" element={<IntegrationsPage />} />
