@@ -3,6 +3,7 @@ import { useAuth } from "../context/AuthContext";
 import { USE_AUTH_COOKIES, isAuthenticated } from "../lib/auth";
 import { AppLayout } from "../layouts/AppLayout";
 import { AdminPage } from "../pages/AdminPage";
+import { DataPage } from "../pages/DataPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { InboxPage } from "../pages/InboxPage";
 import { LoginPage } from "../pages/LoginPage";
@@ -97,6 +98,7 @@ export function AppRoutes() {
           <Route path="custom-workflow" element={<CustomWorkflowPage />} />
           <Route path="process-designer" element={<ProcessDesignerPage />} />
           <Route path="process-designer/:id" element={<BpmnEditorPage />} />
+          <Route path="data" element={<DataPage />} />
           <Route path="ai" element={<AiWorkflowPage />} />
           <Route path="submit" element={<SubmitRequestPage />} />
           <Route path="requests" element={<MyRequestsPage />} />
