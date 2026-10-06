@@ -9,7 +9,7 @@ const BpmnCanvas = lazy(() => import("../components/BpmnModeler"));
 
 const APPROVAL_TYPES = ["bpmn:UserTask", "bpmn:Task", "bpmn:ManualTask"];
 const SERVICE_TYPES = ["bpmn:ServiceTask", "bpmn:SendTask", "bpmn:ScriptTask"];
-const SERVICE_KINDS = ["notify", "webhook", "ai", "document"] as const;
+const SERVICE_KINDS = ["notify", "webhook", "ai", "document", "record"] as const;
 const OPS = ["eq", "ne", "gt", "gte", "lt", "lte", "contains", "in"];
 const FIELD_TYPES = ["text", "number", "date", "textarea"];
 const SERVICE_FIELD: Record<string, { attr: string; label: string }> = {
@@ -17,6 +17,7 @@ const SERVICE_FIELD: Record<string, { attr: string; label: string }> = {
   webhook: { attr: "url", label: "Webhook URL" },
   ai: { attr: "prompt", label: "AI instruction" },
   document: { attr: "template_id", label: "Document template id" },
+  record: { attr: "entity_slug", label: "Save to data entity (slug)" },
 };
 
 export function BpmnEditorPage() {

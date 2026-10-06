@@ -22,7 +22,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.db.models import BpmnInstance
-from app.services import ai_client
+from app.services import ai_client, business_data
 from app.services.assignees import _users_for_role
 from app.services.notifications import notify_users
 from app.services.webhooks import is_safe_webhook_url
@@ -84,6 +84,16 @@ def build_runner(db: Session, inst: BpmnInstance, service_by_id: dict):
                 except Exception as e:  # pragma: no cover
                     logger.warning("native ai step failed for %s: %s", inst.id, e)
                     return None
+            if stype == "record":
+                business_data.create_record_from(
+                    db,
+                    company_id=inst.company_id,
+                    entity_slug=cfg.get("entity_slug") or "",
+                    source=task_data,
+                    mapping=cfg.get("mapping"),
+                    created_by=inst.originator_user_id,
+                )
+                return None
             # 'document' deferred for native (needs the request/form context)
         except Exception as e:  # pragma: no cover - never wedge the run
             logger.warning("native service task %s (%s) failed: %s", bpmn_id, stype, e)

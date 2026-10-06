@@ -12,7 +12,7 @@ class WorkflowValidationError(ValueError):
 
 
 # Service steps run automatically and *do* something (then auto-advance).
-SERVICE_STEP_TYPES = {"notify", "webhook", "ai", "document"}
+SERVICE_STEP_TYPES = {"notify", "webhook", "ai", "document", "record"}
 # Steps that run automatically (no human assignee); the scheduler progresses them.
 # Timers wait; service steps act. Both are driven by phase2_automation.
 AUTOMATED_STEP_TYPES = {"timer"} | SERVICE_STEP_TYPES
@@ -77,6 +77,8 @@ def validate_definition(defn: WorkflowDefinition) -> None:
                 raise WorkflowValidationError(f"AI step '{step.get('id')}' needs a prompt")
             if t == "document" and not str(step.get("template_id") or "").strip():
                 raise WorkflowValidationError(f"Document step '{step.get('id')}' needs a template_id")
+            if t == "record" and not str(step.get("entity_slug") or "").strip():
+                raise WorkflowValidationError(f"Record step '{step.get('id')}' needs an entity_slug")
             # notify: message is optional (defaults to a generic update)
         else:
             _validate_assignee(step)
@@ -259,10 +261,12 @@ if __name__ == "__main__":  # self-check: routing condition evaluator
         {"id": "w", "name": "Post to ERP", "type": "webhook", "url": "https://erp.example.com/hook"},
         {"id": "a", "name": "Triage", "type": "ai", "prompt": "Summarise the risk"},
         {"id": "d", "name": "Demand letter", "type": "document", "template_id": "demand"},
+        {"id": "rec", "name": "Save customer", "type": "record", "entity_slug": "customer"},
     ]))
     for bad in ({"id": "w", "name": "W", "type": "webhook"},
                 {"id": "a", "name": "A", "type": "ai"},
-                {"id": "d", "name": "D", "type": "document"}):
+                {"id": "d", "name": "D", "type": "document"},
+                {"id": "rec", "name": "R", "type": "record"}):
         try:
             validate_definition(_NS(name="t", steps=[bad]))
             raise AssertionError(f"{bad['type']} without config should fail")

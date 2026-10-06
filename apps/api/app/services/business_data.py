@@ -8,6 +8,10 @@ Relationships are a field of type ``relation`` whose value is a related record i
 from __future__ import annotations
 
 import re
+from uuid import UUID
+
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 
 FIELD_TYPES = {"text", "textarea", "number", "date", "boolean", "select", "relation"}
 
@@ -90,6 +94,49 @@ def validate_record(fields: list[dict], data: dict) -> dict:
         else:  # text, textarea, date, relation → stored as-is (string)
             out[key] = raw
     return out
+
+
+def create_record_from(
+    db: Session,
+    *,
+    company_id: UUID,
+    entity_slug: str,
+    source: dict,
+    mapping: dict | None = None,
+    created_by: UUID | None = None,
+) -> tuple[object | None, str]:
+    """Create a business record from a workflow's data (the 'record' service step).
+
+    Maps each entity field from ``source`` (via ``mapping`` {field_key: source_key},
+    else same key). Returns (record|None, summary); never raises so it can't wedge a
+    workflow — a missing entity or invalid data is reported in the summary instead.
+    """
+    from app.db.models import BusinessEntity, BusinessRecord  # local: avoid import cycles
+
+    entity = db.scalar(
+        select(BusinessEntity).where(
+            BusinessEntity.company_id == company_id, BusinessEntity.slug == entity_slug
+        )
+    )
+    if not entity:
+        return None, f"record: entity '{entity_slug}' not found"
+    mapping = mapping or {}
+    source = source or {}
+    mapped = {}
+    for f in entity.fields or []:
+        key = f.get("key")
+        if not key:
+            continue
+        src_key = mapping.get(key, key)
+        if src_key in source:
+            mapped[key] = source[src_key]
+    try:
+        clean = validate_record(entity.fields, mapped)
+    except BusinessDataError as e:
+        return None, f"record: {e}"
+    rec = BusinessRecord(company_id=company_id, entity_id=entity.id, data=clean, created_by=created_by)
+    db.add(rec)
+    return rec, f"record: added to {entity.name}"
 
 
 if __name__ == "__main__":  # self-check: schema enforcement

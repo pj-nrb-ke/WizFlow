@@ -130,8 +130,8 @@ const DATA = [
 
   { phase: "C · Full low-code platform (after B)", sub: "Each process becomes a self-contained application.",
     items: [
-      { name: "Business data model", desc: "Backend foundation done: define typed entities (text/number/date/bool/select/relation) and store/validate/query JSON records, company-scoped (business_entities + business_records, migration 029). CRUD API under /business. No dynamic DDL. Remaining: web UI to manage entities/records, relation expansion, workflow↔entity read/write.", status: "progress", eff: "XL" },
-      { name: "Page / menu builder", desc: "Assemble standalone app shells (Bonita 'Living Applications' scale).", status: "future", eff: "XL" },
+      { name: "Business data model", desc: "Typed entities (text/number/date/bool/select/relation) + validated JSON records, company-scoped (business_entities + business_records, migration 029), CRUD API + a Data web page to manage them. Workflows write to it via a 'record' service step (linear + native) — queryable across apps. No dynamic DDL. Follow-up: backend relation expansion.", status: "done", eff: "XL" },
+      { name: "Page / menu builder", desc: "Entity-driven data app: left-nav of entities + auto-generated record table and type-aware add/edit forms per entity — the Living-Application shell over the data model. A bespoke drag-and-drop page-layout designer is a future refinement.", status: "done", eff: "XL" },
     ]},
 ];
 

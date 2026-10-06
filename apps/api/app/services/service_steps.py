@@ -21,7 +21,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.db.models import Attachment, WorkflowDefinition, WorkflowInstance
-from app.services import ai_client, doc_templates
+from app.services import ai_client, business_data, doc_templates
 from app.services.assignees import _users_for_role
 from app.services.events import record_event
 from app.services.files import save_bytes
@@ -145,7 +145,22 @@ def _run_document(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition,
     return f"document: {name}"
 
 
-_RUNNERS = {"notify": _run_notify, "webhook": _run_webhook, "ai": _run_ai, "document": _run_document}
+def _run_record(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition, step: dict, data: dict) -> str:
+    _, summary = business_data.create_record_from(
+        db,
+        company_id=inst.company_id,
+        entity_slug=step.get("entity_slug") or "",
+        source=data,
+        mapping=step.get("mapping"),
+        created_by=inst.originator_user_id,
+    )
+    return summary
+
+
+_RUNNERS = {
+    "notify": _run_notify, "webhook": _run_webhook, "ai": _run_ai,
+    "document": _run_document, "record": _run_record,
+}
 
 
 def execute_service_step(
