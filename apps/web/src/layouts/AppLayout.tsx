@@ -44,6 +44,7 @@ export function AppLayout() {
 
   const buildItems: NavItem[] = [
     { to: "/workflows", label: "Workflows", Icon: IconWorkflow },
+    ...(showMasterData ? [{ to: "/app-builder", label: "App builder", Icon: IconSparkles }] : []),
     { to: "/ai", label: "AI creator", Icon: IconSparkles },
     { to: "/form-designer", label: "Form designer", Icon: IconForm },
     { to: "/custom-workflow", label: "Custom workflow", Icon: IconWorkflow },
