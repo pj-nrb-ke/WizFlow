@@ -27,6 +27,8 @@ export function BpmnEditorPage() {
   const [savedAt, setSavedAt] = useState("");
   const [publishing, setPublishing] = useState(false);
   const [published, setPublished] = useState<{ workflow_id: string; name: string; warnings: string[] } | null>(null);
+  const [runningNative, setRunningNative] = useState(false);
+  const [nativeStarted, setNativeStarted] = useState<{ status: string; ready: number } | null>(null);
   const [bindings, setBindings] = useState<BpmnBindings>({});
   const [selected, setSelected] = useState<BpmnSelection | null>(null);
   const [chat, setChat] = useState<{ role: "you" | "copilot"; text: string }[]>([]);
@@ -88,6 +90,20 @@ export function BpmnEditorPage() {
     } finally { setAsking(false); }
   }
 
+  async function runAsNative() {
+    if (!id) return;
+    setRunningNative(true); setError(""); setNativeStarted(null);
+    try {
+      await persist();
+      const res = await apiFetch<{ id: string; status: string; ready_tasks: unknown[] }>(
+        `/api/v1/bpmn/${id}/run`, { method: "POST", body: JSON.stringify({ data: {} }) }, getToken()
+      );
+      setNativeStarted({ status: res.status, ready: res.ready_tasks.length });
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail ?? e.message : "Could not start native app");
+    } finally { setRunningNative(false); }
+  }
+
   async function download(kind: "xml" | "svg") {
     if (!canvasRef.current) return;
     const content = kind === "xml" ? await canvasRef.current.getXml() : await canvasRef.current.getSvg();
@@ -113,6 +129,10 @@ export function BpmnEditorPage() {
           <button onClick={() => download("xml")} className="px-3 py-1.5 text-xs border border-slate-200 rounded-lg hover:bg-slate-50">Export BPMN</button>
           <button onClick={save} disabled={saving} className="px-3 py-1.5 text-sm border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50">{saving ? "Saving…" : "Save"}</button>
           <button onClick={publishAsApp} disabled={publishing} className="wf-btn-primary px-4 py-1.5 text-sm disabled:opacity-50">{publishing ? "Publishing…" : "Publish as app"}</button>
+          <button onClick={runAsNative} disabled={runningNative} title="For diagrams with parallel branches, events or loops that Publish as app can't run"
+            className="px-3 py-1.5 text-sm border border-[rgb(var(--wf-brand-500))] text-[rgb(var(--wf-brand-700))] rounded-lg hover:bg-slate-50 disabled:opacity-50">
+            {runningNative ? "Starting…" : "Run as native app"}
+          </button>
         </div>
       </div>
       {error ? <p className="text-sm text-red-600 mb-2">{error}</p> : null}
@@ -128,6 +148,15 @@ export function BpmnEditorPage() {
               {published.warnings.map((w, i) => <li key={i}>{w}</li>)}
             </ul>
           )}
+        </div>
+      ) : null}
+      {nativeStarted ? (
+        <div className="mb-3 rounded-lg border border-green-200 bg-green-50 p-3 text-sm">
+          <p className="font-medium text-green-800">
+            Native app {nativeStarted.status === "completed" ? "ran to completion" : "started"} —{" "}
+            {nativeStarted.ready} task(s) now awaiting action in the{" "}
+            <Link to="/inbox" className="wf-link underline">inbox →</Link>
+          </p>
         </div>
       ) : null}
       <div className="wf-card p-3 mb-3">

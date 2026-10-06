@@ -17,8 +17,6 @@ diagram runs natively only when needs_native_execution() flags complex shapes.
 
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
-
 from SpiffWorkflow.bpmn.parser.BpmnParser import BpmnParser
 from SpiffWorkflow.bpmn.serializer.config import DEFAULT_CONFIG
 from SpiffWorkflow.bpmn.serializer.default.task_spec import BpmnTaskSpecConverter
@@ -27,7 +25,7 @@ from SpiffWorkflow.bpmn.specs.defaults import ServiceTask
 from SpiffWorkflow.bpmn.workflow import BpmnWorkflow
 from SpiffWorkflow.util.task import TaskState
 
-from app.services.bpmn_compile import _UNSUPPORTED, _local
+from app.services.bpmn_compile import needs_native_execution  # noqa: F401 (re-export)
 
 try:  # SendTask may not exist in every SpiffWorkflow build
     from SpiffWorkflow.bpmn.specs.defaults import SendTask
@@ -46,23 +44,6 @@ def _build_serializer() -> BpmnWorkflowSerializer:
 
 
 SERIALIZER = _build_serializer()
-
-
-def needs_native_execution(xml: str) -> list[str]:
-    """Shapes present that the linear engine can't run (→ this diagram wants Spiff).
-
-    Empty list = the linear compiler/engine can handle it; keep it there.
-    """
-    try:
-        root = ET.fromstring(xml)
-    except ET.ParseError:
-        return []
-    found: list[str] = []
-    for el in root.iter():
-        kind = _local(el.tag)
-        if kind in _UNSUPPORTED and _UNSUPPORTED[kind] not in found:
-            found.append(_UNSUPPORTED[kind])
-    return found
 
 
 def _process_id(parser: BpmnParser) -> str:

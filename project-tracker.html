@@ -125,7 +125,7 @@ const DATA = [
 
   { phase: "B · Native BPMN execution (after A)", sub: "Full BPMN fidelity for the hard cases the native engine won't cover.",
     items: [
-      { name: "Embed SpiffWorkflow", desc: "Native BPMN engine: execute (spiff_engine) · diagram+bindings → executable BPMN (bpmn_executable) · persistent start/complete lifecycle (native_instance + bpmn_instances, migration 028) · inbox bridge — native human tasks appear in the inbox for eligible users (by role/user binding) with a Complete action, server-enforced. Isolated from the linear heart. Remaining: service-task + timer/event wiring, publish-as-native + start/per-task-form UI.", status: "progress", eff: "XL" },
+      { name: "Embed SpiffWorkflow", desc: "Native BPMN engine, end-to-end: execute (spiff_engine) · diagram+bindings→executable BPMN (bpmn_executable) · persistent lifecycle (native_instance + bpmn_instances, migration 028) · human tasks in the inbox for eligible users · service tasks (notify/webhook/ai) + scheduler-driven timers/events · 'Run as native app' button. Runs the parallel/event/loop diagrams the linear engine can't, isolated from the heart. Follow-ups: per-task forms, document service task, native run history UI.", status: "done", eff: "XL" },
     ]},
 
   { phase: "C · Full low-code platform (after B)", sub: "Each process becomes a self-contained application.",

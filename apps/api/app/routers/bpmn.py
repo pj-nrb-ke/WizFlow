@@ -36,7 +36,7 @@ from app.schemas.bpmn import (
 from app.data.workflow_templates import get_template, list_template_summaries
 from app.services import ai_workflow, native_instance, native_service, workflow_engine
 from app.services.bpmn_assistant import assist, draft_to_diagram
-from app.services.bpmn_compile import compile_bpmn_to_workflow
+from app.services.bpmn_compile import compile_bpmn_to_workflow, needs_native_execution
 from app.services.bpmn_export import EMPTY_DIAGRAM_XML, workflow_to_bpmn
 from app.services.events import record_event
 
@@ -174,6 +174,7 @@ def compile_diagram(
     return CompiledWorkflowOut(
         ok=r.ok, name=r.name, form_schema=r.form_schema, steps=r.steps,
         routing_rules=r.routing_rules, errors=r.errors, warnings=r.warnings,
+        native_shapes=needs_native_execution(row.bpmn_xml),
     )
 
 

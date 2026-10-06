@@ -71,6 +71,21 @@ def _local(tag: str) -> str:
     return tag.rsplit("}", 1)[-1]
 
 
+def needs_native_execution(xml: str) -> list[str]:
+    """Shapes present that the linear engine can't run (→ this diagram needs the
+    native SpiffWorkflow engine). Empty = the linear compiler/engine can handle it."""
+    try:
+        root = ET.fromstring(xml)
+    except ET.ParseError:
+        return []
+    found: list[str] = []
+    for el in root.iter():
+        label = _UNSUPPORTED.get(_local(el.tag))
+        if label and label not in found:
+            found.append(label)
+    return found
+
+
 def _wf(el: ET.Element, name: str) -> ET.Element | None:
     """First wizflow:<name> descendant (direct child or nested in extensionElements)."""
     return next(iter(el.iter(f"{{{WIZFLOW_NS}}}{name}")), None)

@@ -42,6 +42,7 @@ class CompiledWorkflowOut(BaseModel):
     routing_rules: list[dict] = Field(default_factory=list)
     errors: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+    native_shapes: list[str] = Field(default_factory=list)  # shapes needing native execution
 
 
 class PublishAsAppOut(BaseModel):
