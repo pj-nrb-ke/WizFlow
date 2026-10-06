@@ -17,7 +17,7 @@ from pathlib import Path
 from uuid import UUID, uuid4
 
 from app.config import settings
-from app.services import ai_client
+from app.services import ai_client, ai_gateway
 
 logger = logging.getLogger("wizflow.voice")
 
@@ -105,7 +105,9 @@ def polish_comment(text: str, language: str | None = None) -> str:
             "Keep the original meaning and the original language, do not translate, "
             "and do not add information that isn't there. Return only the cleaned note."
         )
-        return ai_client.chat(system, text, temperature=0.2) or text
+        return ai_gateway.run(
+            task=ai_gateway.TASK_VOICE_POLISH, system=system, user=text, temperature=0.2,
+        ) or text
     except Exception as e:  # pragma: no cover - network/LLM hiccup → keep raw
         logger.warning("polish_comment fell back to raw transcript: %s", e)
         return text

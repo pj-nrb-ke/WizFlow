@@ -22,7 +22,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.db.models import BpmnInstance
-from app.services import ai_client, business_data
+from app.services import ai_client, ai_gateway, business_data
 from app.services.assignees import _users_for_role
 from app.services.notifications import notify_users
 from app.services.webhooks import is_safe_webhook_url
@@ -75,10 +75,14 @@ def build_runner(db: Session, inst: BpmnInstance, service_by_id: dict):
                 if not ai_client.is_configured():
                     return None
                 try:
-                    out = ai_client.chat(
-                        "You are an automated step in a business workflow. Follow the instruction using "
-                        "only the data provided and return a concise result.",
-                        f"Instruction: {cfg.get('prompt')}\n\nData (JSON):\n{json.dumps(task_data, default=str)}",
+                    out = ai_gateway.run(
+                        task=ai_gateway.TASK_WORKFLOW_AI_STEP,
+                        system=(
+                            "You are an automated step in a business workflow. Follow the instruction using "
+                            "only the data provided and return a concise result."
+                        ),
+                        user=f"Instruction: {cfg.get('prompt')}\n\nData (JSON):\n{json.dumps(task_data, default=str)}",
+                        company_id=inst.company_id,
                     )
                     return {cfg.get("output_key") or "ai_result": out}
                 except Exception as e:  # pragma: no cover

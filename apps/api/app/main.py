@@ -9,6 +9,7 @@ from app.middleware.rate_limit import RateLimitMiddleware
 from app.routers import (
     admin,
     ai,
+    ai_admin,
     analytics,
     auth,
     bpmn,
@@ -86,6 +87,7 @@ v1.include_router(admin.router)
 v1.include_router(user_groups.router)
 v1.include_router(workflows.router)
 v1.include_router(ai.router)
+v1.include_router(ai_admin.router)
 v1.include_router(requests.router)
 v1.include_router(inbox.router)
 v1.include_router(notifications.router)

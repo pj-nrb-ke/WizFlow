@@ -21,7 +21,7 @@ import httpx
 from sqlalchemy.orm import Session
 
 from app.db.models import Attachment, WorkflowDefinition, WorkflowInstance
-from app.services import ai_client, business_data, doc_templates
+from app.services import ai_client, ai_gateway, business_data, doc_templates
 from app.services.assignees import _users_for_role
 from app.services.events import record_event
 from app.services.files import save_bytes
@@ -84,7 +84,7 @@ def _run_webhook(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition, 
         return f"webhook: error ({type(e).__name__})"
 
 
-def _ai_note(prompt: str, data: dict) -> str:
+def _ai_note(prompt: str, data: dict, company_id=None) -> str:
     if not ai_client.is_configured():
         return f"[AI step] {prompt} — (no AI key configured)"
     try:
@@ -94,15 +94,18 @@ def _ai_note(prompt: str, data: dict) -> str:
             "a concise note (2-4 sentences) to add to the request's timeline."
         )
         user = f"Instruction: {prompt}\n\nRequest data (JSON):\n{json.dumps(data, default=str)}"
-        return ai_client.chat(system, user, temperature=0.3) or f"[AI step] {prompt}"
-    except Exception as e:  # pragma: no cover - LLM/network hiccup
+        return ai_gateway.run(
+            task=ai_gateway.TASK_WORKFLOW_AI_STEP, system=system, user=user,
+            company_id=company_id, temperature=0.3,
+        ) or f"[AI step] {prompt}"
+    except Exception as e:  # pragma: no cover - LLM/network hiccup / governance refusal
         logger.warning("ai step fell back for prompt %r: %s", prompt[:40], e)
         return f"[AI step] {prompt} — (AI unavailable)"
 
 
 def _run_ai(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition, step: dict, data: dict) -> str:
     prompt = str(step.get("prompt") or step.get("ai_prompt") or "").strip()
-    note = _ai_note(prompt, data)
+    note = _ai_note(prompt, data, inst.company_id)
     # Surface the result in the timeline, same channel as a human/voice comment.
     record_event(
         db,

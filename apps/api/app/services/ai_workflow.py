@@ -6,7 +6,7 @@ import json
 import re
 from typing import Any
 
-from app.services import ai_client, workflow_engine
+from app.services import ai_client, ai_gateway, workflow_engine
 from app.services.ui_settings import suggest_ui_for_workflow_name
 
 
@@ -123,9 +123,16 @@ def _explain_draft(draft: dict, description: str) -> str:
     )
 
 
-def _call_ai(system: str, user: str) -> dict[str, Any]:
-    """Provider-agnostic JSON completion (OpenAI/Anthropic/compatible). Raises if unconfigured."""
-    return ai_client.parse_json(ai_client.chat(system, user, json_mode=True))
+def _call_ai(system: str, user: str, company_id=None) -> dict[str, Any]:
+    """Provider-agnostic JSON completion (OpenAI/Anthropic/compatible). Raises if unconfigured.
+    Routed through the AI gateway so drafting is governed, routed to the strong model
+    tier, metered and logged (D1)."""
+    return ai_client.parse_json(
+        ai_gateway.run(
+            task=ai_gateway.TASK_WORKFLOW_DRAFT, system=system, user=user,
+            company_id=company_id, json_mode=True,
+        )
+    )
 
 
 SYSTEM_PROMPT = """You are WizFlow's workflow designer. Output JSON only with keys:

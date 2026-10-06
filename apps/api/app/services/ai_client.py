@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import re
+from dataclasses import dataclass
 
 import httpx
 
@@ -27,6 +28,16 @@ _ANTHROPIC_DEFAULT = "https://api.anthropic.com/v1"
 
 class AiError(RuntimeError):
     pass
+
+
+@dataclass
+class ChatResult:
+    """A completion plus the token usage reported by the provider (0 if absent)."""
+
+    text: str
+    model: str
+    prompt_tokens: int = 0
+    completion_tokens: int = 0
 
 
 def is_configured() -> bool:
@@ -41,28 +52,48 @@ def _base_url(default: str) -> str:
     return (settings.ai_base_url or default).rstrip("/")
 
 
+def complete(
+    system: str,
+    user: str,
+    *,
+    model: str | None = None,
+    json_mode: bool = False,
+    temperature: float = 0.3,
+    max_tokens: int = 1024,
+    timeout: float = 60.0,
+) -> ChatResult:
+    """Return text + token usage. Raises AiError if unconfigured. The metered entry
+    point used by the AI gateway (D1); ``chat`` wraps it for the text-only callers."""
+    if not is_configured():
+        raise AiError("No AI API key configured")
+    mdl = (model or settings.ai_model).strip()
+    if provider() == "anthropic":
+        return _anthropic_chat(system, user, model=mdl, temperature=temperature, max_tokens=max_tokens, timeout=timeout)
+    return _openai_chat(
+        system, user, model=mdl, json_mode=json_mode, temperature=temperature, max_tokens=max_tokens, timeout=timeout
+    )
+
+
 def chat(
     system: str,
     user: str,
     *,
+    model: str | None = None,
     json_mode: bool = False,
     temperature: float = 0.3,
     max_tokens: int = 1024,
     timeout: float = 60.0,
 ) -> str:
     """Return the model's text reply. Raises AiError if unconfigured."""
-    if not is_configured():
-        raise AiError("No AI API key configured")
-    if provider() == "anthropic":
-        return _anthropic_chat(system, user, temperature=temperature, max_tokens=max_tokens, timeout=timeout)
-    return _openai_chat(
-        system, user, json_mode=json_mode, temperature=temperature, max_tokens=max_tokens, timeout=timeout
-    )
+    return complete(
+        system, user, model=model, json_mode=json_mode,
+        temperature=temperature, max_tokens=max_tokens, timeout=timeout,
+    ).text
 
 
-def _openai_chat(system, user, *, json_mode, temperature, max_tokens, timeout) -> str:
+def _openai_chat(system, user, *, model, json_mode, temperature, max_tokens, timeout) -> ChatResult:
     payload: dict = {
-        "model": settings.ai_model,
+        "model": model,
         "messages": [
             {"role": "system", "content": system},
             {"role": "user", "content": user},
@@ -76,12 +107,19 @@ def _openai_chat(system, user, *, json_mode, temperature, max_tokens, timeout) -
     with httpx.Client(timeout=timeout) as client:
         r = client.post(f"{_base_url(_OPENAI_DEFAULT)}/chat/completions", json=payload, headers=headers)
         r.raise_for_status()
-        return (r.json()["choices"][0]["message"]["content"] or "").strip()
+        body = r.json()
+        usage = body.get("usage") or {}
+        return ChatResult(
+            text=(body["choices"][0]["message"]["content"] or "").strip(),
+            model=body.get("model") or model,
+            prompt_tokens=int(usage.get("prompt_tokens") or 0),
+            completion_tokens=int(usage.get("completion_tokens") or 0),
+        )
 
 
-def _anthropic_chat(system, user, *, temperature, max_tokens, timeout) -> str:
+def _anthropic_chat(system, user, *, model, temperature, max_tokens, timeout) -> ChatResult:
     payload = {
-        "model": settings.ai_model,
+        "model": model,
         "max_tokens": max_tokens,
         "temperature": temperature,
         "system": system,
@@ -95,8 +133,15 @@ def _anthropic_chat(system, user, *, temperature, max_tokens, timeout) -> str:
     with httpx.Client(timeout=timeout) as client:
         r = client.post(f"{_base_url(_ANTHROPIC_DEFAULT)}/messages", json=payload, headers=headers)
         r.raise_for_status()
-        parts = r.json().get("content") or []
-        return "".join(p.get("text", "") for p in parts if isinstance(p, dict)).strip()
+        body = r.json()
+        parts = body.get("content") or []
+        usage = body.get("usage") or {}
+        return ChatResult(
+            text="".join(p.get("text", "") for p in parts if isinstance(p, dict)).strip(),
+            model=body.get("model") or model,
+            prompt_tokens=int(usage.get("input_tokens") or 0),
+            completion_tokens=int(usage.get("output_tokens") or 0),
+        )
 
 
 _FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)

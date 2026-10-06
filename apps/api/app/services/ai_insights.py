@@ -6,7 +6,7 @@ from datetime import datetime, timezone
 
 from sqlalchemy.orm import Session
 
-from app.services import ai_client
+from app.services import ai_client, ai_gateway
 from app.services import analytics as analytics_service
 
 
@@ -22,9 +22,11 @@ def executive_narrative(db: Session, ctx: analytics_service.AnalyticsContext) ->
         f"Data: {summary.model_dump()}, bottlenecks: {bottlenecks.model_dump()}"
     )
     try:
-        return ai_client.chat(
-            "You are a concise business analyst for workflow KPIs.",
-            prompt[:8000],
+        return ai_gateway.run(
+            task=ai_gateway.TASK_ANALYTICS_NARRATIVE,
+            system="You are a concise business analyst for workflow KPIs.",
+            user=prompt[:8000],
+            company_id=ctx.company_id,
             temperature=0.4,
         ) or _template_narrative(summary, bottlenecks)
     except Exception:

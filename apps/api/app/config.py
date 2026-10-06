@@ -35,6 +35,13 @@ class Settings(BaseSettings):
     # Leave ai_base_url blank to use the provider's default host.
     ai_provider: str = "openai"
     ai_base_url: str = ""
+    # AI control plane (D1). ai_enabled is the global emergency kill switch — off
+    # disables every LLM call platform-wide (callers fall back gracefully). Per-company
+    # kill switch, budgets and per-feature toggles live in the ai_governance table.
+    # ai_strong_model is the model used for reasoning-heavy tasks (requirements→app,
+    # process improvement, workflow drafting); blank falls back to ai_model.
+    ai_enabled: bool = True
+    ai_strong_model: str = ""
     expo_push_enabled: bool = True
     expo_push_access_token: str = ""
     # Voice-note transcription (self-hosted faster-whisper, CPU). Model downloads on

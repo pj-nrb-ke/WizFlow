@@ -67,6 +67,7 @@ export function AppLayout() {
     ...(isAdmin
       ? [
           { to: "/integrations", label: "Integrations", Icon: IconShield },
+          { to: "/ai-controls", label: "AI Controls", Icon: IconSparkles },
           { to: "/admin", label: "Admin", Icon: IconShield },
         ]
       : []),

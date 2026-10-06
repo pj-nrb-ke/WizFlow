@@ -24,6 +24,7 @@ import { TemplatesPage } from "../pages/TemplatesPage";
 import { AnalyticsPage } from "../pages/AnalyticsPage";
 import { ReportsPage } from "../pages/ReportsPage";
 import { IntegrationsPage } from "../pages/IntegrationsPage";
+import { AiControlsPage } from "../pages/AiControlsPage";
 import { MasterDataPage } from "../pages/MasterDataPage";
 import { HelpPage } from "../pages/HelpPage";
 import { AcceptInvitePage } from "../pages/AcceptInvitePage";
@@ -111,6 +112,7 @@ export function AppRoutes() {
           <Route path="reports" element={<ReportsPage />} />
           <Route path="admin" element={<AdminPage />} />
           <Route path="integrations" element={<IntegrationsPage />} />
+          <Route path="ai-controls" element={<AiControlsPage />} />
           <Route path="master-data" element={<MasterDataPage />} />
           <Route path="reminders" element={<RemindersPage />} />
           <Route path="recurring-schedules" element={<RecurringSchedulesPage />} />
