@@ -42,6 +42,56 @@ import {
   type FormLayout,
 } from "../lib/themes";
 
+type MyNativeTask = { instance_id: string; instance_name: string; task_id: string; task_name: string };
+
+function NativeTasksSection() {
+  const [tasks, setTasks] = useState<MyNativeTask[]>([]);
+  const [busy, setBusy] = useState<string | null>(null);
+  const [err, setErr] = useState("");
+  const load = useCallback(() => {
+    apiFetch<MyNativeTask[]>("/api/v1/bpmn/native/my-tasks", {}, getToken()).then(setTasks).catch(() => setTasks([]));
+  }, []);
+  useEffect(() => { load(); }, [load]);
+  if (tasks.length === 0) return null;
+
+  async function complete(t: MyNativeTask) {
+    setBusy(t.task_id); setErr("");
+    try {
+      await apiFetch(
+        `/api/v1/bpmn/native/${t.instance_id}/tasks/${t.task_id}/complete`,
+        { method: "POST", body: JSON.stringify({ data: {} }) },
+        getToken()
+      );
+      load();
+    } catch (e) {
+      setErr(e instanceof ApiError ? e.detail ?? e.message : "Could not complete task");
+    } finally { setBusy(null); }
+  }
+
+  return (
+    <div className="wf-card p-4 mb-4 border-l-4 border-[rgb(var(--wf-brand-500))]">
+      <p className="text-sm font-semibold text-slate-800 mb-2">
+        🧩 Native process tasks <span className="text-xs font-normal text-slate-500">· advanced BPMN apps</span>
+      </p>
+      {err && <p className="text-xs text-red-600 mb-2">{err}</p>}
+      <ul className="space-y-2">
+        {tasks.map((t) => (
+          <li key={t.task_id} className="flex items-center gap-3 text-sm">
+            <span className="min-w-0 flex-1 truncate">
+              <span className="font-medium text-slate-800">{t.task_name}</span>
+              <span className="text-slate-500"> · {t.instance_name}</span>
+            </span>
+            <button onClick={() => complete(t)} disabled={busy === t.task_id}
+              className="wf-btn-primary px-3 py-1.5 text-xs disabled:opacity-50">
+              {busy === t.task_id ? "…" : "Complete"}
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function InboxPage() {
   const [items, setItems] = useState<InboxItem[]>([]);
   const [workflows, setWorkflows] = useState<WorkflowSummary[]>([]);
@@ -373,6 +423,8 @@ export function InboxPage() {
           </div>
         }
       />
+
+      <NativeTasksSection />
 
       <div className="flex flex-col gap-3 mb-4 p-3 wf-card">
         <div className="flex flex-col lg:flex-row flex-wrap gap-3">

@@ -27,6 +27,7 @@ from app.schemas.bpmn import (
     CompiledWorkflowOut,
     FromRequirementsIn,
     FromTemplateIn,
+    MyNativeTaskOut,
     NativeInstanceOut,
     NativeRunIn,
     NativeTaskCompleteIn,
@@ -278,6 +279,41 @@ def _get_native(db: Session, instance_id: UUID, company_id: UUID) -> BpmnInstanc
     return inst
 
 
+def _instance_task_assignees(db: Session, inst: BpmnInstance) -> dict:
+    """bpmn element id → assignee binding, from the instance's diagram (or empty)."""
+    diagram = db.get(BpmnDiagram, inst.diagram_id) if inst.diagram_id else None
+    return {k: (v or {}).get("assignee") for k, v in ((diagram.bindings or {}).get("tasks") or {}).items()} if diagram else {}
+
+
+@router.get("/native/my-tasks", response_model=list[MyNativeTaskOut])
+def my_native_tasks(
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> list[MyNativeTaskOut]:
+    """Native-app human tasks awaiting the current user — the inbox bridge (Phase B · B3).
+
+    ponytail: deserializes each running instance per call; fine at demo scale, index
+    ready tasks in a column if this list grows hot.
+    """
+    out: list[MyNativeTaskOut] = []
+    running = db.scalars(
+        select(BpmnInstance).where(
+            BpmnInstance.company_id == user.company_id, BpmnInstance.status == "running"
+        )
+    )
+    for inst in running:
+        if not inst.spiff_state:
+            continue
+        assignees = _instance_task_assignees(db, inst)
+        for t in native_instance.ready_tasks(inst.spiff_state):
+            if native_instance.user_eligible(assignees.get(t["bpmn_id"]), user.roles, user.id):
+                out.append(MyNativeTaskOut(
+                    instance_id=inst.id, instance_name=inst.name,
+                    task_id=t["id"], task_name=t["name"],
+                ))
+    return out
+
+
 @router.get("/native/{instance_id}", response_model=NativeInstanceOut)
 def get_native(
     instance_id: UUID,
@@ -300,8 +336,12 @@ def complete_native_task(
     inst = _get_native(db, instance_id, user.company_id)
     if inst.status != "running":
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Instance is not running")
+    assignees = _instance_task_assignees(db, inst)
+    authorize = lambda bpmn_id: native_instance.user_eligible(assignees.get(bpmn_id), user.roles, user.id)  # noqa: E731
     try:
-        snap = native_instance.complete_task(inst.spiff_state, task_id, body.data)
+        snap = native_instance.complete_task(inst.spiff_state, task_id, body.data, authorize=authorize)
+    except PermissionError as e:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except ValueError as e:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
     inst.spiff_state = snap["state"]

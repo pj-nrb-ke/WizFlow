@@ -24,17 +24,28 @@ from app.services.bpmn_executable import to_executable_bpmn
 _serializer = BpmnWorkflowSerializer()
 
 
-def _snapshot(wf) -> dict:
-    """Serialized state + status + the human tasks now awaiting action."""
-    ready = [
-        {"id": str(t.id), "name": t.task_spec.bpmn_name or t.task_spec.name}
+def _ready(wf) -> list[dict]:
+    return [
+        {"id": str(t.id), "name": t.task_spec.bpmn_name or t.task_spec.name, "bpmn_id": t.task_spec.bpmn_id}
         for t in wf.get_tasks(state=TaskState.READY)
     ]
+
+
+def _snapshot(wf) -> dict:
+    """Serialized state + status + the human tasks now awaiting action."""
     return {
         "state": _serializer.serialize_json(wf),
         "status": "completed" if wf.is_completed() else "running",
-        "ready_tasks": ready,
+        "ready_tasks": _ready(wf),
     }
+
+
+def user_eligible(assignee: dict | None, roles, user_id) -> bool:
+    """Whether a user may act on a task with this binding assignee (default: manager role)."""
+    a = assignee or {"type": "role", "value": "manager"}
+    if a.get("type") == "users":
+        return str(user_id) in [str(x) for x in (a.get("user_ids") or [])]
+    return (a.get("value") or "manager") in set(roles or [])
 
 
 def start(xml: str, bindings: dict | None, data: dict | None = None) -> dict:
@@ -48,19 +59,20 @@ def start(xml: str, bindings: dict | None, data: dict | None = None) -> dict:
 
 def ready_tasks(state: str) -> list[dict]:
     """Human tasks currently awaiting action (read-only), from serialized state."""
-    wf = _serializer.deserialize_json(state)
-    return [
-        {"id": str(t.id), "name": t.task_spec.bpmn_name or t.task_spec.name}
-        for t in wf.get_tasks(state=TaskState.READY)
-    ]
+    return _ready(_serializer.deserialize_json(state))
 
 
-def complete_task(state: str, task_id: str, data: dict | None = None) -> dict:
-    """Complete a human task (with its form data) and advance the resumed state."""
+def complete_task(state: str, task_id: str, data: dict | None = None, *, authorize=None) -> dict:
+    """Complete a human task (with its form data) and advance the resumed state.
+
+    `authorize(bpmn_id) -> bool`, when given, gates who may complete the task.
+    """
     wf = _serializer.deserialize_json(state)
     task = wf.get_task_from_id(UUID(str(task_id)))
     if task is None:
         raise ValueError(f"Task {task_id} not found or no longer active")
+    if authorize is not None and not authorize(task.task_spec.bpmn_id):
+        raise PermissionError("You are not assigned to this task")
     if data:
         task.set_data(**data)
     task.run()

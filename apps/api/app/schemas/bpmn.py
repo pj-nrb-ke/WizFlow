@@ -87,6 +87,14 @@ class NativeInstanceOut(BaseModel):
     ready_tasks: list[NativeTaskOut] = Field(default_factory=list)
 
 
+class MyNativeTaskOut(BaseModel):
+    """A native-app human task awaiting the current user (inbox bridge)."""
+    instance_id: UUID
+    instance_name: str
+    task_id: str
+    task_name: str
+
+
 class AssistantIn(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
 
