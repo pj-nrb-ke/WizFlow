@@ -34,7 +34,7 @@ from app.schemas.bpmn import (
     PublishAsAppOut,
 )
 from app.data.workflow_templates import get_template, list_template_summaries
-from app.services import ai_workflow, native_instance, workflow_engine
+from app.services import ai_workflow, native_instance, native_service, workflow_engine
 from app.services.bpmn_assistant import assist, draft_to_diagram
 from app.services.bpmn_compile import compile_bpmn_to_workflow
 from app.services.bpmn_export import EMPTY_DIAGRAM_XML, workflow_to_bpmn
@@ -254,19 +254,24 @@ def run_native(
 ) -> NativeInstanceOut:
     """Phase B: start a native-BPMN run of a diagram (for diagrams the linear engine can't model)."""
     row = _get_owned(db, diagram_id, user.company_id)
-    try:
-        snap = native_instance.start(row.bpmn_xml, row.bindings, body.data)
-    except Exception as e:  # parse/exec errors surface as 400
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Could not start native run: {e}")
+    # Create the instance first so service tasks can run with its context.
     inst = BpmnInstance(
         company_id=user.company_id,
         diagram_id=row.id,
         name=row.name,
-        status=snap["status"],
-        spiff_state=snap["state"],
+        status="running",
         originator_user_id=user.id,
     )
     db.add(inst)
+    db.flush()
+    runner = native_service.build_runner(db, inst, _services_from_bindings(row.bindings))
+    try:
+        snap = native_instance.start(row.bpmn_xml, row.bindings, body.data, service_runner=runner)
+    except Exception as e:  # parse/exec errors surface as 400
+        db.rollback()
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Could not start native run: {e}")
+    inst.spiff_state = snap["state"]
+    inst.status = snap["status"]
     db.commit()
     db.refresh(inst)
     return _native_out(inst, snap["ready_tasks"])
@@ -279,10 +284,21 @@ def _get_native(db: Session, instance_id: UUID, company_id: UUID) -> BpmnInstanc
     return inst
 
 
+def _services_from_bindings(bindings: dict | None) -> dict:
+    """bpmn element id → service config, from a diagram's bindings."""
+    tasks = (bindings or {}).get("tasks") or {}
+    return {k: (v or {}).get("service") for k, v in tasks.items() if (v or {}).get("service")}
+
+
 def _instance_task_assignees(db: Session, inst: BpmnInstance) -> dict:
     """bpmn element id → assignee binding, from the instance's diagram (or empty)."""
     diagram = db.get(BpmnDiagram, inst.diagram_id) if inst.diagram_id else None
     return {k: (v or {}).get("assignee") for k, v in ((diagram.bindings or {}).get("tasks") or {}).items()} if diagram else {}
+
+
+def _instance_services(db: Session, inst: BpmnInstance) -> dict:
+    diagram = db.get(BpmnDiagram, inst.diagram_id) if inst.diagram_id else None
+    return _services_from_bindings(diagram.bindings if diagram else None)
 
 
 @router.get("/native/my-tasks", response_model=list[MyNativeTaskOut])
@@ -338,8 +354,9 @@ def complete_native_task(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Instance is not running")
     assignees = _instance_task_assignees(db, inst)
     authorize = lambda bpmn_id: native_instance.user_eligible(assignees.get(bpmn_id), user.roles, user.id)  # noqa: E731
+    runner = native_service.build_runner(db, inst, _instance_services(db, inst))
     try:
-        snap = native_instance.complete_task(inst.spiff_state, task_id, body.data, authorize=authorize)
+        snap = native_instance.complete_task(inst.spiff_state, task_id, body.data, authorize=authorize, service_runner=runner)
     except PermissionError as e:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail=str(e))
     except ValueError as e:

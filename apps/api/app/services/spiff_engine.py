@@ -20,11 +20,32 @@ from __future__ import annotations
 import xml.etree.ElementTree as ET
 
 from SpiffWorkflow.bpmn.parser.BpmnParser import BpmnParser
+from SpiffWorkflow.bpmn.serializer.config import DEFAULT_CONFIG
+from SpiffWorkflow.bpmn.serializer.default.task_spec import BpmnTaskSpecConverter
 from SpiffWorkflow.bpmn.serializer.workflow import BpmnWorkflowSerializer
+from SpiffWorkflow.bpmn.specs.defaults import ServiceTask
 from SpiffWorkflow.bpmn.workflow import BpmnWorkflow
 from SpiffWorkflow.util.task import TaskState
 
 from app.services.bpmn_compile import _UNSUPPORTED, _local
+
+try:  # SendTask may not exist in every SpiffWorkflow build
+    from SpiffWorkflow.bpmn.specs.defaults import SendTask
+except Exception:  # pragma: no cover
+    SendTask = None
+
+
+def _build_serializer() -> BpmnWorkflowSerializer:
+    # Bare service/send tasks (ours complete externally) aren't in the default config;
+    # register the plain task-spec converter so native state serializes/round-trips.
+    cfg = dict(DEFAULT_CONFIG)
+    cfg[ServiceTask] = BpmnTaskSpecConverter
+    if SendTask is not None:
+        cfg[SendTask] = BpmnTaskSpecConverter
+    return BpmnWorkflowSerializer(BpmnWorkflowSerializer.configure(cfg))
+
+
+SERIALIZER = _build_serializer()
 
 
 def needs_native_execution(xml: str) -> list[str]:
@@ -81,8 +102,13 @@ def run_headless(xml: str, data: dict | None = None, *, max_iters: int = 1000) -
 
 
 def serialize(wf: BpmnWorkflow) -> str:
-    """Serialize workflow state to JSON for persistence (future: stored per instance)."""
-    return BpmnWorkflowSerializer().serialize_json(wf)
+    """Serialize workflow state to JSON for persistence (stored per instance)."""
+    return SERIALIZER.serialize_json(wf)
+
+
+def deserialize(state: str) -> BpmnWorkflow:
+    """Rebuild a workflow from serialized JSON state."""
+    return SERIALIZER.deserialize_json(state)
 
 
 if __name__ == "__main__":  # self-check: run a PARALLEL flow the linear engine can't

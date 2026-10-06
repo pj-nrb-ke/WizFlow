@@ -15,13 +15,10 @@ from __future__ import annotations
 
 from uuid import UUID
 
-from SpiffWorkflow.bpmn.serializer.workflow import BpmnWorkflowSerializer
 from SpiffWorkflow.util.task import TaskState
 
 from app.services import spiff_engine
 from app.services.bpmn_executable import to_executable_bpmn
-
-_serializer = BpmnWorkflowSerializer()
 
 
 def _ready(wf) -> list[dict]:
@@ -34,7 +31,7 @@ def _ready(wf) -> list[dict]:
 def _snapshot(wf) -> dict:
     """Serialized state + status + the human tasks now awaiting action."""
     return {
-        "state": _serializer.serialize_json(wf),
+        "state": spiff_engine.serialize(wf),
         "status": "completed" if wf.is_completed() else "running",
         "ready_tasks": _ready(wf),
     }
@@ -48,26 +45,51 @@ def user_eligible(assignee: dict | None, roles, user_id) -> bool:
     return (a.get("value") or "manager") in set(roles or [])
 
 
-def start(xml: str, bindings: dict | None, data: dict | None = None) -> dict:
+def _drive(wf, service_runner=None, max_iters: int = 1000) -> None:
+    """Run engine steps, executing any STARTED service task via service_runner then
+    completing it, until only human tasks (or nothing) remain. Service tasks that
+    have no runner/config complete as no-ops so the flow never hangs."""
+    for _ in range(max_iters):
+        wf.do_engine_steps()
+        started = wf.get_tasks(state=TaskState.STARTED)
+        if not started:
+            break
+        for t in started:
+            result = service_runner(t.task_spec.bpmn_id, dict(t.data)) if service_runner else None
+            if result:
+                t.set_data(**result)
+            t.complete()
+    wf.do_engine_steps()
+
+
+def start(xml: str, bindings: dict | None, data: dict | None = None, *, service_runner=None) -> dict:
     """Begin a native run from a diagram + bindings and the submitter's form data."""
     wf = spiff_engine.build(to_executable_bpmn(xml, bindings))
     if data:
         wf.get_tasks()[0].data.update(data)  # seed on root → propagates to conditions
-    wf.do_engine_steps()
+    _drive(wf, service_runner)
+    return _snapshot(wf)
+
+
+def advance_timers(state: str, *, service_runner=None) -> dict:
+    """Refresh time/wait tasks (timers, boundary events) and drive — called by the scheduler."""
+    wf = spiff_engine.deserialize(state)
+    wf.refresh_waiting_tasks()
+    _drive(wf, service_runner)
     return _snapshot(wf)
 
 
 def ready_tasks(state: str) -> list[dict]:
     """Human tasks currently awaiting action (read-only), from serialized state."""
-    return _ready(_serializer.deserialize_json(state))
+    return _ready(spiff_engine.deserialize(state))
 
 
-def complete_task(state: str, task_id: str, data: dict | None = None, *, authorize=None) -> dict:
+def complete_task(state: str, task_id: str, data: dict | None = None, *, authorize=None, service_runner=None) -> dict:
     """Complete a human task (with its form data) and advance the resumed state.
 
     `authorize(bpmn_id) -> bool`, when given, gates who may complete the task.
     """
-    wf = _serializer.deserialize_json(state)
+    wf = spiff_engine.deserialize(state)
     task = wf.get_task_from_id(UUID(str(task_id)))
     if task is None:
         raise ValueError(f"Task {task_id} not found or no longer active")
@@ -76,7 +98,7 @@ def complete_task(state: str, task_id: str, data: dict | None = None, *, authori
     if data:
         task.set_data(**data)
     task.run()
-    wf.do_engine_steps()
+    _drive(wf, service_runner)
     return _snapshot(wf)
 
 
@@ -106,4 +128,28 @@ if __name__ == "__main__":  # self-check: start → persist → resume → advan
     # complete the second → the join fires and the flow completes
     snap3 = complete_task(snap2["state"], snap2["ready_tasks"][0]["id"])
     assert snap3["status"] == "completed", snap3
-    print("native_instance self-check OK — state persists & advances across calls")
+
+    # service task: engine starts it, our runner executes it, flow advances to the human task
+    SVC = """<?xml version="1.0"?>
+<bpmn:definitions xmlns:bpmn="http://www.omg.org/spec/BPMN/20100524/MODEL" id="D" targetNamespace="t">
+  <bpmn:process id="P" isExecutable="false">
+    <bpmn:startEvent id="s"><bpmn:outgoing>f0</bpmn:outgoing></bpmn:startEvent>
+    <bpmn:serviceTask id="svc" name="Notify Ops"><bpmn:incoming>f0</bpmn:incoming><bpmn:outgoing>f1</bpmn:outgoing></bpmn:serviceTask>
+    <bpmn:userTask id="u" name="Review"><bpmn:incoming>f1</bpmn:incoming><bpmn:outgoing>f2</bpmn:outgoing></bpmn:userTask>
+    <bpmn:endEvent id="e"><bpmn:incoming>f2</bpmn:incoming></bpmn:endEvent>
+    <bpmn:sequenceFlow id="f0" sourceRef="s" targetRef="svc"/>
+    <bpmn:sequenceFlow id="f1" sourceRef="svc" targetRef="u"/>
+    <bpmn:sequenceFlow id="f2" sourceRef="u" targetRef="e"/>
+  </bpmn:process>
+</bpmn:definitions>"""
+    # no runner → service task completes as a no-op, flow reaches the human task
+    s = start(SVC, None, {})
+    assert s["status"] == "running" and [t["name"] for t in s["ready_tasks"]] == ["Review"], s
+    # with a runner → it is invoked for the service task's bpmn id
+    seen = {}
+    def _runner(bpmn_id, task_data):
+        seen["id"] = bpmn_id
+        return {"svc_done": True}
+    s_r = start(SVC, None, {}, service_runner=_runner)
+    assert seen.get("id") == "svc" and [t["name"] for t in s_r["ready_tasks"]] == ["Review"], (seen, s_r)
+    print("native_instance self-check OK — persistence, advance, and service tasks")

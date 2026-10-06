@@ -216,6 +216,41 @@ def process_service_steps(db: Session, *, company_id: UUID | None = None) -> int
     return ran
 
 
+def process_native_instances(db: Session, *, company_id: UUID | None = None) -> int:
+    """Advance running native-BPMN apps: fire due timers/events and run service tasks.
+
+    Lazy-imports SpiffWorkflow so it only loads when native apps are in play.
+    """
+    from app.db.models import BpmnDiagram, BpmnInstance
+    from app.services import native_instance, native_service
+
+    q = select(BpmnInstance).where(BpmnInstance.status == "running")
+    if company_id:
+        q = q.where(BpmnInstance.company_id == company_id)
+    advanced = 0
+    for inst in db.scalars(q):
+        if not inst.spiff_state:
+            continue
+        diagram = db.get(BpmnDiagram, inst.diagram_id) if inst.diagram_id else None
+        services = {
+            k: (v or {}).get("service")
+            for k, v in ((diagram.bindings or {}).get("tasks") or {}).items()
+            if diagram and (v or {}).get("service")
+        }
+        runner = native_service.build_runner(db, inst, services)
+        try:
+            snap = native_instance.advance_timers(inst.spiff_state, service_runner=runner)
+        except Exception as e:  # pragma: no cover - keep other instances alive
+            logger.warning("native advance failed for %s: %s", inst.id, e)
+            continue
+        if snap["status"] != inst.status or snap["state"] != inst.spiff_state:
+            inst.spiff_state = snap["state"]
+            inst.status = snap["status"]
+            advanced += 1
+    db.commit()
+    return advanced
+
+
 def _frequency_due(last: datetime | None, frequency: str, now: datetime) -> bool:
     if last is None:
         return True
@@ -398,6 +433,7 @@ def run_all_automation(db: Session, *, company_id: UUID | None = None) -> Automa
     escalations = process_escalations(db, company_id=company_id)
     timers_advanced = process_timer_steps(db, company_id=company_id)
     services_run = process_service_steps(db, company_id=company_id)
+    native_advanced = process_native_instances(db, company_id=company_id)
     reports = process_report_subscriptions(db, company_id=company_id)
     schedules = process_workflow_schedules(db, company_id=company_id)
     reminders = process_reminder_rules(db, company_id=company_id)
@@ -409,6 +445,7 @@ def run_all_automation(db: Session, *, company_id: UUID | None = None) -> Automa
         escalations=escalations,
         timers_advanced=timers_advanced,
         services_run=services_run,
+        native_advanced=native_advanced,
         reports_sent=reports,
         schedules_run=schedules,
         reminders_sent=reminders,
