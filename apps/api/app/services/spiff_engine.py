@@ -64,7 +64,9 @@ def run_headless(xml: str, data: dict | None = None, *, max_iters: int = 1000) -
     tasks from the inbox instead — that bridge is the next increment."""
     wf = build(xml)
     if data:
-        wf.data.update(data)
+        # Seed on the root task so it propagates down the task tree (and is visible
+        # to gateway condition expressions), not just the top-level workflow data.
+        wf.get_tasks()[0].data.update(data)
     ran: list[str] = []
     for _ in range(max_iters):
         wf.do_engine_steps()                       # run automatic (engine) tasks
