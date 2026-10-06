@@ -51,6 +51,21 @@ class PublishAsAppOut(BaseModel):
     warnings: list[str] = Field(default_factory=list)
 
 
+class BpmnTemplateOut(BaseModel):
+    id: str
+    name: str
+    category: str
+    description: str
+
+
+class FromTemplateIn(BaseModel):
+    template_id: str
+
+
+class FromRequirementsIn(BaseModel):
+    description: str = Field(min_length=10, max_length=4000)
+
+
 class AssistantIn(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
 

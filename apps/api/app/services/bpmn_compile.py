@@ -322,6 +322,13 @@ def compile_bpmn_to_workflow(xml: str, *, name: str | None = None, bindings: dic
                 f"otherwise it always takes the default path."
             )
 
+    # Routing carried in bindings (from a template / the copilot, where the linear
+    # diagram can't draw a gateway). skip_to must reference a real step.
+    step_ids = {s["id"] for s in steps}
+    for rule in (b.get("routing") or []):
+        if isinstance(rule, dict) and isinstance(rule.get("when"), dict) and rule.get("skip_to") in step_ids:
+            routing.append({"when": rule["when"], "skip_to": rule["skip_to"]})
+
     return CompileResult(wf_name, _form_schema(process, form_b), steps, routing, errors, warnings)
 
 

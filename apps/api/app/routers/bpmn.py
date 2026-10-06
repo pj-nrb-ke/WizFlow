@@ -23,11 +23,15 @@ from app.schemas.bpmn import (
     BpmnDiagramOut,
     BpmnDiagramSummary,
     BpmnDiagramUpdate,
+    BpmnTemplateOut,
     CompiledWorkflowOut,
+    FromRequirementsIn,
+    FromTemplateIn,
     PublishAsAppOut,
 )
-from app.services import workflow_engine
-from app.services.bpmn_assistant import assist
+from app.data.workflow_templates import get_template, list_template_summaries
+from app.services import ai_workflow, workflow_engine
+from app.services.bpmn_assistant import assist, draft_to_diagram
 from app.services.bpmn_compile import compile_bpmn_to_workflow
 from app.services.bpmn_export import EMPTY_DIAGRAM_XML, workflow_to_bpmn
 from app.services.events import record_event
@@ -74,6 +78,57 @@ def create_diagram(
     db.commit()
     db.refresh(row)
     return row
+
+
+@router.get("/templates", response_model=list[BpmnTemplateOut])
+def list_starter_templates(
+    user: CurrentUser = Depends(require_company),
+) -> list[BpmnTemplateOut]:
+    """Starter processes a manager can begin a diagram from (Template gallery)."""
+    return [BpmnTemplateOut(**t) for t in list_template_summaries()]
+
+
+def _create_from_draft(db: Session, user: CurrentUser, draft: dict, *, description: str | None = None) -> BpmnDiagram:
+    d = draft_to_diagram(draft)
+    row = BpmnDiagram(
+        company_id=user.company_id,
+        name=d["name"],
+        description=description,
+        bpmn_xml=d["bpmn_xml"],
+        bindings=d["bindings"],
+        created_by=user.id,
+    )
+    db.add(row)
+    db.commit()
+    db.refresh(row)
+    return row
+
+
+@router.post("/from-template", response_model=BpmnDiagramOut, status_code=status.HTTP_201_CREATED)
+def create_from_template(
+    body: FromTemplateIn,
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
+    db: Session = Depends(get_db),
+) -> BpmnDiagram:
+    """Template gallery: start a new diagram from a prebuilt starter process."""
+    tpl = get_template(body.template_id)
+    if not tpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+    return _create_from_draft(db, user, tpl, description=f"Started from the {tpl['name']} template.")
+
+
+@router.post("/from-requirements", response_model=BpmnDiagramOut, status_code=status.HTTP_201_CREATED)
+def create_from_requirements(
+    body: FromRequirementsIn,
+    user: CurrentUser = Depends(require_permission(perms.WORKFLOWS_MANAGE)),
+    db: Session = Depends(get_db),
+) -> BpmnDiagram:
+    """AI-from-requirements: describe the process → AI drafts a diagram to refine & publish."""
+    try:
+        result = ai_workflow.draft_from_description(body.description)
+    except ai_workflow.AiWorkflowError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    return _create_from_draft(db, user, result.get("draft") or {}, description="Drafted from a requirement by AI.")
 
 
 @router.post(

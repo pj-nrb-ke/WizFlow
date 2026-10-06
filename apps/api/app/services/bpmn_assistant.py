@@ -46,6 +46,26 @@ def _draft_to_bindings(draft: dict) -> dict:
     return {"form": fields, "tasks": tasks}
 
 
+def draft_to_diagram(draft: dict) -> dict:
+    """Render an ai_workflow/template draft as a diagram: {name, bpmn_xml, bindings}.
+
+    The exporter draws a linear spine, so routing_rules are carried in bindings.routing
+    (remapped onto the exporter's Activity ids) and applied by the compiler.
+    """
+    name = draft.get("name") or "Untitled process"
+    steps = draft.get("steps") or []
+    bindings = _draft_to_bindings(draft)
+    idmap = {s["id"]: f"Activity_{i + 1}" for i, s in enumerate(steps) if isinstance(s, dict) and s.get("id")}
+    routing = [
+        {"when": r["when"], "skip_to": idmap[r["skip_to"]]}
+        for r in (draft.get("routing_rules") or [])
+        if isinstance(r, dict) and isinstance(r.get("when"), dict) and r.get("skip_to") in idmap
+    ]
+    if routing:
+        bindings["routing"] = routing
+    return {"name": name, "bpmn_xml": workflow_to_bpmn(name, steps), "bindings": bindings}
+
+
 def assist(*, xml: str, bindings: dict | None, message: str) -> dict:
     message = (message or "").strip()
     if not message:
@@ -64,22 +84,18 @@ def assist(*, xml: str, bindings: dict | None, message: str) -> dict:
         result = ai_workflow.draft_from_description(message)
 
     draft = result.get("draft") or {}
-    name = draft.get("name") or current.name or "Untitled process"
-    steps = draft.get("steps") or []
-    new_xml = workflow_to_bpmn(name, steps)
-    new_bindings = _draft_to_bindings(draft)
+    if not draft.get("name"):
+        draft["name"] = current.name
+    diagram = draft_to_diagram(draft)
 
     warnings = list(result.get("gaps") or [])
     if draft.get("routing_rules"):
-        warnings.append(
-            "I set up branching logic — add a gateway on the canvas and set its condition "
-            "in the properties panel to show it visually."
-        )
+        warnings.append("Branching is applied; add a gateway on the canvas to show it visually.")
     return {
         "reply": result.get("explanation") or "Updated the app.",
-        "name": name,
-        "bpmn_xml": new_xml,
-        "bindings": new_bindings,
+        "name": diagram["name"],
+        "bpmn_xml": diagram["bpmn_xml"],
+        "bindings": diagram["bindings"],
         "warnings": warnings,
         "source": result.get("source") or "template",
     }
@@ -98,4 +114,14 @@ if __name__ == "__main__":  # self-check: empty→draft, then refine; bindings k
     cr = _c(r2["bpmn_xml"], bindings=r2["bindings"])
     assert cr.ok, cr.errors
     assert all(k.startswith("Activity_") for k in r2["bindings"]["tasks"]), r2["bindings"]["tasks"]
+
+    # draft_to_diagram carries routing (remapped to exporter ids) → compiler applies it
+    d = draft_to_diagram({
+        "name": "P",
+        "steps": [{"id": "a", "name": "Mgr"}, {"id": "b", "name": "Fin"}],
+        "routing_rules": [{"when": {"field": "amount", "op": "gt", "value": 100}, "skip_to": "b"}],
+    })
+    cr2 = compile_bpmn_to_workflow(d["bpmn_xml"], bindings=d["bindings"])
+    assert cr2.ok and any(r["skip_to"] == "Activity_2" and r["when"]["value"] == 100 for r in cr2.routing_rules), \
+        (d["bindings"], cr2.routing_rules)
     print("bpmn_assistant self-check OK")

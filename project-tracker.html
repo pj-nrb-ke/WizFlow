@@ -119,8 +119,8 @@ const DATA = [
       { name: "A2 · BPMN → workflow compiler", desc: "bpmn_compile.py parses a diagram into a runnable workflow (form + steps + skip routing); validator rejects shapes the linear engine can't run. Round-trips with the exporter.", status: "done", eff: "L" },
       { name: "A3 · Publish as app", desc: "POST /bpmn/{id}/compile (preview) + /publish-as-app (→ draft WorkflowDefinition, published via the normal gated flow), plus a 'Publish as app' button in the BPMN editor that saves, compiles, and links to the new draft app.", status: "done", eff: "M" },
       { name: "A4 · Conversational step-builder", desc: "Copilot chat in the designer: describe the process → it drafts/refines via the multi-provider AI (reuses ai_workflow), re-renders the canvas + request form each turn, reversibly. Degrades to templates with no AI key. POST /bpmn/{id}/assistant.", status: "done", eff: "L" },
-      { name: "Template gallery", desc: "Starter processes + look-and-feel themes/layouts with live preview.", status: "planned", eff: "M" },
-      { name: "AI-from-requirements intake", desc: "Describe / record / upload a requirement → AI drafts the app end-to-end.", status: "partial", eff: "M" },
+      { name: "Template gallery", desc: "Start a diagram from 12 prebuilt starter processes (GET /bpmn/templates, POST /bpmn/from-template) in the Process Designer, routing preserved via bindings. Workspace themes already provide look-and-feel; per-app theming deferred.", status: "done", eff: "M" },
+      { name: "AI-from-requirements intake", desc: "Describe a requirement in the Process Designer → AI drafts a diagram + request form to refine & publish (POST /bpmn/from-requirements, reuses ai_workflow on the multi-provider client). Record/upload intake deferred.", status: "done", eff: "M" },
     ]},
 
   { phase: "B · Native BPMN execution (after A)", sub: "Full BPMN fidelity for the hard cases the native engine won't cover.",
