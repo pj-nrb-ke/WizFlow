@@ -125,7 +125,7 @@ const DATA = [
 
   { phase: "B · Native BPMN execution (after A)", sub: "Full BPMN fidelity for the hard cases the native engine won't cover.",
     items: [
-      { name: "Embed SpiffWorkflow", desc: "A Python BPMN engine runs diagrams directly (complex boundary/message/compensation events).", status: "future", eff: "XL" },
+      { name: "Embed SpiffWorkflow", desc: "Foundation done: spiff_engine.py parses + executes diagrams natively (proven on a parallel split/join the linear engine can't run) + serializes state; needs_native_execution() flags when a diagram needs it. Isolated/opt-in. Remaining: per-instance persistence, inbox/human-task bridge, service-task + timer/event wiring, UI.", status: "progress", eff: "XL" },
     ]},
 
   { phase: "C · Full low-code platform (after B)", sub: "Each process becomes a self-contained application.",
