@@ -66,6 +66,27 @@ class FromRequirementsIn(BaseModel):
     description: str = Field(min_length=10, max_length=4000)
 
 
+class NativeTaskOut(BaseModel):
+    id: str
+    name: str
+
+
+class NativeRunIn(BaseModel):
+    data: dict = Field(default_factory=dict)
+
+
+class NativeTaskCompleteIn(BaseModel):
+    data: dict = Field(default_factory=dict)
+
+
+class NativeInstanceOut(BaseModel):
+    """A running native-BPMN app instance (Phase B)."""
+    id: UUID
+    name: str
+    status: str
+    ready_tasks: list[NativeTaskOut] = Field(default_factory=list)
+
+
 class AssistantIn(BaseModel):
     message: str = Field(min_length=1, max_length=2000)
 

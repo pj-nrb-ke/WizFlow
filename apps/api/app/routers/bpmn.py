@@ -14,7 +14,7 @@ from sqlalchemy.orm import Session
 
 from app.core import permissions as perms
 from app.core.deps import CurrentUser, require_company, require_permission
-from app.db.models import BpmnDiagram, WorkflowDefinition
+from app.db.models import BpmnDiagram, BpmnInstance, WorkflowDefinition
 from app.db.session import get_db
 from app.schemas.bpmn import (
     AssistantIn,
@@ -27,10 +27,13 @@ from app.schemas.bpmn import (
     CompiledWorkflowOut,
     FromRequirementsIn,
     FromTemplateIn,
+    NativeInstanceOut,
+    NativeRunIn,
+    NativeTaskCompleteIn,
     PublishAsAppOut,
 )
 from app.data.workflow_templates import get_template, list_template_summaries
-from app.services import ai_workflow, workflow_engine
+from app.services import ai_workflow, native_instance, workflow_engine
 from app.services.bpmn_assistant import assist, draft_to_diagram
 from app.services.bpmn_compile import compile_bpmn_to_workflow
 from app.services.bpmn_export import EMPTY_DIAGRAM_XML, workflow_to_bpmn
@@ -235,6 +238,77 @@ def assistant(
     row.bindings = r["bindings"]
     db.commit()
     return AssistantOut(**r)
+
+
+def _native_out(inst: BpmnInstance, ready: list[dict]) -> NativeInstanceOut:
+    return NativeInstanceOut(id=inst.id, name=inst.name, status=inst.status, ready_tasks=ready)
+
+
+@router.post("/{diagram_id}/run", response_model=NativeInstanceOut, status_code=status.HTTP_201_CREATED)
+def run_native(
+    diagram_id: UUID,
+    body: NativeRunIn,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> NativeInstanceOut:
+    """Phase B: start a native-BPMN run of a diagram (for diagrams the linear engine can't model)."""
+    row = _get_owned(db, diagram_id, user.company_id)
+    try:
+        snap = native_instance.start(row.bpmn_xml, row.bindings, body.data)
+    except Exception as e:  # parse/exec errors surface as 400
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=f"Could not start native run: {e}")
+    inst = BpmnInstance(
+        company_id=user.company_id,
+        diagram_id=row.id,
+        name=row.name,
+        status=snap["status"],
+        spiff_state=snap["state"],
+        originator_user_id=user.id,
+    )
+    db.add(inst)
+    db.commit()
+    db.refresh(inst)
+    return _native_out(inst, snap["ready_tasks"])
+
+
+def _get_native(db: Session, instance_id: UUID, company_id: UUID) -> BpmnInstance:
+    inst = db.get(BpmnInstance, instance_id)
+    if not inst or inst.company_id != company_id:
+        raise HTTPException(status_code=404, detail="Native instance not found")
+    return inst
+
+
+@router.get("/native/{instance_id}", response_model=NativeInstanceOut)
+def get_native(
+    instance_id: UUID,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> NativeInstanceOut:
+    inst = _get_native(db, instance_id, user.company_id)
+    ready = native_instance.ready_tasks(inst.spiff_state) if inst.spiff_state else []
+    return _native_out(inst, ready)
+
+
+@router.post("/native/{instance_id}/tasks/{task_id}/complete", response_model=NativeInstanceOut)
+def complete_native_task(
+    instance_id: UUID,
+    task_id: str,
+    body: NativeTaskCompleteIn,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> NativeInstanceOut:
+    inst = _get_native(db, instance_id, user.company_id)
+    if inst.status != "running":
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Instance is not running")
+    try:
+        snap = native_instance.complete_task(inst.spiff_state, task_id, body.data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+    inst.spiff_state = snap["state"]
+    inst.status = snap["status"]
+    db.commit()
+    db.refresh(inst)
+    return _native_out(inst, snap["ready_tasks"])
 
 
 @router.get("/{diagram_id}", response_model=BpmnDiagramOut)
