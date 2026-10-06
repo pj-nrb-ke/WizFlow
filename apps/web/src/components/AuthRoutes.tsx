@@ -25,6 +25,7 @@ import { AnalyticsPage } from "../pages/AnalyticsPage";
 import { ReportsPage } from "../pages/ReportsPage";
 import { IntegrationsPage } from "../pages/IntegrationsPage";
 import { AiControlsPage } from "../pages/AiControlsPage";
+import { KnowledgePage } from "../pages/KnowledgePage";
 import { MasterDataPage } from "../pages/MasterDataPage";
 import { HelpPage } from "../pages/HelpPage";
 import { AcceptInvitePage } from "../pages/AcceptInvitePage";
@@ -100,6 +101,7 @@ export function AppRoutes() {
           <Route path="process-designer" element={<ProcessDesignerPage />} />
           <Route path="process-designer/:id" element={<BpmnEditorPage />} />
           <Route path="data" element={<DataPage />} />
+          <Route path="knowledge" element={<KnowledgePage />} />
           <Route path="ai" element={<AiWorkflowPage />} />
           <Route path="submit" element={<SubmitRequestPage />} />
           <Route path="requests" element={<MyRequestsPage />} />

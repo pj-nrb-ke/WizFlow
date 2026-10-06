@@ -144,6 +144,28 @@ def _anthropic_chat(system, user, *, model, temperature, max_tokens, timeout) ->
         )
 
 
+def embed(texts: list[str], *, model: str | None = None, timeout: float = 60.0) -> tuple[list[list[float]], int]:
+    """Embed texts via an OpenAI-compatible /embeddings endpoint. Returns (vectors,
+    total_tokens). Raises AiError when unconfigured or on a provider without embeddings
+    (e.g. native Anthropic) — callers fall back to no grounding."""
+    if not is_configured():
+        raise AiError("No AI API key configured")
+    if provider() == "anthropic":
+        raise AiError("Embeddings require an OpenAI-compatible provider")
+    if not texts:
+        return [], 0
+    mdl = (model or settings.ai_embed_model).strip()
+    headers = {"Authorization": f"Bearer {settings.ai_api_key}", "Content-Type": "application/json"}
+    with httpx.Client(timeout=timeout) as client:
+        r = client.post(f"{_base_url(_OPENAI_DEFAULT)}/embeddings", json={"model": mdl, "input": texts}, headers=headers)
+        r.raise_for_status()
+        body = r.json()
+        rows = sorted(body.get("data") or [], key=lambda d: d.get("index", 0))
+        vectors = [row["embedding"] for row in rows]
+        tokens = int((body.get("usage") or {}).get("total_tokens") or 0)
+        return vectors, tokens
+
+
 _FENCE = re.compile(r"^\s*```(?:json)?\s*|\s*```\s*$", re.IGNORECASE)
 
 

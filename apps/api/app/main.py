@@ -25,6 +25,7 @@ from app.routers import (
     inbox,
     integrations,
     invitations,
+    knowledge,
     master_data,
     notifications,
     phase2,
@@ -113,6 +114,7 @@ v1.include_router(checklists.router)
 v1.include_router(recurring_schedules.router)
 v1.include_router(bpmn.router)
 v1.include_router(business.router)
+v1.include_router(knowledge.router)
 app.include_router(v1)
 
 

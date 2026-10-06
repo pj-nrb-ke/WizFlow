@@ -52,6 +52,7 @@ TASK_COPILOT = "copilot"
 TASK_ANALYTICS_NARRATIVE = "analytics_narrative"
 TASK_WORKFLOW_AI_STEP = "workflow_ai_step"
 TASK_VOICE_POLISH = "voice_polish"
+TASK_EMBED = "embedding"  # knowledge/RAG (D3); governed by global + company switch, not a per-feature toggle
 
 # Reasoning-heavy tasks get the strong model tier; everything else the cheap default.
 STRONG_TASKS = frozenset({TASK_WORKFLOW_DRAFT, TASK_REQUIREMENTS_APP, TASK_PROCESS_IMPROVE})
@@ -98,6 +99,25 @@ def estimate_cost(model: str, prompt_tokens: int, completion_tokens: int) -> flo
     if rate is None:
         return 0.0
     return round(prompt_tokens / 1000 * rate[0] + completion_tokens / 1000 * rate[1], 6)
+
+
+# Embedding prices: USD per 1K tokens. ponytail: static — update as needed.
+EMBED_PRICING: dict[str, float] = {
+    "text-embedding-3-small": 0.00002,
+    "text-embedding-3-large": 0.00013,
+    "text-embedding-ada-002": 0.0001,
+}
+
+
+def embed_cost(model: str, tokens: int) -> float:
+    key = (model or "").lower()
+    rate = EMBED_PRICING.get(key)
+    if rate is None:
+        for k, v in EMBED_PRICING.items():
+            if key.startswith(k):
+                rate = v
+                break
+    return round(tokens / 1000 * rate, 6) if rate else 0.0
 
 
 def model_for_task(task: str) -> str:
@@ -209,6 +229,57 @@ def run(
         session.close()
 
 
+def embed(texts: list[str], *, company_id: UUID | None = None) -> list[list[float]]:
+    """Governed, metered embeddings (D3). Same policy as :func:`run` (global + company
+    kill switch, budget) and one log row per batch. Raises AiError on refusal/failure."""
+    if not settings.ai_enabled:
+        raise AiDisabledError("AI is disabled platform-wide")
+    if not ai_client.is_configured():
+        raise AiError("No AI API key configured")
+    if not texts:
+        return []
+
+    session = SessionLocal()
+    try:
+        if company_id is not None:
+            gov = _load_governance(session, company_id)
+            if gov is not None:
+                if not gov.ai_enabled:
+                    raise AiDisabledError("AI is disabled for this workspace")
+                budget = None if gov.monthly_budget_usd is None else float(gov.monthly_budget_usd)
+                if budget is not None and budget >= 0 and _month_spend(session, company_id) >= budget:
+                    raise AiBudgetError("This month's AI budget has been reached")
+
+        model = (settings.ai_embed_model or "").strip()
+        t0 = time.monotonic()
+        vectors: list[list[float]] = []
+        tokens = 0
+        err: Exception | None = None
+        try:
+            vectors, tokens = ai_client.embed(texts, model=model)
+        except Exception as e:
+            err = e
+        latency_ms = int((time.monotonic() - t0) * 1000)
+        _write_log(
+            session,
+            company_id=company_id,
+            task=TASK_EMBED,
+            provider=ai_client.provider(),
+            model=model,
+            prompt_tokens=tokens,
+            completion_tokens=0,
+            cost_usd=embed_cost(model, tokens),
+            latency_ms=latency_ms,
+            ok=err is None,
+            error=(f"{type(err).__name__}: {err}"[:500] if err else None),
+        )
+        if err is not None:
+            raise err
+        return vectors
+    finally:
+        session.close()
+
+
 def usage_summary(session, company_id: UUID) -> dict:
     """Current-calendar-month AI usage for a company: totals, per-feature breakdown,
     and the most recent calls — the data behind the AI Controls usage panel."""
@@ -271,6 +342,10 @@ if __name__ == "__main__":  # self-check: routing + cost (no DB / network needed
     assert estimate_cost("gpt-4o-mini-2024-07-18", 1000, 0) == round(0.00015, 6)
     assert estimate_cost("some-local-llama", 1000, 1000) == 0.0
     assert estimate_cost("gpt-4o", 0, 0) == 0.0
+    # embedding cost: known, prefix, unknown
+    assert embed_cost("text-embedding-3-small", 1000) == round(0.00002, 6)
+    assert embed_cost("text-embedding-3-small-v2", 2000) == round(2 * 0.00002, 6)
+    assert embed_cost("mystery-embed", 1000) == 0.0
     # every catalog task has a label and a valid tier
     assert all(t["tier"] in ("standard", "advanced") for t in TASK_CATALOG)
     assert TASK_LABELS[TASK_COPILOT]

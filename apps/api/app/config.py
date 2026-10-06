@@ -42,6 +42,9 @@ class Settings(BaseSettings):
     # process improvement, workflow drafting); blank falls back to ai_model.
     ai_enabled: bool = True
     ai_strong_model: str = ""
+    # Embeddings (D3 knowledge/RAG). OpenAI-compatible /embeddings; blank provider or
+    # "openai" supports it. Grounding degrades off when embeddings are unavailable.
+    ai_embed_model: str = "text-embedding-3-small"
     expo_push_enabled: bool = True
     expo_push_access_token: str = ""
     # Voice-note transcription (self-hosted faster-whisper, CPU). Model downloads on

@@ -49,6 +49,7 @@ export function AppLayout() {
     { to: "/custom-workflow", label: "Custom workflow", Icon: IconWorkflow },
     { to: "/process-designer", label: "Process Designer", Icon: IconWorkflow },
     { to: "/data", label: "Data", Icon: IconTemplates },
+    ...(showMasterData ? [{ to: "/knowledge", label: "Knowledge", Icon: IconTemplates }] : []),
     { to: "/templates", label: "Templates", Icon: IconTemplates },
   ];
 
