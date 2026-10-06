@@ -12,6 +12,7 @@ from app.routers import (
     analytics,
     auth,
     bpmn,
+    business,
     checklists,
     delegations,
     documents,
@@ -109,6 +110,7 @@ v1.include_router(form_sending.router)
 v1.include_router(checklists.router)
 v1.include_router(recurring_schedules.router)
 v1.include_router(bpmn.router)
+v1.include_router(business.router)
 app.include_router(v1)
 
 
