@@ -496,3 +496,51 @@ def test_download_requires_auth(public_token):
     fresh = TestClient(app)
     r = fresh.get(f"/api/v1/guest-attachments/{uuid.uuid4()}/download")
     assert r.status_code in (401, 403)
+
+
+# ── FORM-5: option resolution for public forms (DB-free unit test) ─────────────
+
+def test_resolve_field_options_static_and_dynamic():
+    """Dynamic option sources (org users / master data) resolve to static options so
+    an unauthenticated public form renders real dropdowns instead of empty ones."""
+    from app.routers.public_forms import _resolve_field_options
+
+    uid = uuid.UUID("11111111-1111-1111-1111-111111111111")
+
+    class _Row:
+        id = uid
+        full_name = "Ada Lovelace"
+        email = "ada@example.com"
+        code = "fin"
+        label = "Finance"
+
+    class _Scalars:
+        def all(self):
+            return [_Row()]
+
+    class _DB:
+        def scalars(self, _q):
+            return _Scalars()
+
+    schema = {
+        "fields": [
+            {"key": "who", "type": "employee_selector", "optionSource": {"type": "org_users"}},
+            {"key": "dept", "type": "master_dropdown",
+             "optionSource": {"type": "master_data", "category": "department"}},
+            {"key": "plain", "type": "text"},
+        ]
+    }
+    out = _resolve_field_options(schema, uuid.uuid4(), _DB())
+    who, dept, plain = out["fields"]
+
+    # employee_selector → plain select with resolved users, no client-side fetch
+    assert who["type"] == "dropdown"
+    assert who["optionSource"] == {"type": "static"}
+    assert who["options"] == [{"value": str(uid), "label": "Ada Lovelace"}]
+    # master_dropdown keeps its type but gains static options
+    assert dept["optionSource"] == {"type": "static"}
+    assert dept["options"] == [{"value": "fin", "label": "Finance"}]
+    # ordinary field untouched
+    assert plain == {"key": "plain", "type": "text"}
+    # input schema not mutated (deepcopy)
+    assert schema["fields"][0]["type"] == "employee_selector"

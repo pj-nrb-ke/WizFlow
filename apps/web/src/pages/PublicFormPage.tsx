@@ -1,16 +1,19 @@
 import { FormEvent, useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
-import { ApiError, getPublicForm, submitPublicForm, uploadGuestFile, PublicFormSchema } from "../lib/api";
-
-type FieldValue = string | boolean | string[];
+import { ApiError, FormField, getPublicForm, submitPublicForm, uploadGuestFile, PublicFormSchema } from "../lib/api";
+import { FormFieldBlock } from "../components/FormFieldControl";
 
 type UploadState = { status: "idle" } | { status: "uploading" } | { status: "done"; id: string; filename: string; size: number } | { status: "error"; message: string };
+
+function schemaFields(form: PublicFormSchema | null): FormField[] {
+  return ((form?.form_schema as { fields?: FormField[] } | undefined)?.fields ?? []) as FormField[];
+}
 
 export function PublicFormPage() {
   const { token } = useParams<{ token: string }>();
   const [form, setForm] = useState<PublicFormSchema | null>(null);
   const [loadErr, setLoadErr] = useState("");
-  const [values, setValues] = useState<Record<string, FieldValue>>({});
+  const [values, setValues] = useState<Record<string, string>>({});
   const [uploadStates, setUploadStates] = useState<Record<string, UploadState>>({});
   const [guestName, setGuestName] = useState("");
   const [guestEmail, setGuestEmail] = useState("");
@@ -23,12 +26,8 @@ export function PublicFormPage() {
     getPublicForm(token)
       .then((f) => {
         setForm(f);
-        const init: Record<string, FieldValue> = {};
-        for (const field of (f.form_schema?.fields ?? []) as FieldDef[]) {
-          if (field.type === "checkbox") init[field.key] = false;
-          else if (field.type === "table") init[field.key] = [];
-          else init[field.key] = "";
-        }
+        const init: Record<string, string> = {};
+        for (const field of schemaFields(f)) init[field.key] = "";
         setValues(init);
       })
       .catch((e) =>
@@ -106,7 +105,7 @@ export function PublicFormPage() {
     );
   }
 
-  const fields = (form.form_schema?.fields ?? []) as FieldDef[];
+  const fields = schemaFields(form);
 
   return (
     <PageShell company={form.company_name}>
@@ -149,17 +148,26 @@ export function PublicFormPage() {
           </div>
         </div>
 
-        {/* Form fields */}
-        {fields.map((field) => (
-          <FieldRenderer
-            key={field.key}
-            field={field}
-            value={values[field.key] ?? ""}
-            onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: v }))}
-            uploadState={uploadStates[field.key] ?? { status: "idle" }}
-            onFileUpload={(file) => handleFileUpload(field.key, file)}
-          />
-        ))}
+        {/* Form fields — attachments use the guest tokenized upload; everything else
+            reuses the shared renderer so every designer field type works here too. */}
+        {fields.map((field) =>
+          field.type === "attachment" ? (
+            <GuestAttachmentField
+              key={field.key}
+              field={field}
+              uploadState={uploadStates[field.key] ?? { status: "idle" }}
+              onFileUpload={(file) => handleFileUpload(field.key, file)}
+            />
+          ) : (
+            <FormFieldBlock
+              key={field.key}
+              field={field}
+              value={values[field.key] ?? ""}
+              onChange={(v) => setValues((prev) => ({ ...prev, [field.key]: v }))}
+              allValues={values}
+            />
+          )
+        )}
 
         {/* Honeypot — hidden from humans */}
         <input
@@ -188,166 +196,49 @@ export function PublicFormPage() {
 
 // ── Sub-components ───────────────────────────────────────────────────────────
 
-type FieldDef = {
-  key: string;
-  label: string;
-  type: string;
-  required?: boolean;
-  options?: { value: string; label: string }[];
-  placeholder?: string;
-  currency?: string;
-};
-
-function FieldRenderer({
+function GuestAttachmentField({
   field,
-  value,
-  onChange,
   uploadState,
   onFileUpload,
 }: {
-  field: FieldDef;
-  value: FieldValue;
-  onChange: (v: FieldValue) => void;
+  field: FormField;
   uploadState: UploadState;
   onFileUpload: (file: File) => void;
 }) {
   const fileRef = useRef<HTMLInputElement>(null);
-  const base = "space-y-1";
-
-  if (field.type === "attachment") {
-    return (
-      <div className={base}>
-        <label className="text-xs font-medium text-slate-700">
-          {field.label}
-          {field.required && <span className="text-red-500 ml-0.5">*</span>}
-        </label>
-        <div
-          className="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:border-slate-300 hover:bg-slate-50/60 transition-colors"
-          onClick={() => fileRef.current?.click()}
-        >
-          {uploadState.status === "uploading" && (
-            <p className="text-sm text-slate-500">Uploading…</p>
-          )}
-          {uploadState.status === "done" && (
-            <div>
-              <p className="text-sm font-medium text-green-700 truncate">{uploadState.filename}</p>
-              <p className="text-xs text-slate-400">{(uploadState.size / 1024).toFixed(0)} KB — click to replace</p>
-            </div>
-          )}
-          {uploadState.status === "error" && (
-            <p className="text-sm text-red-600">{uploadState.message} — click to try again</p>
-          )}
-          {uploadState.status === "idle" && (
-            <p className="text-sm text-slate-500">Click to upload (PDF, JPG, PNG · max 10 MB)</p>
-          )}
-          <input
-            ref={fileRef}
-            type="file"
-            accept=".pdf,.jpg,.jpeg,.png"
-            className="hidden"
-            onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileUpload(f); }}
-          />
-        </div>
-      </div>
-    );
-  }
-  const label = (
-    <label className="text-xs font-medium text-slate-700">
-      {field.label}
-      {field.required && <span className="text-red-500 ml-0.5">*</span>}
-    </label>
-  );
-
-  if (field.type === "textarea") {
-    return (
-      <div className={base}>
-        {label}
-        <textarea
-          value={value as string}
-          onChange={(e) => onChange(e.target.value)}
-          required={field.required}
-          placeholder={field.placeholder ?? ""}
-          maxLength={5000}
-          rows={3}
-          className="wf-input w-full text-sm"
-        />
-      </div>
-    );
-  }
-
-  if (field.type === "checkbox") {
-    return (
-      <label className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-        <input
-          type="checkbox"
-          checked={value as boolean}
-          onChange={(e) => onChange(e.target.checked)}
-          className="rounded"
-        />
-        {field.label}
-        {field.required && <span className="text-red-500">*</span>}
-      </label>
-    );
-  }
-
-  if (field.type === "radio" || field.type === "dropdown") {
-    if (field.type === "dropdown") {
-      return (
-        <div className={base}>
-          {label}
-          <select
-            value={value as string}
-            onChange={(e) => onChange(e.target.value)}
-            required={field.required}
-            className="wf-input w-full text-sm"
-          >
-            <option value="">Select…</option>
-            {(field.options ?? []).map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-        </div>
-      );
-    }
-    return (
-      <div className={base}>
-        {label}
-        <div className="space-y-1 mt-1">
-          {(field.options ?? []).map((o) => (
-            <label key={o.value} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
-              <input
-                type="radio"
-                name={field.key}
-                value={o.value}
-                checked={value === o.value}
-                onChange={() => onChange(o.value)}
-                required={field.required}
-              />
-              {o.label}
-            </label>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  const inputType =
-    field.type === "email" ? "email" :
-    field.type === "number" || field.type === "currency" ? "number" :
-    field.type === "date" ? "date" :
-    "text";
-
   return (
-    <div className={base}>
-      {label}
-      <input
-        type={inputType}
-        value={value as string}
-        onChange={(e) => onChange(e.target.value)}
-        required={field.required}
-        placeholder={field.placeholder ?? (field.type === "currency" ? (field.currency ?? "0.00") : "")}
-        className="wf-input w-full text-sm"
-      />
+    <div className="space-y-1">
+      <label className="text-xs font-medium text-slate-700">
+        {field.label}
+        {field.required && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      <div
+        className="border-2 border-dashed border-slate-200 rounded-lg p-4 text-center cursor-pointer hover:border-slate-300 hover:bg-slate-50/60 transition-colors"
+        onClick={() => fileRef.current?.click()}
+      >
+        {uploadState.status === "uploading" && (
+          <p className="text-sm text-slate-500">Uploading…</p>
+        )}
+        {uploadState.status === "done" && (
+          <div>
+            <p className="text-sm font-medium text-green-700 truncate">{uploadState.filename}</p>
+            <p className="text-xs text-slate-400">{(uploadState.size / 1024).toFixed(0)} KB — click to replace</p>
+          </div>
+        )}
+        {uploadState.status === "error" && (
+          <p className="text-sm text-red-600">{uploadState.message} — click to try again</p>
+        )}
+        {uploadState.status === "idle" && (
+          <p className="text-sm text-slate-500">Click to upload (PDF, JPG, PNG · max 10 MB)</p>
+        )}
+        <input
+          ref={fileRef}
+          type="file"
+          accept=".pdf,.jpg,.jpeg,.png"
+          className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) onFileUpload(f); }}
+        />
+      </div>
     </div>
   );
 }

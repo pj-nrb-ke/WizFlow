@@ -23,7 +23,7 @@ import {
   setup2fa,
   type Delegation,
 } from "../lib/api";
-import { getToken } from "../lib/auth";
+import { changePassword, getToken } from "../lib/auth";
 import { THEME_META } from "../lib/themes";
 
 export function SettingsPage() {
@@ -56,6 +56,13 @@ export function SettingsPage() {
   const [twoFaMsg, setTwoFaMsg] = useState("");
   const [twoFaError, setTwoFaError] = useState("");
   const [twoFaBusy, setTwoFaBusy] = useState(false);
+
+  const [curPwd, setCurPwd] = useState("");
+  const [newPwd, setNewPwd] = useState("");
+  const [confirmPwd, setConfirmPwd] = useState("");
+  const [pwdMsg, setPwdMsg] = useState("");
+  const [pwdError, setPwdError] = useState("");
+  const [pwdBusy, setPwdBusy] = useState(false);
 
   useEffect(() => {
     const token = getToken();
@@ -110,6 +117,32 @@ export function SettingsPage() {
       setPrefsMsg("Notification preferences saved.");
     } catch (err) {
       setError(err instanceof ApiError ? err.detail ?? err.message : "Could not save preferences");
+    }
+  }
+
+  async function changePasswordSubmit(e: FormEvent) {
+    e.preventDefault();
+    setPwdMsg("");
+    setPwdError("");
+    if (newPwd.length < 8) {
+      setPwdError("New password must be at least 8 characters.");
+      return;
+    }
+    if (newPwd !== confirmPwd) {
+      setPwdError("New passwords do not match.");
+      return;
+    }
+    setPwdBusy(true);
+    try {
+      await changePassword(curPwd, newPwd);
+      setCurPwd("");
+      setNewPwd("");
+      setConfirmPwd("");
+      setPwdMsg("Your password has been changed.");
+    } catch (err) {
+      setPwdError(err instanceof ApiError ? err.detail ?? err.message : "Could not change password");
+    } finally {
+      setPwdBusy(false);
     }
   }
 
@@ -434,6 +467,62 @@ export function SettingsPage() {
             Add delegation
           </button>
           {delegMsg && <p className="text-sm text-green-700">{delegMsg}</p>}
+        </form>
+      </section>
+
+      <section className="wf-card p-5">
+        <div className="flex items-center gap-2 mb-1">
+          <h2 className="text-sm font-semibold text-slate-800">Change password</h2>
+          <HelpTip text="Update your account password. You'll need your current password to confirm." />
+        </div>
+        <p className="text-sm text-slate-500 mb-4">
+          Choose a strong password you don't use elsewhere — at least 8 characters.
+        </p>
+        <form onSubmit={changePasswordSubmit} className="space-y-3 max-w-sm">
+          <label className="block text-sm">
+            <span className="text-slate-600">Current password</span>
+            <input
+              type="password"
+              autoComplete="current-password"
+              value={curPwd}
+              onChange={(e) => setCurPwd(e.target.value)}
+              className="wf-input mt-1 w-full"
+              required
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-slate-600">New password</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              value={newPwd}
+              onChange={(e) => setNewPwd(e.target.value)}
+              className="wf-input mt-1 w-full"
+              required
+            />
+          </label>
+          <label className="block text-sm">
+            <span className="text-slate-600">Confirm new password</span>
+            <input
+              type="password"
+              autoComplete="new-password"
+              minLength={8}
+              value={confirmPwd}
+              onChange={(e) => setConfirmPwd(e.target.value)}
+              className="wf-input mt-1 w-full"
+              required
+            />
+          </label>
+          <button
+            type="submit"
+            disabled={pwdBusy}
+            className="px-4 py-2 wf-btn-primary text-sm disabled:opacity-50"
+          >
+            {pwdBusy ? "Saving…" : "Change password"}
+          </button>
+          {pwdError && <p className="text-sm text-red-600">{pwdError}</p>}
+          {pwdMsg && <p className="text-sm text-green-700">{pwdMsg}</p>}
         </form>
       </section>
 

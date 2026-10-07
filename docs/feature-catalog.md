@@ -40,7 +40,7 @@ _Generated 2026-07-05 from a live code audit of every module (frontend pages + b
 | FORM-2 | Field-level validation rules | Min/max, regex, date range, phone/URL/postcode patterns — configured in the designer, enforced client + server. Today only type + required are checked. | M |
 | FORM-3 | Signature field type | Draw-or-type signature capture for designer, public, and internal forms. Not present anywhere today. | M |
 | FORM-4 | Multi-page / wizard forms | Split long forms into steps with a progress indicator. Currently single-page only. | M |
-| FORM-5 | Public-form field-type parity | Public renderer only handles 10 of ~15 types — table, calculated, master-dropdown, employee-selector, time, combobox are silently dropped. Close the gap. | M |
+| FORM-5 | Public-form field-type parity | Public renderer now reuses the shared field renderer — table, calculated, master-dropdown, employee-selector, time, combobox all render; dynamic option sources (master data, org users) are resolved server-side for the unauthenticated page. _(Was silently dropped; now built.)_ | ✅ Done |
 | FORM-6 | Guest submission receipt email | Email the guest an acknowledgement on submit (today they're only emailed on accept/reject). | S |
 | FORM-7 | Public-form draft auto-save | Persist in-progress public submissions (already exists on the internal submit page). | S |
 | FORM-8 | Stronger bot protection | Add reCAPTCHA / rate-limited challenge beyond the current honeypot. | S–M |
@@ -108,7 +108,7 @@ _Generated 2026-07-05 from a live code audit of every module (frontend pages + b
 
 | ID | Feature | What it adds & why | Effort |
 |----|---------|--------------------|--------|
-| ANL-1 | Finish Phase-2 tabs | Workload, Process-journey/SLA, and Scorecards tabs are backend-ready but the frontend is stubbed. Complete the visualisations. | M |
+| ANL-1 | Finish Phase-2 tabs | Workload, Process-journey/SLA, and Scorecards tabs — frontend and backend complete and rendering real data. _(Was stubbed; delivered in the Phase-2 build.)_ | ✅ Done |
 | ANL-2 | Customisable dashboard | Drag-drop widgets and per-user layout (all cards are hardcoded today). | L |
 | ANL-3 | Historical KPI comparison | Month-over-month / quarter-over-quarter trend of the KPIs themselves. | M |
 | ANL-4 | More chart types + cost-center view | Line / pie / stacked charts and department / cost-center breakdown (only bars + sparklines today). | M |
@@ -154,7 +154,7 @@ _Generated 2026-07-05 from a live code audit of every module (frontend pages + b
 
 | ID | Feature | What it adds & why | Effort |
 |----|---------|--------------------|--------|
-| SET-1 | Password change + reset | Self-service change and forgot-password flow (password is only set at invite time today). | S–M |
+| SET-1 | Password change + reset | Self-service change (Settings → Change password, current-password required) plus the forgot-password reset flow. _(Reset flow already shipped; authenticated change-password now built.)_ | ✅ Done |
 | SET-2 | 2FA backup codes | Recovery codes for a lost authenticator (no fallback today). | S |
 | SET-3 | Session management | "Log out other devices" — invalidates all other sessions. _(Now built via token-version session invalidation; a per-session list view is still open.)_ | ✅ Done |
 | SET-4 | Login history | Show where/when the account signed in. | S |
@@ -232,4 +232,4 @@ _Generated 2026-07-05 from a live code audit of every module (frontend pages + b
 
 ---
 
-_85 candidates across 13 modules — 6 now **✅ delivered**, plus 2 new modules (Low-Code Data, BPMN App Builder) added by the no-code→low-code program. Tell me which ID(s) to build next and I'll take it from there._
+_85 candidates across 13 modules — 9 now **✅ delivered** (WF-1, WF-2, WF-4, ADM-1, AUTH-2, SET-3, FORM-5, SET-1, ANL-1), plus 2 new modules (Low-Code Data, BPMN App Builder) added by the no-code→low-code program. Tell me which ID(s) to build next and I'll take it from there._

@@ -460,17 +460,24 @@ def exceptions_summary(db: Session, ctx: AnalyticsContext) -> ExceptionsOut:
 
 def submission_trends(db: Session, ctx: AnalyticsContext) -> TrendsOut:
     now = datetime.now(timezone.utc)
+    # Date query params arrive tz-naive; make them UTC-aware before comparing with `now`.
+    from_date = ctx.from_date
+    if from_date and from_date.tzinfo is None:
+        from_date = from_date.replace(tzinfo=timezone.utc)
+    to_date = ctx.to_date
+    if to_date and to_date.tzinfo is None:
+        to_date = to_date.replace(tzinfo=timezone.utc)
     window_start = now - timedelta(days=30)
-    if ctx.from_date and ctx.from_date > window_start:
-        window_start = ctx.from_date
+    if from_date and from_date > window_start:
+        window_start = from_date
 
     q = select(WorkflowInstance).where(
         WorkflowInstance.company_id == ctx.company_id,
         WorkflowInstance.submitted_at.isnot(None),
         WorkflowInstance.submitted_at >= window_start,
     )
-    if ctx.to_date:
-        q = q.where(WorkflowInstance.submitted_at <= ctx.to_date)
+    if to_date:
+        q = q.where(WorkflowInstance.submitted_at <= to_date)
     if ctx.workflow_id:
         q = q.where(WorkflowInstance.workflow_definition_id == ctx.workflow_id)
 
@@ -480,7 +487,7 @@ def submission_trends(db: Session, ctx: AnalyticsContext) -> TrendsOut:
             daily[inst.submitted_at.date()] += 1
 
     start_day = window_start.date()
-    end_day = (ctx.to_date or now).date()
+    end_day = (to_date or now).date()
     days: list[TrendPoint] = []
     cursor = start_day
     while cursor <= end_day:

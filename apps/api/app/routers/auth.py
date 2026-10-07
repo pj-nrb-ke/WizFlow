@@ -27,6 +27,7 @@ from app.core.security import (
 from app.db.models import Company, PasswordResetToken, User, UserRole
 from app.db.session import get_db
 from app.schemas.auth import (
+    ChangePasswordRequest,
     ForgotPasswordRequest,
     LoginRequest,
     MessageResponse,
@@ -257,6 +258,32 @@ def two_factor_disable(body: TwoFactorCode, user: CurrentUser = Depends(get_curr
     log_security_event(db, action="auth.2fa_disabled", company_id=db_user.company_id, actor_user_id=db_user.id)
     db.commit()
     return TwoFactorStatusOut(enabled=False)
+
+
+@router.post("/change-password", response_model=MessageResponse)
+def change_password(
+    body: ChangePasswordRequest,
+    request: Request,
+    user: CurrentUser = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MessageResponse:
+    """Authenticated self-service password change — requires the current password."""
+    db_user = db.get(User, user.id)
+    if not db_user or not verify_password(body.current_password, db_user.password_hash):
+        raise HTTPException(status_code=400, detail="Current password is incorrect.")
+    if verify_password(body.new_password, db_user.password_hash):
+        raise HTTPException(status_code=400, detail="New password must be different from your current one.")
+    db_user.password_hash = hash_password(body.new_password)
+    log_security_event(
+        db,
+        action="auth.password_changed",
+        company_id=db_user.company_id,
+        actor_user_id=db_user.id,
+        ip_address=_client_ip(request),
+    )
+    db.commit()
+    # ponytail: other sessions stay valid; "Log out other devices" (SET-3) kills them if needed.
+    return MessageResponse(message="Your password has been changed.")
 
 
 # ── Password reset (self-service forgot-password) ────────────────────────────

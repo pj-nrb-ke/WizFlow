@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import copy
 import re
 import uuid
 from datetime import datetime, timezone
@@ -14,7 +15,15 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.config import settings
-from app.db.models import Company, GuestAttachment, GuestSubmission, PublicFormToken, WorkflowDefinition
+from app.db.models import (
+    Company,
+    GuestAttachment,
+    GuestSubmission,
+    MasterDataEntry,
+    PublicFormToken,
+    User,
+    WorkflowDefinition,
+)
 from app.db.session import get_db
 
 # ── MIME type whitelist (magic bytes, not extension) ─────────────────────────
@@ -56,6 +65,55 @@ def _strip_html(value: Any) -> Any:
     return value
 
 
+def _resolve_field_options(form_schema: Any, company_id: Any, db: Session) -> dict:
+    """Public forms are unauthenticated, so the browser can't fetch dynamic option
+    sources (master data, org users / employee selector). Resolve them to static
+    options server-side for the company that owns the form, so the shared renderer
+    shows real dropdowns instead of empty ones.
+
+    ponytail: exposes whatever option source the designer placed on the form; add a
+    per-field "expose publicly" gate if some lists must stay internal.
+    """
+    schema = copy.deepcopy(form_schema) if isinstance(form_schema, dict) else {}
+    fields = schema.get("fields")
+    if not isinstance(fields, list):
+        return schema
+
+    user_opts: list[dict] | None = None
+    for field in fields:
+        if not isinstance(field, dict):
+            continue
+        src = field.get("optionSource") or {}
+        stype = src.get("type")
+        ftype = field.get("type")
+
+        if ftype == "employee_selector" or stype == "org_users":
+            if user_opts is None:
+                rows = db.scalars(
+                    select(User)
+                    .where(User.company_id == company_id, User.is_active.is_(True))
+                    .order_by(User.full_name)
+                ).all()
+                user_opts = [{"value": str(u.id), "label": u.full_name or u.email} for u in rows]
+            field["options"] = list(user_opts)
+            field["optionSource"] = {"type": "static"}
+            if ftype == "employee_selector":
+                field["type"] = "dropdown"  # render as a plain select; no client-side fetch
+        elif stype == "master_data":
+            rows = db.scalars(
+                select(MasterDataEntry)
+                .where(
+                    MasterDataEntry.company_id == company_id,
+                    MasterDataEntry.category == src.get("category"),
+                    MasterDataEntry.is_active.is_(True),
+                )
+                .order_by(MasterDataEntry.label)
+            ).all()
+            field["options"] = [{"value": r.code, "label": r.label} for r in rows]
+            field["optionSource"] = {"type": "static"}
+    return schema
+
+
 def _resolve_token(token_str: str, db: Session) -> PublicFormToken:
     tok = db.scalar(select(PublicFormToken).where(PublicFormToken.token == token_str))
     if not tok or tok.revoked:
@@ -90,7 +148,7 @@ def get_public_form(token: str, db: Session = Depends(get_db)) -> PublicFormSche
         workflow_id=str(wf.id),
         workflow_name=wf.name,
         company_name=company.name if company else "",
-        form_schema=wf.form_schema,
+        form_schema=_resolve_field_options(wf.form_schema, wf.company_id, db),
         settings=wf.settings or {},
     )
 
