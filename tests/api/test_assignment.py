@@ -62,6 +62,70 @@ def test_users_claim_assignment() -> None:
     assert final.json()["status"] == "approved"
 
 
+def test_dynamic_assignee_originator_manager() -> None:
+    """WF-3: a step with assignee type=dynamic/originator_manager resolves to the
+    originator's manager, and to nobody when no manager is set."""
+    from sqlalchemy import select
+
+    from app.db.models import User
+    from app.db.session import SessionLocal
+    from app.services.assignees import resolve_step_assignment
+
+    _login("admin@demo.wizflow.biz")  # ensures the demo company is seeded
+    db = SessionLocal()
+    try:
+        orig = db.scalar(select(User).where(User.email == "originator@demo.wizflow.biz"))
+        mgr = db.scalar(select(User).where(User.email == "admin@demo.wizflow.biz"))
+        if not orig or not mgr:
+            pytest.skip("demo users not seeded")
+        prev = orig.manager_id
+        step = {"id": "s1", "assignee": {"type": "dynamic", "value": "originator_manager"}}
+        try:
+            orig.manager_id = mgr.id
+            db.commit()
+            res = resolve_step_assignment(
+                db, company_id=orig.company_id, step=step, originator_user_id=orig.id
+            )
+            assert [a["user_id"] for a in res.assignees] == [str(mgr.id)]
+
+            orig.manager_id = None
+            db.commit()
+            res2 = resolve_step_assignment(
+                db, company_id=orig.company_id, step=step, originator_user_id=orig.id
+            )
+            assert res2.assignees == []
+        finally:
+            orig.manager_id = prev
+            db.commit()
+    finally:
+        db.close()
+
+
+def test_update_user_manager_endpoint() -> None:
+    """WF-3: admin can set a user's manager; self-manager is rejected."""
+    admin_h = _login("admin@demo.wizflow.biz")
+    users = client.get("/api/v1/admin/users", headers=admin_h).json()
+    orig = next((u for u in users if u["email"] == "originator@demo.wizflow.biz"), None)
+    mgr = next((u for u in users if u["email"] == "admin@demo.wizflow.biz"), None)
+    if not orig or not mgr:
+        pytest.skip("demo users not seeded")
+    prev = orig.get("manager_id")
+    try:
+        r = client.patch(
+            f"/api/v1/admin/users/{orig['id']}", headers=admin_h, json={"manager_id": mgr["id"]}
+        )
+        assert r.status_code == 200, r.text
+        assert r.json()["manager_id"] == mgr["id"]
+        bad = client.patch(
+            f"/api/v1/admin/users/{orig['id']}", headers=admin_h, json={"manager_id": orig["id"]}
+        )
+        assert bad.status_code == 400
+    finally:
+        client.patch(
+            f"/api/v1/admin/users/{orig['id']}", headers=admin_h, json={"manager_id": prev}
+        )
+
+
 def test_notification_unread_count() -> None:
     admin_h = _login("admin@demo.wizflow.biz")
     r = client.get("/api/v1/notifications/unread-count", headers=admin_h)

@@ -1,6 +1,6 @@
 import { FormEvent, useEffect, useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
-import { ApiError, apiFetch, Department, InviteOut, listInvites, resendInvite, revokeInvite, UserGroup, UserRow } from "../lib/api";
+import { ApiError, apiFetch, Department, InviteOut, listInvites, resendInvite, revokeInvite, updateUser, UserGroup, UserRow } from "../lib/api";
 import { getToken } from "../lib/auth";
 import { useAuth } from "../context/AuthContext";
 import { AppThemeSwitcher } from "../components/ThemeSwitcher";
@@ -397,6 +397,17 @@ export function AdminPage() {
     }
   }
 
+  async function setManager(userId: string, managerId: string) {
+    try {
+      const updated = await updateUser(userId, { manager_id: managerId || null }, getToken());
+      setUsers((prev) =>
+        prev.map((x) => (x.id === userId ? { ...x, manager_id: updated.manager_id } : x))
+      );
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Could not update manager");
+    }
+  }
+
   if (!isAdmin) {
     return (
       <p className="text-slate-600">Admin setup requires the company_admin role.</p>
@@ -520,6 +531,26 @@ export function AdminPage() {
                     <p className="text-sm font-semibold text-slate-800 truncate">{u.full_name}</p>
                     <p className="text-xs text-slate-500 truncate">{u.email}</p>
                   </div>
+                  <label
+                    className="text-xs text-slate-500 flex items-center gap-1"
+                    title="Approval steps can route to each person's manager (Custom workflow → Originator's manager)"
+                  >
+                    <span className="hidden sm:inline">Mgr</span>
+                    <select
+                      value={u.manager_id ?? ""}
+                      onChange={(e) => setManager(u.id, e.target.value)}
+                      className="wf-input text-xs py-1 max-w-[150px]"
+                    >
+                      <option value="">—</option>
+                      {users
+                        .filter((m) => m.id !== u.id)
+                        .map((m) => (
+                          <option key={m.id} value={m.id}>
+                            {m.full_name}
+                          </option>
+                        ))}
+                    </select>
+                  </label>
                   <div className="flex flex-wrap gap-1 justify-end">
                     {u.roles.map((slug) => {
                       const { label, color } = roleBadge(slug);

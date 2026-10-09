@@ -27,6 +27,8 @@ def _step_has_assignee(step: dict) -> bool:
         return bool(assignee.get("value"))
     if atype == "users":
         return bool(assignee.get("user_ids"))
+    if atype == "dynamic":
+        return bool(assignee.get("value"))
     return False
 
 

@@ -235,6 +235,31 @@ export function InboxPage() {
     }
   }
 
+  async function requestMoreInfo() {
+    if (!selectedId || acting) return;
+    if (!comment.trim()) {
+      setError("Type your question in the comment box first, then press Request info.");
+      return;
+    }
+    setError("");
+    setActing(true);
+    try {
+      await apiFetch(
+        `/api/v1/requests/${selectedId}/request-info`,
+        { method: "POST", body: JSON.stringify({ comment }) },
+        getToken()
+      );
+      setMsg("Asked the originator for more information. The request stays in your inbox.");
+      setComment("");
+      await loadInbox();
+      await openItem(selectedId);
+    } catch (e) {
+      setError(e instanceof ApiError ? e.detail ?? e.message : "Could not send the request");
+    } finally {
+      setActing(false);
+    }
+  }
+
   function toggleSelected(requestId: string) {
     setSelected((prev) => {
       const next = new Set(prev);
@@ -726,6 +751,8 @@ export function InboxPage() {
                     onReject={() => act("reject")}
                     showReturn={!detail.is_originator}
                     onReturn={() => act("return")}
+                    showRequestInfo={!detail.is_originator}
+                    onRequestInfo={requestMoreInfo}
                     requestId={detail.id}
                   />
                 )}

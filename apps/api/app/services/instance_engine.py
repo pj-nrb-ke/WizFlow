@@ -102,10 +102,18 @@ def validate_form_data(defn: WorkflowDefinition, data: dict) -> None:
 
 
 def resolve_assignees_for_step(
-    db: Session, company_id: UUID, step: dict, family_id: UUID | None = None
+    db: Session,
+    company_id: UUID,
+    step: dict,
+    family_id: UUID | None = None,
+    originator_user_id: UUID | None = None,
 ) -> list[dict]:
     assignment = resolve_step_assignment(
-        db, company_id=company_id, step=step, family_id=family_id
+        db,
+        company_id=company_id,
+        step=step,
+        family_id=family_id,
+        originator_user_id=originator_user_id,
     )
     return assignment.assignees
 
@@ -128,8 +136,14 @@ def _apply_step_to_instance(
         company_id=instance.company_id,
         step=step,
         family_id=defn.family_id,
+        originator_user_id=instance.originator_user_id,
     )
     if not assignment.assignees:
+        if (step.get("assignee") or {}).get("type") == "dynamic":
+            raise RequestError(
+                "This step routes to the originator's manager, but no manager is set "
+                "for the originator. Set one under Admin → Users."
+            )
         raise RequestError(f"No users found for approvers on step '{step.get('id')}'")
     apply_step_assignment(instance, assignment)
 
@@ -406,6 +420,57 @@ def return_request(
     instance.assignees = []
     instance.assignment_mode = None
     instance.claimed_by_user_id = None
+    return instance
+
+
+def request_info(
+    db: Session,
+    instance: WorkflowInstance,
+    actor_id: UUID,
+    comment: str | None,
+) -> WorkflowInstance:
+    """An approver asks the originator a question without rejecting or returning.
+
+    The request stays exactly where it is (same step, same assignees) — this is
+    advisory. 'Awaiting info' is derived from the timeline, not stored.
+    """
+    if not user_can_act(instance, actor_id):
+        raise RequestError("You are not assigned to act on this step")
+    if not (comment and comment.strip()):
+        raise RequestError("Please say what information you need from the originator")
+    record_event(
+        db,
+        company_id=instance.company_id,
+        event_type="step.info_requested",
+        actor_user_id=actor_id,
+        instance_id=instance.id,
+        payload={"step_id": instance.current_step_id, "comment": comment.strip()},
+    )
+    return instance
+
+
+def answer_info(
+    db: Session,
+    instance: WorkflowInstance,
+    actor_id: UUID,
+    comment: str | None,
+) -> WorkflowInstance:
+    """The originator answers an approver's question. No state change — the request
+    is already in the approver's inbox; this just adds the answer to the timeline."""
+    if instance.originator_user_id != actor_id:
+        raise RequestError("Only the originator can answer this request")
+    if instance.status != "in_progress":
+        raise RequestError("This request is not currently awaiting a response")
+    if not (comment and comment.strip()):
+        raise RequestError("Please include your response")
+    record_event(
+        db,
+        company_id=instance.company_id,
+        event_type="request.info_answered",
+        actor_user_id=actor_id,
+        instance_id=instance.id,
+        payload={"step_id": instance.current_step_id, "comment": comment.strip()},
+    )
     return instance
 
 

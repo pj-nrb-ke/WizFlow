@@ -12,6 +12,7 @@ from app.db.models import Attachment, User, WorkflowDefinition, WorkflowEvent, W
 from app.db.session import get_db
 from app.services import doc_templates, voice_notes
 from app.schemas.request import (
+    ApprovalAction,
     AttachmentOut,
     DocumentTemplateOut,
     GenerateDocumentIn,
@@ -303,6 +304,29 @@ def generate_document(
     db.commit()
     db.refresh(att)
     return att
+
+
+@router.post("/{request_id}/answer-info", response_model=WorkflowInstanceOut)
+def answer_info_route(
+    request_id: UUID,
+    body: ApprovalAction | None = None,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> WorkflowInstanceOut:
+    """Originator answers an approver's 'request more info' question."""
+    inst = get_instance(db, request_id, user.company_id)
+    defn = db.get(WorkflowDefinition, inst.workflow_definition_id)
+    if not defn:
+        raise HTTPException(status_code=404, detail="Workflow definition missing")
+    try:
+        instance_engine.answer_info(db, inst, user.id, body.comment if body else None)
+    except instance_engine.RequestError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if inst.status == "in_progress" and inst.current_step_id:
+        notify_approvers_for_step(db, instance=inst, defn=defn, step_id=inst.current_step_id)
+    db.commit()
+    db.refresh(inst)
+    return to_out(db, inst, defn, user.id)
 
 
 @router.get("/{request_id}/events", response_model=list[WorkflowEventOut])

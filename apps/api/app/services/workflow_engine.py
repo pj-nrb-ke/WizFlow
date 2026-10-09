@@ -51,8 +51,15 @@ def _validate_assignee(step: dict) -> None:
             raise WorkflowValidationError(
                 f"Step '{step.get('id')}' mode must be one of: {', '.join(sorted(ASSIGNMENT_MODES))}"
             )
+    elif atype == "dynamic":
+        if assignee.get("value") != "originator_manager":
+            raise WorkflowValidationError(
+                f"Step '{step.get('id')}' has an unsupported dynamic assignee"
+            )
     else:
-        raise WorkflowValidationError(f"Step '{step.get('id')}' assignee type must be 'role' or 'users'")
+        raise WorkflowValidationError(
+            f"Step '{step.get('id')}' assignee type must be 'role', 'users', or 'dynamic'"
+        )
 
 
 def validate_definition(defn: WorkflowDefinition) -> None:

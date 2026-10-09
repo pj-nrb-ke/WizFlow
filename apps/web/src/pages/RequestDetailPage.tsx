@@ -66,6 +66,7 @@ export function RequestDetailPage() {
   const [events, setEvents] = useState<WorkflowEvent[]>([]);
   const [error, setError] = useState("");
   const [resubmitData, setResubmitData] = useState<Record<string, string>>({});
+  const [answer, setAnswer] = useState("");
 
   const ui: { ui_theme: AppTheme; form_layout: FormLayout } = {
     ui_theme: APP_THEMES.includes((request?.ui_theme ?? "") as AppTheme)
@@ -129,6 +130,18 @@ export function RequestDetailPage() {
   const isOriginator = user?.id === request.originator_user_id;
   const visibleData = filterRequestData(request.request_data);
 
+  // "Awaiting info" is derived from the timeline: outstanding when the most recent
+  // info event is a question (not yet answered).
+  const infoEvents = events.filter(
+    (e) => e.event_type === "step.info_requested" || e.event_type === "request.info_answered"
+  );
+  const outstandingInfo =
+    infoEvents.length > 0 &&
+    infoEvents[infoEvents.length - 1].event_type === "step.info_requested";
+  const latestQuestion = outstandingInfo
+    ? ((infoEvents[infoEvents.length - 1].payload as { comment?: string })?.comment ?? "")
+    : "";
+
   const steps = request.step_sequence ?? [];
   const currentStepIndex = (() => {
     if (request.status === "approved") return steps.length;
@@ -159,6 +172,22 @@ export function RequestDetailPage() {
       await load();
     } catch (err) {
       setError(err instanceof ApiError ? err.detail ?? err.message : "Action failed");
+    }
+  }
+
+  async function answerInfo() {
+    if (!id || !answer.trim()) return;
+    setError("");
+    try {
+      await apiFetch(
+        `/api/v1/requests/${id}/answer-info`,
+        { method: "POST", body: JSON.stringify({ comment: answer }) },
+        getToken()
+      );
+      setAnswer("");
+      await load();
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Could not send your response");
     }
   }
 
@@ -229,6 +258,33 @@ export function RequestDetailPage() {
               This request was returned for correction. Update the highlighted fields below and
               resubmit to continue approval.
             </p>
+          </div>
+        )}
+
+        {request.status === "in_progress" && isOriginator && outstandingInfo && (
+          <div className="mb-6 rounded-xl border-2 border-blue-400 bg-blue-50 px-5 py-4" role="alert">
+            <h2 className="text-lg font-bold text-blue-950">More information requested</h2>
+            {latestQuestion && (
+              <p className="text-sm text-blue-900 mt-1 whitespace-pre-wrap">“{latestQuestion}”</p>
+            )}
+            <p className="text-sm text-blue-900 mt-2">
+              An approver asked a question. Reply below — your request stays in place, no need to resubmit.
+            </p>
+            <textarea
+              value={answer}
+              onChange={(e) => setAnswer(e.target.value)}
+              rows={3}
+              placeholder="Type your response…"
+              className="wf-input mt-3 w-full"
+            />
+            <button
+              type="button"
+              onClick={answerInfo}
+              disabled={!answer.trim()}
+              className="mt-2 px-4 py-2 wf-btn-primary text-sm disabled:opacity-50"
+            >
+              Send response
+            </button>
           </div>
         )}
 

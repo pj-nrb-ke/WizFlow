@@ -55,6 +55,17 @@ def build_steps_from_chain(db: Session, company_id: UUID, chain: list[dict]) -> 
         raise CustomWorkflowError("Add at least one approver (user or group)")
     steps: list[dict] = []
     for i, item in enumerate(chain):
+        if item.get("type") == "dynamic":
+            value = item.get("value") or item.get("id") or "originator_manager"
+            steps.append(
+                {
+                    "id": f"step_{i + 1}",
+                    "name": _step_label(db, company_id, item, i + 1),
+                    "type": "approval",
+                    "assignee": {"type": "dynamic", "value": value, "mode": "claim"},
+                }
+            )
+            continue
         user_ids = _expand_chain_item(db, company_id, item)
         if not user_ids:
             label = item.get("type", "item")
@@ -87,6 +98,8 @@ def _step_label(db: Session, company_id: UUID, item: dict, index: int) -> str:
         g = db.get(UserGroup, UUID(str(raw_id)))
         if g and g.company_id == company_id:
             return f"Approval: {g.name}"
+    if kind == "dynamic":
+        return "Approval: Originator's manager"
     return f"Approval step {index}"
 
 

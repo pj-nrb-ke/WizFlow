@@ -370,7 +370,12 @@ export type UserGroup = {
 
 export type OrgDirectory = { users: OrgUser[]; groups: UserGroup[] };
 
-export type ApproverChainItem = { type: "user" | "group"; id: string; label?: string };
+export type ApproverChainItem = {
+  type: "user" | "group" | "dynamic";
+  id?: string;
+  value?: string; // for type="dynamic", e.g. "originator_manager"
+  label?: string;
+};
 
 export type InitiatorConfig = {
   everyone: boolean;
@@ -742,7 +747,19 @@ export type MisActionRow = {
 };
 
 export type Department = { id: string; name: string; code: string | null; created_at: string };
-export type UserRow = { id: string; email: string; full_name: string; is_active: boolean; roles: string[] };
+export type UserRow = { id: string; email: string; full_name: string; is_active: boolean; roles: string[]; manager_id: string | null };
+
+export function updateUser(
+  userId: string,
+  body: { manager_id: string | null },
+  token?: string | null
+) {
+  return apiFetch<UserRow>(
+    `/api/v1/admin/users/${userId}`,
+    { method: "PATCH", body: JSON.stringify(body) },
+    token
+  );
+}
 
 /** Shared query params for analytics endpoints. */
 export type AnalyticsFilterParams = {

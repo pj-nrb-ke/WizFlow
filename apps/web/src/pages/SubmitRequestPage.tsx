@@ -35,6 +35,7 @@ const CheckIcon = () => (
 
 function assigneeLabel(a?: { type?: string; value?: string; user_ids?: string[] }): string {
   if (!a) return "Approver";
+  if (a.type === "dynamic") return a.value === "originator_manager" ? "Originator's manager" : "Dynamic approver";
   if (a.type === "users") return `${(a.user_ids || []).length} named approver(s)`;
   if (a.type === "role") {
     if (a.value === "manager") return "Manager";

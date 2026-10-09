@@ -165,7 +165,10 @@ def create_custom_workflow(
 
     import uuid as _uuid
 
-    chain = [{"type": item.type, "id": str(item.id)} for item in body.approver_chain]
+    chain = [
+        {"type": item.type, "id": str(item.id) if item.id else None, "value": item.value}
+        for item in body.approver_chain
+    ]
     try:
         steps = build_steps_from_chain(db, user.company_id, chain)
     except CustomWorkflowError as e:
