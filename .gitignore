@@ -44,3 +44,6 @@ apps/mobile/ios/
 # Deploy sync artifacts
 wizflow-*.tgz
 docs/_test_run_output.json
+
+# Built Android APKs — distribute as release artifacts, not committed to git
+*.apk
