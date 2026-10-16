@@ -49,12 +49,13 @@ def fill(text: str | None, values: dict) -> str:
     return _PLACEHOLDER.sub(repl, text or "")
 
 
-def render_pdf(template: dict, inst: WorkflowInstance) -> bytes:
+def render_pdf(template: dict, inst: WorkflowInstance, company_name: str | None = None) -> bytes:
     # System fields win over form fields for the 4 reserved names (predictable docs).
     values = {**strip_ui_keys(inst.request_data or {}), **_system_fields(inst)}
     title = fill(template.get("title") or template.get("name") or "Document", values)
     body = fill(template.get("body") or "", values)
-    return text_to_pdf(title, body.split("\n"))
+    # company_name is the client letterhead (top); WizFlow footer is added by text_to_pdf.
+    return text_to_pdf(title, body.split("\n"), letterhead=company_name)
 
 
 def output_filename(template: dict, inst: WorkflowInstance) -> str:

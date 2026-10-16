@@ -71,7 +71,7 @@ export function PublicFormPage() {
 
   if (done) {
     return (
-      <PageShell company={form?.company_name}>
+      <PageShell company={form?.company_name} logoUrl={form?.logo_url}>
         <div className="text-center py-8">
           <div className="w-14 h-14 rounded-full bg-green-100 flex items-center justify-center mx-auto mb-4">
             <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2.5" strokeLinecap="round"><polyline points="20 6 9 17 4 12"/></svg>
@@ -108,7 +108,7 @@ export function PublicFormPage() {
   const fields = schemaFields(form);
 
   return (
-    <PageShell company={form.company_name}>
+    <PageShell company={form.company_name} logoUrl={form.logo_url}>
       <h2 className="text-lg font-bold text-slate-900 mb-1">{form.workflow_name}</h2>
       {form.company_name && (
         <p className="text-sm text-slate-500 mb-6">
@@ -252,18 +252,39 @@ function LockIcon() {
   );
 }
 
-function PageShell({ children, company }: { children: React.ReactNode; company?: string }) {
+function PageShell({
+  children,
+  company,
+  logoUrl,
+}: {
+  children: React.ReactNode;
+  company?: string;
+  logoUrl?: string | null;
+}) {
   return (
     <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4">
       <div className="bg-white rounded-2xl shadow-lg max-w-lg w-full overflow-hidden">
+        {/* Client branding (top): the client's own logo, falling back to WizFlow. */}
         <div className="bg-gradient-to-br from-[rgb(var(--wf-brand-600))] to-[rgb(var(--wf-brand-400))] px-8 py-6 text-white text-center">
-          <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.75" strokeLinecap="round"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/></svg>
-          </div>
-          <span className="text-lg font-bold tracking-tight">WizFlow</span>
-          {company && <p className="text-white/70 text-xs mt-1">{company}</p>}
+          {logoUrl ? (
+            <img
+              src={logoUrl}
+              alt={company || "Logo"}
+              className="max-h-14 max-w-[200px] object-contain mx-auto mb-2 bg-white rounded-lg p-2"
+            />
+          ) : (
+            <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center mx-auto mb-3">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.75" strokeLinecap="round"><rect width="8" height="8" x="3" y="3" rx="2"/><path d="M7 11v4a2 2 0 0 0 2 2h4"/><rect width="8" height="8" x="13" y="13" rx="2"/></svg>
+            </div>
+          )}
+          <span className="text-lg font-bold tracking-tight">{company || "WizFlow"}</span>
         </div>
         <div className="px-8 py-6">{children}</div>
+        {/* Product branding (bottom): always-visible WizFlow attribution. */}
+        <div className="px-8 py-3 border-t border-slate-100 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
+          <img src="/mark.svg" alt="" className="h-3.5 w-3.5 opacity-70" />
+          Powered by WizFlow
+        </div>
       </div>
     </div>
   );

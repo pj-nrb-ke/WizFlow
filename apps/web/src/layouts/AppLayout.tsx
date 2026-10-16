@@ -196,8 +196,12 @@ export function AppLayout() {
               <Outlet />
             </ErrorBoundary>
           </main>
-          <footer className="wf-footer">
-            {THEME_META[appTheme].label} · {user?.company_name ?? "WizFlow"}
+          <footer className="wf-footer flex flex-wrap items-center justify-between gap-2">
+            <span>{THEME_META[appTheme].label} · {user?.company_name ?? "WizFlow"}</span>
+            <span className="inline-flex items-center gap-1.5 opacity-70">
+              <img src="/mark.svg" alt="" className="h-3.5 w-3.5" />
+              Powered by WizFlow
+            </span>
           </footer>
         </div>
       </div>

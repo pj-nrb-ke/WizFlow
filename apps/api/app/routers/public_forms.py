@@ -25,6 +25,7 @@ from app.db.models import (
     WorkflowDefinition,
 )
 from app.db.session import get_db
+from app.services.company_settings import branding_from_settings
 
 # ── MIME type whitelist (magic bytes, not extension) ─────────────────────────
 
@@ -129,6 +130,8 @@ class PublicFormSchema(BaseModel):
     workflow_id: str
     workflow_name: str
     company_name: str
+    logo_url: str | None = None
+    brand_color: str | None = None
     form_schema: dict
     settings: dict
 
@@ -143,11 +146,14 @@ def get_public_form(token: str, db: Session = Depends(get_db)) -> PublicFormSche
         raise HTTPException(status_code=404, detail="This form is not available.")
 
     company = db.scalar(select(Company).where(Company.id == wf.company_id))
+    branding = branding_from_settings(company.settings if company else None)
 
     return PublicFormSchema(
         workflow_id=str(wf.id),
         workflow_name=wf.name,
         company_name=company.name if company else "",
+        logo_url=branding.get("logo_url"),
+        brand_color=branding.get("brand_color"),
         form_schema=_resolve_field_options(wf.form_schema, wf.company_id, db),
         settings=wf.settings or {},
     )

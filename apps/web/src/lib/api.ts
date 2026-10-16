@@ -1246,6 +1246,8 @@ export type PublicFormSchema = {
   workflow_id: string;
   workflow_name: string;
   company_name: string;
+  logo_url?: string | null;
+  brand_color?: string | null;
   form_schema: Record<string, unknown>;
   settings: Record<string, unknown>;
 };

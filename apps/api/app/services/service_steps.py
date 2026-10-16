@@ -20,7 +20,7 @@ from uuid import UUID
 import httpx
 from sqlalchemy.orm import Session
 
-from app.db.models import Attachment, WorkflowDefinition, WorkflowInstance
+from app.db.models import Attachment, Company, WorkflowDefinition, WorkflowInstance
 from app.services import ai_client, ai_gateway, business_data, doc_templates
 from app.services.assignees import _users_for_role
 from app.services.events import record_event
@@ -122,7 +122,8 @@ def _run_document(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition,
     template = doc_templates.find_template(defn, step.get("template_id") or "")
     if not template:
         return f"document: template {step.get('template_id')!r} not found"
-    pdf = doc_templates.render_pdf(template, inst)
+    company = db.get(Company, inst.company_id)
+    pdf = doc_templates.render_pdf(template, inst, company_name=company.name if company else None)
     rel, name, size = save_bytes(
         inst.company_id, inst.id, pdf, doc_templates.output_filename(template, inst)
     )
