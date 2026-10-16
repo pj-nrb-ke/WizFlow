@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.db.models import WorkflowDefinition
 from app.services.initiators import custom_workflow_settings, resolve_initiator_user_ids
+from app.services.workflow_engine import is_automated_step
 
 Severity = Literal["error", "warning"]
 
@@ -54,14 +55,16 @@ def check_workflow_health(db: Session, defn: WorkflowDefinition) -> list[dict]:
             if sid in seen:
                 issues.append(_issue("error", f"Duplicate step id: {sid}"))
             seen.add(sid)
-        if not _step_has_assignee(step):
-            label = step.get("name") or sid or "unknown"
-            issues.append(_issue("error", f"Step '{label}' has no assignees configured"))
-        else:
-            assignee = step.get("assignee") or {}
-            if assignee.get("type") == "users" and not (assignee.get("user_ids") or []):
+        if not is_automated_step(step):
+            # automated/service steps (notify, record, webhook, …) carry no human assignee
+            if not _step_has_assignee(step):
                 label = step.get("name") or sid or "unknown"
-                issues.append(_issue("error", f"Step '{label}' is missing approvers (empty user list)"))
+                issues.append(_issue("error", f"Step '{label}' has no assignees configured"))
+            else:
+                assignee = step.get("assignee") or {}
+                if assignee.get("type") == "users" and not (assignee.get("user_ids") or []):
+                    label = step.get("name") or sid or "unknown"
+                    issues.append(_issue("error", f"Step '{label}' is missing approvers (empty user list)"))
 
     for i, rule in enumerate(defn.routing_rules or []):
         if not isinstance(rule, dict):
@@ -93,3 +96,23 @@ def check_workflow_health(db: Session, defn: WorkflowDefinition) -> list[dict]:
 def health_summary(issues: list[dict]) -> dict:
     has_error = any(i.get("severity") == "error" for i in issues)
     return {"issues": issues, "ok": not has_error}
+
+
+if __name__ == "__main__":  # self-check: automated/service steps need no assignee
+    class _NS:
+        name = "t"
+        form_schema = {"fields": [{"key": "a", "type": "text", "label": "A"}]}
+        routing_rules: list = []
+        settings: dict = {}
+
+        def __init__(self, steps):
+            self.steps = steps
+
+    ok = check_workflow_health(None, _NS([  # type: ignore[arg-type]
+        {"id": "rec", "name": "Save to ExpenseClaim", "type": "record", "entity_slug": "expense_claim"},
+        {"id": "s1", "name": "Manager", "type": "approval", "assignee": {"type": "role", "value": "manager"}},
+    ]))
+    assert not any("no assignees" in i["message"] for i in ok), ok
+    bad = check_workflow_health(None, _NS([{"id": "s1", "name": "Review", "type": "approval"}]))  # type: ignore[arg-type]
+    assert any("no assignees" in i["message"] for i in bad), bad
+    print("workflow_health self-check OK — automated steps exempt from assignee check")
