@@ -279,7 +279,7 @@ def generate_document(
     if not template:
         raise HTTPException(status_code=404, detail="Document template not found")
 
-    pdf = doc_templates.render_pdf(template, inst)
+    pdf = doc_templates.render_pdf(template, inst, db=db)
     rel, name, size = save_bytes(
         inst.company_id, inst.id, pdf, doc_templates.output_filename(template, inst)
     )

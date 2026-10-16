@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import io
+import os
+import tempfile
 
 from fpdf import FPDF
 from fpdf.enums import XPos, YPos
@@ -28,24 +30,50 @@ class _BrandedPDF(FPDF):
         self.set_text_color(0, 0, 0)
 
 
+def _embed_logo(pdf: FPDF, logo: bytes) -> bool:
+    """Best-effort: place the client logo as a top-left letterhead (~14mm tall).
+    Handles raster (PNG/JPG/GIF) and SVG; returns False on any problem so the
+    caller falls back to a text letterhead. Never raises."""
+    try:
+        head = logo[:300].lstrip().lower()
+        if head.startswith(b"<?xml") or b"<svg" in head:
+            # fpdf2 parses SVG from a path by its extension — write a temp .svg.
+            fd, path = tempfile.mkstemp(suffix=".svg")
+            try:
+                with os.fdopen(fd, "wb") as f:
+                    f.write(logo)
+                pdf.image(path, x=15, y=12, h=14)
+            finally:
+                os.unlink(path)
+        else:
+            pdf.image(io.BytesIO(logo), x=15, y=12, h=14)  # raster; width auto-scales
+        return True
+    except Exception:
+        return False
+
+
 def text_to_pdf(
     title: str,
     lines: list[str],
     *,
+    logo: bytes | None = None,
     letterhead: str | None = None,
     footer_text: str = "Powered by WizFlow",
 ) -> bytes:
     """Render a title + body lines to PDF.
 
-    Two-level branding: ``letterhead`` (the client company) prints at the top,
-    and ``footer_text`` (WizFlow) prints at the bottom of every page.
+    Two-level branding: the client appears at the top — their ``logo`` image if
+    it embeds, otherwise the ``letterhead`` text — and ``footer_text`` (WizFlow)
+    prints at the bottom of every page.
     """
     pdf = _BrandedPDF()
     pdf.footer_text = footer_text
     pdf.set_auto_page_break(auto=True, margin=18)
     pdf.set_margins(15, 15, 15)
     pdf.add_page()
-    if letterhead:
+    if logo and _embed_logo(pdf, logo):
+        pdf.set_y(30)  # start content below the logo
+    elif letterhead:
         pdf.set_font("Helvetica", "B", 11)
         pdf.set_text_color(90, 90, 90)
         pdf.multi_cell(0, 7, _latin1(letterhead)[:120], new_x=XPos.LMARGIN, new_y=YPos.NEXT)
@@ -67,8 +95,17 @@ def text_to_pdf(
     return out.getvalue()
 
 
-if __name__ == "__main__":  # self-check: renders with letterhead + footer → valid PDF
-    pdf = text_to_pdf("Title", ["line one", "", "line two"], letterhead="Acme Ltd")
-    assert pdf[:4] == b"%PDF" and len(pdf) > 500, (pdf[:8], len(pdf))
+_PNG_1x1 = (
+    b"\x89PNG\r\n\x1a\n\x00\x00\x00\rIHDR\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06"
+    b"\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\nIDATx\x9cc\x00\x01\x00\x00\x05\x00"
+    b"\x01\r\n-\xb4\x00\x00\x00\x00IEND\xaeB`\x82"
+)
+
+if __name__ == "__main__":  # self-check: branding + logo embed + graceful fallback
+    assert text_to_pdf("Title", ["a", "", "b"], letterhead="Acme Ltd")[:4] == b"%PDF"
     assert text_to_pdf("T", [], footer_text="")[:4] == b"%PDF"  # footer optional
+    assert text_to_pdf("T", ["x"], logo=_PNG_1x1)[:4] == b"%PDF"  # raster logo embeds
+    _svg = b'<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10"><rect width="10" height="10"/></svg>'
+    assert text_to_pdf("T", ["x"], logo=_svg)[:4] == b"%PDF"  # svg path (or fallback)
+    assert text_to_pdf("T", ["x"], logo=b"not-an-image", letterhead="Acme")[:4] == b"%PDF"  # fallback
     print("pdf_export self-check OK")

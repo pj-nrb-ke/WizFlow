@@ -49,13 +49,23 @@ def fill(text: str | None, values: dict) -> str:
     return _PLACEHOLDER.sub(repl, text or "")
 
 
-def render_pdf(template: dict, inst: WorkflowInstance, company_name: str | None = None) -> bytes:
+def render_pdf(template: dict, inst: WorkflowInstance, *, db=None) -> bytes:
     # System fields win over form fields for the 4 reserved names (predictable docs).
     values = {**strip_ui_keys(inst.request_data or {}), **_system_fields(inst)}
     title = fill(template.get("title") or template.get("name") or "Document", values)
     body = fill(template.get("body") or "", values)
-    # company_name is the client letterhead (top); WizFlow footer is added by text_to_pdf.
-    return text_to_pdf(title, body.split("\n"), letterhead=company_name)
+    # Two-level branding: the client's logo (or name) as the letterhead; the
+    # WizFlow footer is added by text_to_pdf. Needs db to read company branding.
+    company_name, logo = None, None
+    if db is not None and inst.company_id:
+        from app.db.models import Company
+        from app.services.company_settings import branding_from_settings, fetch_logo_bytes
+
+        company = db.get(Company, inst.company_id)
+        if company:
+            company_name = company.name
+            logo = fetch_logo_bytes(branding_from_settings(company.settings).get("logo_url"))
+    return text_to_pdf(title, body.split("\n"), logo=logo, letterhead=company_name)
 
 
 def output_filename(template: dict, inst: WorkflowInstance) -> str:
