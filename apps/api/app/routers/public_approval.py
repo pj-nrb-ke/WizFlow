@@ -9,11 +9,10 @@ from app.db.models import WorkflowDefinition, WorkflowInstance
 from app.db.session import get_db
 from app.schemas.request import PublicApprovalDecide, PublicApprovalView
 from app.services import approval_tokens, instance_engine
-from app.services.approval_notify import notify_approvers_for_step
+from app.services.approval_notify import notify_approvers_for_step, notify_originator_decision
 from app.services.assignees import user_can_act
 from app.services.approval_tokens import get_valid_token, mark_token_used
 from app.services.instance_queries import get_instance
-from app.services.notifications import notify_users
 
 router = APIRouter(prefix="/public/approval", tags=["Public approval"])
 
@@ -84,30 +83,22 @@ def decide_approval(
 
     mark_token_used(db, row)
 
+    if body.action in ("approve", "reject"):
+        notify_originator_decision(
+            db,
+            instance=inst,
+            defn=defn,
+            action=body.action,
+            actor_user_id=row.user_id,
+            comment=body.comment,
+        )
+
     if body.action == "approve" and inst.status == "in_progress" and inst.current_step_id:
         notify_approvers_for_step(
             db,
             instance=inst,
             defn=defn,
             step_id=inst.current_step_id,
-        )
-    elif body.action == "approve" and inst.status == "approved" and inst.originator_user_id:
-        notify_users(
-            db,
-            company_id=inst.company_id,
-            user_ids=[inst.originator_user_id],
-            title=f"Request approved: {inst.workflow_name}",
-            body="Your request has been fully approved.",
-            instance_id=inst.id,
-        )
-    elif body.action == "reject" and inst.originator_user_id:
-        notify_users(
-            db,
-            company_id=inst.company_id,
-            user_ids=[inst.originator_user_id],
-            title=f"Request rejected: {inst.workflow_name}",
-            body=body.comment or "Your request was rejected.",
-            instance_id=inst.id,
         )
 
     db.commit()

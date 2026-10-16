@@ -289,22 +289,13 @@ def _act(
             defn=defn,
             step_id=inst.current_step_id,
         )
-    elif action in ("reject", "return") and inst.originator_user_id:
+    elif action == "return" and inst.originator_user_id:
         notify_users(
             db,
             company_id=inst.company_id,
             user_ids=[inst.originator_user_id],
-            title=f"Request {action}ed: {inst.workflow_name}",
-            body=comment or f"Your request was {action}ed.",
-            instance_id=inst.id,
-        )
-    elif action == "approve" and inst.status == "approved" and inst.originator_user_id:
-        notify_users(
-            db,
-            company_id=inst.company_id,
-            user_ids=[inst.originator_user_id],
-            title=f"Request approved: {inst.workflow_name}",
-            body="Your request has been fully approved.",
+            title=f"Request returned: {inst.workflow_name}",
+            body=comment or "Your request was returned.",
             instance_id=inst.id,
         )
     elif action == "request-info" and inst.originator_user_id:
