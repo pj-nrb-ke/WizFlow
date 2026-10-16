@@ -7,9 +7,10 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.db.models import User, WorkflowDefinition, WorkflowInstance
+from app.db.models import Company, User, WorkflowDefinition, WorkflowInstance
 from app.services import approval_tokens
 from app.services.brevo_mail import send_approval_email
+from app.services.company_settings import branding_from_settings
 from app.services.notifications import notify_users
 
 logger = logging.getLogger("wizflow.approval_notify")
@@ -43,6 +44,10 @@ def notify_approvers_for_step(
         send_email=False,
     )
 
+    company = db.get(Company, instance.company_id)
+    branding = branding_from_settings(company.settings if company else None)
+    client_name = company.name if company else None
+
     for uid in user_ids:
         user = db.get(User, uid)
         if not user or not user.email:
@@ -67,6 +72,8 @@ def notify_approvers_for_step(
             originator_name=summary["originator_name"],
             request_preview=summary["request_preview"],
             approval_url=url,
+            client_logo_url=branding.get("logo_url"),
+            client_name=client_name,
         )
 
 
@@ -122,6 +129,8 @@ def notify_originator_decision(
 
     app_url = settings.app_url.rstrip("/")
     view_url = f"{app_url}/requests/{instance.id}"
+    company = db.get(Company, instance.company_id)
+    branding = branding_from_settings(company.settings if company else None)
     send_request_status_email(
         to_email=originator.email,
         to_name=originator.full_name,
@@ -131,4 +140,6 @@ def notify_originator_decision(
         actor_name=actor_name,
         comment=comment,
         view_url=view_url,
+        client_logo_url=branding.get("logo_url"),
+        client_name=company.name if company else None,
     )

@@ -33,6 +33,37 @@ def _mail_settings() -> dict[str, str]:
     }
 
 
+WIZFLOW_MARK_URL = "https://app.wizflow.biz/icon-192.png"
+
+
+def _wrap_html(inner: str, *, client_logo_url: str | None = None, client_name: str | None = None) -> str:
+    """Two-level branding: client logo/name at the top, WizFlow at the bottom (always)."""
+    if client_logo_url:
+        header = (
+            '<div style="text-align:center;margin-bottom:24px">'
+            f'<img src="{client_logo_url}" alt="{client_name or ""}" '
+            'style="max-height:48px;max-width:200px;object-fit:contain"></div>'
+        )
+    elif client_name:
+        header = (
+            '<div style="text-align:center;margin-bottom:24px">'
+            f'<span style="font-size:18px;font-weight:700;color:#1e293b">{client_name}</span></div>'
+        )
+    else:
+        header = ""
+    return (
+        '<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;color:#1e293b;'
+        'max-width:520px;margin:0 auto;padding:24px">'
+        f"{header}{inner}"
+        '<hr style="border:none;border-top:1px solid #e2e8f0;margin:28px 0 16px">'
+        '<div style="text-align:center">'
+        f'<img src="{WIZFLOW_MARK_URL}" alt="" width="16" height="16" '
+        'style="vertical-align:middle;opacity:0.6;margin-right:6px">'
+        '<span style="font-size:12px;color:#94a3b8;vertical-align:middle">Powered by WizFlow</span>'
+        "</div></body></html>"
+    )
+
+
 def _build_bodies(
     *,
     to_name: str,
@@ -41,6 +72,8 @@ def _build_bodies(
     originator_name: str,
     request_preview: dict,
     approval_url: str,
+    client_logo_url: str | None = None,
+    client_name: str | None = None,
 ) -> tuple[str, str]:
     preview_lines = "\n".join(f"  • {k}: {v}" for k, v in request_preview.items())
     text_body = f"""Hello {to_name},
@@ -64,9 +97,8 @@ Open this secure link to approve or reject (no login required; link expires in 7
         f"<td style='padding:4px 8px'><strong>{v}</strong></td></tr>"
         for k, v in request_preview.items()
     )
-    html_body = f"""<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;color:#1e293b">
-<p>Hello {to_name},</p>
-<p>You have a pending approval in <strong>WizFlow</strong>.</p>
+    inner = f"""<p>Hello {to_name},</p>
+<p>You have a pending approval.</p>
 <table style="margin:16px 0;border-collapse:collapse">
 <tr><td colspan="2" style="padding-bottom:8px"><strong>{workflow_name}</strong></td></tr>
 <tr><td style="color:#64748b">Step</td><td>{step_name}</td></tr>
@@ -76,8 +108,8 @@ Open this secure link to approve or reject (no login required; link expires in 7
 <p style="margin:24px 0">
 <a href="{approval_url}" style="background:#4f46e5;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block">Review &amp; decide</a>
 </p>
-<p style="font-size:12px;color:#94a3b8">This link works without logging in and expires in 7 days.</p>
-</body></html>"""
+<p style="font-size:12px;color:#94a3b8">This link works without logging in and expires in 7 days.</p>"""
+    html_body = _wrap_html(inner, client_logo_url=client_logo_url, client_name=client_name)
     return text_body, html_body
 
 
@@ -143,6 +175,8 @@ def send_approval_email(
     originator_name: str,
     request_preview: dict,
     approval_url: str,
+    client_logo_url: str | None = None,
+    client_name: str | None = None,
 ) -> bool:
     """Send approval email. Returns True if sent, False if logged-only (dev)."""
     cfg = _mail_settings()
@@ -162,6 +196,8 @@ def send_approval_email(
         originator_name=originator_name,
         request_preview=request_preview,
         approval_url=approval_url,
+        client_logo_url=client_logo_url,
+        client_name=client_name,
     )
 
     errors: list[str] = []
@@ -212,6 +248,8 @@ def send_request_status_email(
     actor_name: str,
     comment: str | None,
     view_url: str,
+    client_logo_url: str | None = None,
+    client_name: str | None = None,
 ) -> bool:
     """Email initiator when their request is approved or rejected."""
     cfg = _mail_settings()
@@ -238,12 +276,11 @@ View your request:
 
 — WizFlow
 """
-    html_body = f"""<!DOCTYPE html><html><body style="font-family:system-ui,sans-serif;color:#1e293b">
-<p>Hello {to_name},</p>
+    inner = f"""<p>Hello {to_name},</p>
 <p>Your request <strong>{workflow_name}</strong> was <strong>{status_label}</strong> by {actor_name}.</p>
 {"<p><em>" + comment + "</em></p>" if comment else ""}
-<p><a href="{view_url}" style="background:#4f46e5;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block">View request</a></p>
-</body></html>"""
+<p><a href="{view_url}" style="background:#4f46e5;color:#fff;padding:12px 24px;text-decoration:none;border-radius:8px;display:inline-block">View request</a></p>"""
+    html_body = _wrap_html(inner, client_logo_url=client_logo_url, client_name=client_name)
 
     errors: list[str] = []
     if cfg["api_key"]:
@@ -618,3 +655,12 @@ If you didn't request this, you can safely ignore this email — your password w
     if errors:
         logger.error("Password reset email failed for %s: %s", to_email, errors)
     return False
+
+
+if __name__ == "__main__":  # self-check: two-level branding wrapper
+    with_logo = _wrap_html("<p>hi</p>", client_logo_url="https://x/l.png", client_name="Acme")
+    assert "Powered by WizFlow" in with_logo and "l.png" in with_logo
+    assert with_logo.strip().endswith("</html>")
+    assert "Powered by WizFlow" in _wrap_html("<p>x</p>")  # footer even with no client
+    assert "Acme" in _wrap_html("<p>x</p>", client_name="Acme")  # name fallback
+    print("brevo_mail self-check OK")
