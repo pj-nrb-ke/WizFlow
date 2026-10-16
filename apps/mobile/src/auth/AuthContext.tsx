@@ -7,11 +7,12 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import { apiFetch, type TokenResponse, type UserProfile } from "../api/client";
-import { clearTokens, getAccessToken, getRefreshToken, saveTokens } from "./storage";
+import { apiFetch, setUnauthorizedHandler, type TokenResponse, type UserProfile } from "../api/client";
+import { clearTokens, getAccessToken, saveTokens } from "./storage";
 import { registerPushToken } from "../notifications/push";
 import { isBiometricEnabled, requireBiometric } from "../lib/biometrics";
 import { AppState } from "react-native";
+import { router } from "expo-router";
 
 type AuthState = {
   user: UserProfile | null;
@@ -74,6 +75,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await clearTokens();
     setUser(null);
     setToken(null);
+  }, []);
+
+  // When any authenticated request 401s (token expired/revoked), fail cleanly to login.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      void clearTokens();
+      setUser(null);
+      setToken(null);
+      router.replace("/login");
+    });
+    return () => setUnauthorizedHandler(null);
   }, []);
 
   useEffect(() => {

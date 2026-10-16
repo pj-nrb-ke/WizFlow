@@ -40,7 +40,15 @@ async function ensureActionCategory(): Promise<void> {
           token
         );
       } catch {
-        /* best-effort */
+        // Don't fail silently — tell the user it didn't go through.
+        try {
+          await Notifications.scheduleNotificationAsync({
+            content: { title: "Couldn't complete that", body: "Open WizFlow to approve or reject." },
+            trigger: null,
+          });
+        } catch {
+          /* ignore */
+        }
       }
     });
   } catch {

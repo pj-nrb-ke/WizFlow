@@ -1,6 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import type { FormField } from "./formUtils";
-import { secureGet, secureRemove, secureSet } from "./secureStorage";
+import { secureGet, secureSet } from "./secureStorage";
 
 const DRAFT_PREFIX = "wf_draft_";
 const QUEUE_KEY = "wf_submit_queue";
@@ -16,6 +15,7 @@ export type QueuedSubmit = {
   id: string;
   workflowId: string;
   data: Record<string, unknown>;
+  comment?: string;
   createdAt: string;
 };
 
@@ -52,15 +52,26 @@ export async function loadQueue(): Promise<QueuedSubmit[]> {
   }
 }
 
-export async function enqueueSubmit(workflowId: string, data: Record<string, unknown>): Promise<void> {
+export async function enqueueSubmit(
+  workflowId: string,
+  data: Record<string, unknown>,
+  comment?: string
+): Promise<void> {
   const q = await loadQueue();
   q.push({
     id: `${Date.now()}`,
     workflowId,
     data,
+    comment,
     createdAt: new Date().toISOString(),
   });
-  await secureSet(QUEUE_KEY, JSON.stringify(q));
+  // ponytail: expo-secure-store values cap ~2KB on Android — drop oldest to stay under.
+  let serialized = JSON.stringify(q);
+  while (q.length > 1 && serialized.length > 1800) {
+    q.shift();
+    serialized = JSON.stringify(q);
+  }
+  await secureSet(QUEUE_KEY, serialized);
 }
 
 export async function dequeueSubmit(id: string): Promise<void> {
@@ -71,7 +82,6 @@ export async function dequeueSubmit(id: string): Promise<void> {
 export function draftFromFields(
   workflowId: string,
   workflowName: string,
-  fields: FormField[],
   form: Record<string, string>
 ): RequestDraft {
   return { workflowId, workflowName, form, savedAt: new Date().toISOString() };

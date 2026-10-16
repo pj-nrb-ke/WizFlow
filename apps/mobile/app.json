@@ -2,7 +2,7 @@
   "expo": {
     "name": "WizFlow",
     "slug": "wizflow",
-    "version": "1.0.0",
+    "version": "1.0.1",
     "orientation": "portrait",
     "scheme": "wizflow",
     "userInterfaceStyle": "light",
@@ -24,6 +24,7 @@
     },
     "android": {
       "package": "biz.wizflow.app",
+      "versionCode": 2,
       "permissions": [
         "CAMERA",
         "RECORD_AUDIO",

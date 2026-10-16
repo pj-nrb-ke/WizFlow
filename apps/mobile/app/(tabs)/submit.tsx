@@ -94,7 +94,7 @@ export default function SubmitScreen() {
     const next = { ...form, [key]: value };
     setForm(next);
     if (selected) {
-      void saveDraft(draftFromFields(selected.id, selected.name, fields, next));
+      void saveDraft(draftFromFields(selected.id, selected.name, next));
       setDraftHint("Draft saved on device");
     }
   }
@@ -159,7 +159,7 @@ export default function SubmitScreen() {
     }
 
     setForm(patch);
-    if (selected) void saveDraft(draftFromFields(selected.id, selected.name, fields, patch));
+    if (selected) void saveDraft(draftFromFields(selected.id, selected.name, patch));
   }
 
   async function pickDocument() {
@@ -202,7 +202,7 @@ export default function SubmitScreen() {
     setSubmitting(true);
     try {
       if (!online) {
-        await enqueueSubmit(selectedId, payload);
+        await enqueueSubmit(selectedId, payload, comment.trim() || undefined);
         Alert.alert("Saved offline", "Request will submit when you're back online.");
         await clearDraft(selectedId);
         return;

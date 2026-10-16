@@ -1,4 +1,4 @@
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { FormField } from "../lib/formUtils";
 import { colors } from "../theme/colors";
 
@@ -21,23 +21,40 @@ export function FormRenderer({ fields, values, onChange, highlightKeys }: Props)
           );
         }
         const highlighted = highlightKeys?.has(f.key);
+        const hasOptions = !!(f.options && f.options.length > 0);
         return (
           <View key={f.key} style={[styles.field, highlighted && styles.highlight]}>
             <Text style={styles.label}>
               {f.label}
               {f.required ? " *" : ""}
             </Text>
-            <TextInput
-              style={styles.input}
-              value={values[f.key] ?? ""}
-              onChangeText={(t) => onChange(f.key, t)}
-              placeholder={f.placeholder || f.label}
-              keyboardType={f.type === "number" ? "decimal-pad" : "default"}
-              multiline={f.type === "text" && (f.key.includes("purpose") || f.key.includes("comment"))}
-            />
-            {f.options && f.options.length > 0 ? (
-              <Text style={styles.hint}>Options: {f.options.map((o) => o.label).join(", ")}</Text>
-            ) : null}
+            {hasOptions ? (
+              <View style={styles.chips}>
+                {(f.options ?? []).map((o) => {
+                  const selected = (values[f.key] ?? "") === o.value;
+                  return (
+                    <Pressable
+                      key={o.value}
+                      style={[styles.chip, selected && styles.chipActive]}
+                      onPress={() => onChange(f.key, o.value)}
+                    >
+                      <Text style={[styles.chipText, selected && styles.chipTextActive]}>
+                        {o.label}
+                      </Text>
+                    </Pressable>
+                  );
+                })}
+              </View>
+            ) : (
+              <TextInput
+                style={styles.input}
+                value={values[f.key] ?? ""}
+                onChangeText={(t) => onChange(f.key, t)}
+                placeholder={f.placeholder || f.label}
+                keyboardType={f.type === "number" ? "decimal-pad" : "default"}
+                multiline={f.type === "text" && (f.key.includes("purpose") || f.key.includes("comment"))}
+              />
+            )}
           </View>
         );
       })}
@@ -65,5 +82,16 @@ const styles = StyleSheet.create({
     backgroundColor: colors.card,
     color: colors.text,
   },
-  hint: { fontSize: 12, color: colors.muted, marginTop: 4 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chip: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.card,
+  },
+  chipActive: { backgroundColor: colors.primary, borderColor: colors.primary },
+  chipText: { fontSize: 14, color: colors.text },
+  chipTextActive: { color: "#fff" },
 });
