@@ -55,22 +55,22 @@ export function Phase2AnalyticsTabs({ tab, params, workflows, isAdmin }: Props) 
     if (tab === "workload") {
       Promise.all([getWorkload(params, token), getWorkloadHistory(params, token)])
         .then(([w, h]) => {
-          setWorkload(w.users);
-          setHistory(h.weeks);
+          setWorkload(w.users ?? []);
+          setHistory(h.weeks ?? []);
         })
         .catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed"));
     } else if (tab === "automation") {
       Promise.all([getJourneyAnalytics(params, token), getApprovalHeatmap(params, token)])
         .then(([j, hm]) => {
-          setJourney(j.edges);
-          setHeatmap(hm.cells);
+          setJourney(j.edges ?? []);
+          setHeatmap(hm.cells ?? []);
         })
         .catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed"));
     } else {
       Promise.all([getScorecards(params, token), listKpiTargets(token)])
         .then(([sc, t]) => {
-          setScorecards(sc.rows);
-          setTargets(t);
+          setScorecards(sc.rows ?? []);
+          setTargets(Array.isArray(t) ? t : []);
         })
         .catch((e) => setError(e instanceof ApiError ? e.detail ?? e.message : "Failed"));
     }

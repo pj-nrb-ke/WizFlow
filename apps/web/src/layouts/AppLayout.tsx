@@ -1,5 +1,5 @@
 import { ComponentType } from "react";
-import { Link, NavLink, Outlet } from "react-router-dom";
+import { Link, NavLink, Outlet, useLocation } from "react-router-dom";
 import {
   IconClipboardList,
   IconHome,
@@ -16,6 +16,7 @@ import {
   IconChartBar,
   IconHelp,
 } from "../components/icons";
+import { ErrorBoundary } from "../components/ErrorBoundary";
 import { NetworkStatusBanner } from "../components/NetworkStatusBanner";
 import { UserMenu } from "../components/UserMenu";
 import { useAuth } from "../context/AuthContext";
@@ -29,6 +30,7 @@ type NavItem = { to: string; label: string; end?: boolean; Icon: IconComponent }
 export function AppLayout() {
   const { user } = useAuth();
   const { appTheme } = useAppTheme();
+  const location = useLocation();
   const showAnalytics = canAccessReports(user?.roles);
   const isAdmin = user?.roles.includes("company_admin");
   const showMasterData = canManageMasterData(user?.roles);
@@ -190,7 +192,9 @@ export function AppLayout() {
         {/* Main content */}
         <div className="wf-content-wrap">
           <main className="wf-content">
-            <Outlet />
+            <ErrorBoundary key={location.pathname}>
+              <Outlet />
+            </ErrorBoundary>
           </main>
           <footer className="wf-footer">
             {THEME_META[appTheme].label} · {user?.company_name ?? "WizFlow"}

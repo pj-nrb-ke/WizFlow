@@ -54,11 +54,13 @@ const TABS: { id: TabId; label: string }[] = [
   { id: "compliance", label: "Compliance" },
 ];
 
-function fmtNum(n: number) {
+function fmtNum(n: number | null | undefined) {
+  if (n == null || Number.isNaN(n)) return "—";
   return n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 }
 
-function fmtPct(n: number) {
+function fmtPct(n: number | null | undefined) {
+  if (n == null || Number.isNaN(n)) return "—";
   const pct = n > 1 ? n : n * 100;
   return `${pct.toFixed(1)}%`;
 }
@@ -69,9 +71,16 @@ function fmtHours(h: number | null | undefined) {
   return `${(h / 24).toFixed(1)}d`;
 }
 
-function fmtMoney(n: number, currency?: string | null) {
+function fmtMoney(n: number | null | undefined, currency?: string | null) {
+  if (n == null || Number.isNaN(n)) return "—";
   const sym = currency === "KES" ? "KES " : currency ? `${currency} ` : "";
   return `${sym}${n.toLocaleString(undefined, { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+}
+
+/** API list endpoints can return null or an error shape on sparse data; keep
+ *  render-time `.map`/`.slice` safe by always handing back an array. */
+function asArray<T>(v: T[] | null | undefined): T[] {
+  return Array.isArray(v) ? v : [];
 }
 
 export function AnalyticsPage() {
@@ -116,8 +125,8 @@ export function AnalyticsPage() {
           getBottlenecks(params, token),
         ]);
         setExecutive(exec);
-        setTrends(trendRes.points ?? []);
-        setDepartments(dept);
+        setTrends(asArray(trendRes.points));
+        setDepartments(asArray(dept));
         setBottlenecks(bn);
         const anom = await apiFetch<{ findings: unknown[] }>(
           "/api/v1/analytics/anomalies",
@@ -126,9 +135,9 @@ export function AnalyticsPage() {
         );
         setAnomalyCount(anom.findings?.length ?? 0);
       } else if (tab === "workflows") {
-        setWorkflowRows(await getWorkflowPerformance(params, token));
+        setWorkflowRows(asArray(await getWorkflowPerformance(params, token)));
       } else if (tab === "people") {
-        setUserRows(await getUserPerformance(params, token));
+        setUserRows(asArray(await getUserPerformance(params, token)));
       } else if (tab === "financial") {
         setFinancial(await getFinancialSummary(params, token));
       } else if (tab === "workload" || tab === "automation" || tab === "scorecards") {
