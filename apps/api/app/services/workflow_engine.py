@@ -12,7 +12,7 @@ class WorkflowValidationError(ValueError):
 
 
 # Service steps run automatically and *do* something (then auto-advance).
-SERVICE_STEP_TYPES = {"notify", "webhook", "ai", "document", "record"}
+SERVICE_STEP_TYPES = {"notify", "webhook", "ai", "document", "record", "wizgate"}
 # Steps that run automatically (no human assignee); the scheduler progresses them.
 # Timers wait; service steps act. Both are driven by phase2_automation.
 AUTOMATED_STEP_TYPES = {"timer"} | SERVICE_STEP_TYPES
@@ -86,6 +86,8 @@ def validate_definition(defn: WorkflowDefinition) -> None:
                 raise WorkflowValidationError(f"Document step '{step.get('id')}' needs a template_id")
             if t == "record" and not str(step.get("entity_slug") or "").strip():
                 raise WorkflowValidationError(f"Record step '{step.get('id')}' needs an entity_slug")
+            if t == "wizgate" and not str(step.get("operation") or "").strip():
+                raise WorkflowValidationError(f"WizGate step '{step.get('id')}' needs an operation")
             # notify: message is optional (defaults to a generic update)
         else:
             _validate_assignee(step)

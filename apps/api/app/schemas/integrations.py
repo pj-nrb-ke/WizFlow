@@ -72,6 +72,25 @@ class SecurityAuditOut(BaseModel):
     model_config = {"from_attributes": True}
 
 
+class WizGateConnectionOut(BaseModel):
+    site_id: str | None = None
+    base_url: str = "https://api.wizgate.app"
+    company_db: str | None = None
+    configured: bool = False
+
+
+class WizGateConnectionUpdate(BaseModel):
+    site_id: str | None = Field(None, max_length=200)
+    base_url: str | None = Field(None, max_length=300)
+    company_db: str | None = Field(None, max_length=200)
+    api_key: str | None = Field(None, max_length=400)  # write-only; send only to (re)set the key
+
+
+class WizGateTestOut(BaseModel):
+    ok: bool
+    detail: str
+
+
 class DocumentExtractOut(BaseModel):
     document_type: str
     fields: list[dict]

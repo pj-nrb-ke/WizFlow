@@ -1,10 +1,13 @@
 """Execute automated 'service' steps — the non-human side of the workflow.
 
 A service step does something and then auto-advances (unlike a timer, which only
-waits). Three kinds, each reusing machinery already in the codebase:
-  * ``notify``  → in-app/email notification (notify_users)
-  * ``webhook`` → POST the request to an external URL (SSRF-guarded via webhooks)
-  * ``ai``      → LLM writes a note into the request timeline
+waits). Each reuses machinery already in the codebase:
+  * ``notify``   → in-app/email notification (notify_users)
+  * ``webhook``  → POST the request to an external URL (SSRF-guarded via webhooks)
+  * ``ai``       → LLM writes a note into the request timeline
+  * ``document`` → fill a template → PDF attachment
+  * ``record``   → write the submission into a business-data entity
+  * ``wizgate``  → push the approved request into an accounting system (Sage/Tally/QB) via WizGate
 
 Driven by the scheduler (``phase2_automation.process_service_steps``), never on
 the request path — they may make network calls that must not block a user's HTTP
@@ -20,8 +23,8 @@ from uuid import UUID
 import httpx
 from sqlalchemy.orm import Session
 
-from app.db.models import Attachment, WorkflowDefinition, WorkflowInstance
-from app.services import ai_client, ai_gateway, business_data, doc_templates
+from app.db.models import Attachment, Company, WorkflowDefinition, WorkflowInstance
+from app.services import ai_client, ai_gateway, business_data, company_settings, doc_templates, wizgate_client
 from app.services.assignees import _users_for_role
 from app.services.events import record_event
 from app.services.files import save_bytes
@@ -160,9 +163,80 @@ def _run_record(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition, s
     return summary
 
 
+def _build_payload(step: dict, data: dict) -> dict:
+    """Map the request data into a WizGate op payload.
+    ``mapping`` = {payloadKey: sourceFieldKey}; ``static`` = {payloadKey: literal}."""
+    out: dict = {}
+    for pay_key, src_key in (step.get("mapping") or {}).items():
+        if src_key in data:
+            out[pay_key] = data.get(src_key)
+    for pay_key, value in (step.get("static") or {}).items():
+        out[pay_key] = value
+    return out
+
+
+def _wizgate_note(db: Session, inst: WorkflowInstance, comment: str, meta: dict) -> None:
+    record_event(
+        db,
+        company_id=inst.company_id,
+        event_type="request.commented",
+        actor_user_id=None,
+        instance_id=inst.id,
+        payload={"comment": comment, "wizgate": meta},
+    )
+
+
+def _run_wizgate(db: Session, inst: WorkflowInstance, defn: WorkflowDefinition, step: dict, data: dict) -> str:
+    """Push the approved request into an accounting system via WizGate.
+
+    Step config: operation (the WizGate op), mapping/static (→ payload), company
+    (Sage DB override), validate (dry-run first, default True). The company's WizGate
+    connection supplies siteId + key + base_url. idempotencyKey = the request reference,
+    so a scheduler retry after a transport failure never double-posts.
+    """
+    operation = str(step.get("operation") or "").strip()
+    if not operation:
+        return "wizgate: no operation configured"
+    company = db.get(Company, inst.company_id)
+    creds = company_settings.wizgate_credentials(company.settings if company else None)
+    if not creds:
+        return "wizgate: no connection configured"
+    payload = _build_payload(step, data)
+    company_db = step.get("company") or creds.get("company_db")
+    call = {"base_url": creds["base_url"], "api_key": creds["api_key"], "site_id": creds["site_id"]}
+
+    # 1) Validate with a dry-run first (default on). A business reject here means we never post.
+    if step.get("validate", True):
+        try:
+            wizgate_client.run_op(**call, operation=operation, payload=payload, company=company_db, dry_run=True)
+        except wizgate_client.WizGateBusinessError as e:
+            _wizgate_note(db, inst, f"⚠️ Accounting push blocked ({operation}): {e}",
+                          {"operation": operation, "error": str(e), "stage": "dry_run", "ok": False})
+            return f"wizgate: dry-run rejected — {e}"
+        # transport errors fall through to raise below (retried next scheduler tick)
+
+    # 2) Real post. idempotencyKey = request reference → a re-run returns the cached result.
+    idem = inst.reference_number or str(inst.id)
+    try:
+        result = wizgate_client.run_op(**call, operation=operation, payload=payload, company=company_db,
+                                       idempotency_key=idem, dry_run=False)
+    except wizgate_client.WizGateBusinessError as e:
+        _wizgate_note(db, inst, f"⚠️ Accounting push rejected ({operation}): {e}",
+                      {"operation": operation, "error": str(e), "stage": "post", "ok": False})
+        return f"wizgate: rejected — {e}"
+
+    txn = result.get("sageTransactionId") or result.get("evolutionRef") or result.get("id") or result.get("reference")
+    _wizgate_note(
+        db, inst,
+        f"\U0001F4E4 Posted to the accounting system — {operation}" + (f" · id {txn}" if txn else ""),
+        {"operation": operation, "transaction_id": txn, "result": result, "ok": True},
+    )
+    return f"wizgate: posted {operation}" + (f" (id {txn})" if txn else "")
+
+
 _RUNNERS = {
     "notify": _run_notify, "webhook": _run_webhook, "ai": _run_ai,
-    "document": _run_document, "record": _run_record,
+    "document": _run_document, "record": _run_record, "wizgate": _run_wizgate,
 }
 
 
@@ -186,5 +260,8 @@ if __name__ == "__main__":  # self-check: runner registry matches the engine's t
     assert set(_RUNNERS) == SERVICE_STEP_TYPES, (set(_RUNNERS), SERVICE_STEP_TYPES)
     assert _render("Hi {name}, ref {reference}", {"name": "Pat", "reference": "R-1"}) == "Hi Pat, ref R-1"
     assert _render("no placeholders", {"x": 1}) == "no placeholders"
+    assert _build_payload({"mapping": {"Account": "acct", "Amount": "amt"}, "static": {"TransactionCode": "IN"}},
+                          {"acct": "SUPP001", "amt": 1160}) == {"Account": "SUPP001", "Amount": 1160, "TransactionCode": "IN"}
+    assert _build_payload({"mapping": {"X": "missing"}}, {}) == {}
     assert _ai_note("summarise", {}).startswith("[AI step]")  # no key in test env
     print("service_steps self-check OK")
