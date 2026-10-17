@@ -49,7 +49,9 @@ def _parse_result(job: dict) -> dict:
         data = rj
     err = (data.get("error") if isinstance(data, dict) else None) or job.get("error")
     if err:
-        raise WizGateBusinessError(str(err))
+        # Prefer the human-readable message (e.g. the actual Sage reason) over the code.
+        msg = data.get("message") if isinstance(data, dict) else None
+        raise WizGateBusinessError(f"{err}: {msg}" if msg and msg != err else str(err))
     return data
 
 
@@ -120,5 +122,10 @@ if __name__ == "__main__":  # self-check: result parsing (no network)
         raise AssertionError("expected business error")
     except WizGateBusinessError as e:
         assert "account not found" in str(e)
+    try:
+        _parse_result({"resultJson": '{"error": "SAGE_POST_FAILED", "message": "code is taxable but no tax type"}'})
+        raise AssertionError("expected business error")
+    except WizGateBusinessError as e:
+        assert "SAGE_POST_FAILED" in str(e) and "taxable" in str(e)
     assert _parse_result({"resultJson": None}) == {}
     print("wizgate_client self-check OK")
