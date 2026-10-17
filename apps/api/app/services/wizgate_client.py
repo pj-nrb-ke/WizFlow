@@ -9,7 +9,8 @@ Key behaviours (per WizGate's contract):
   * Synchronous: run-wait waits for the connector and returns ``{status, resultJson, error}``.
   * ``resultJson`` is a JSON **string** — parse it. A *business* reject (e.g. "account
     not found") comes back inside it (HTTP 200), NOT as an HTTP error → WizGateBusinessError.
-  * Transport failure (connector offline / timeout) → HTTP 4xx/5xx → WizGateError (retryable).
+  * Transport failure (connector offline / 5xx / 429 / timeout) → WizGateError (retryable).
+  * A 4xx (auth / permission / bad request) is permanent → WizGateBusinessError (surface, no loop).
   * Idempotency: pass a stable ``idempotency_key`` (the WizFlow request reference); a repeat
     returns the cached result and does not re-post.
   * Dry-run: ``operation="write.dryrun"`` with the real op nested in parameters — validates
@@ -93,8 +94,12 @@ def run_op(
             resp = client.post(url, headers=headers, json=body)
     except Exception as e:  # network / DNS / timeout
         raise WizGateError(f"WizGate unreachable: {type(e).__name__}") from e
-    if resp.status_code >= 400:
+    if resp.status_code == 429 or resp.status_code >= 500:
         raise WizGateError(f"WizGate HTTP {resp.status_code}: {resp.text[:300]}")
+    if resp.status_code >= 400:
+        # 4xx (auth / permission / bad request) is permanent — surface it and do NOT
+        # retry-loop (e.g. a read-only key hitting a write → 403 write_forbidden).
+        raise WizGateBusinessError(f"WizGate HTTP {resp.status_code}: {resp.text[:300]}")
     try:
         job = resp.json()
     except ValueError as e:
