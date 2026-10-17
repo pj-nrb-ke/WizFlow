@@ -212,6 +212,39 @@ WORKFLOW_TEMPLATES: list[dict] = [
         "routing_rules": [],
         "settings": {"sla_hours": 72, "serial_prefix": "ME"},
     },
+    {
+        "id": "imprest_claim",
+        "name": "Imprest Claim",
+        "category": "Finance",
+        "description": "Cash advance against planned expenses, with retirement date and finance review above limits.",
+        "form_schema": {
+            "fields": _amount_fields(
+                ("expected_retirement_date", "date", "Expected retirement date")
+            )
+        },
+        "steps": DEFAULT_STEPS,
+        "routing_rules": [
+            {"when": {"field": "amount", "op": "gt", "value": 10000}, "skip_to": "step_finance"}
+        ],
+        "settings": {"sla_hours": 48, "serial_prefix": "IMP"},
+    },
+    {
+        "id": "transport_claim",
+        "name": "Transport Claim",
+        "category": "Finance",
+        "description": "Reimburse local transport and mileage, with manager and finance approval.",
+        "form_schema": {
+            "fields": _amount_fields(
+                ("route", "text", "Route / journey"),
+                ("travel_date", "date", "Date of travel"),
+            )
+        },
+        "steps": DEFAULT_STEPS,
+        "routing_rules": [
+            {"when": {"field": "amount", "op": "gt", "value": 5000}, "skip_to": "step_finance"}
+        ],
+        "settings": {"sla_hours": 48, "serial_prefix": "TRP"},
+    },
 ]
 
 

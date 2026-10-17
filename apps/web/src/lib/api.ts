@@ -572,6 +572,117 @@ export function listWorkflowTemplates(token?: string | null) {
   return apiFetch<WorkflowTemplate[]>("/api/v1/templates", {}, token);
 }
 
+// ── Suites: no-code "applications" that group published processes ─────────────
+export type SuiteProcess = {
+  family_id: string;
+  workflow_id: string | null;
+  name: string;
+  status: string;
+  description: string | null;
+  category: string | null;
+  position: number;
+  can_initiate: boolean;
+};
+
+export type Suite = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  icon: string | null;
+  accent: string | null;
+  status: string;
+  position: number;
+  item_count: number;
+  items: SuiteProcess[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type SuiteLauncher = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  icon: string | null;
+  accent: string | null;
+  processes: SuiteProcess[];
+};
+
+export type Launcher = { suites: SuiteLauncher[]; ungrouped: SuiteProcess[] };
+
+export type SuiteTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  icon: string | null;
+  process_names: string[];
+  process_count: number;
+};
+
+export function listSuites(token?: string | null) {
+  return apiFetch<Suite[]>("/api/v1/suites", {}, token);
+}
+
+export function getSuite(id: string, token?: string | null) {
+  return apiFetch<Suite>(`/api/v1/suites/${id}`, {}, token);
+}
+
+export function createSuite(
+  body: { name: string; description?: string | null; icon?: string | null; accent?: string | null; family_ids?: string[] },
+  token?: string | null
+) {
+  return apiFetch<Suite>("/api/v1/suites", { method: "POST", body: JSON.stringify(body) }, token);
+}
+
+export function updateSuite(
+  id: string,
+  body: { name?: string; description?: string | null; icon?: string | null; accent?: string | null; status?: string },
+  token?: string | null
+) {
+  return apiFetch<Suite>(`/api/v1/suites/${id}`, { method: "PATCH", body: JSON.stringify(body) }, token);
+}
+
+export function setSuiteItems(id: string, familyIds: string[], token?: string | null) {
+  return apiFetch<Suite>(
+    `/api/v1/suites/${id}/items`,
+    { method: "PUT", body: JSON.stringify({ family_ids: familyIds }) },
+    token
+  );
+}
+
+export function deleteSuite(id: string, token?: string | null) {
+  return apiFetch<void>(`/api/v1/suites/${id}`, { method: "DELETE" }, token);
+}
+
+export function reorderSuites(orderedIds: string[], token?: string | null) {
+  return apiFetch<void>(
+    "/api/v1/suites/reorder",
+    { method: "POST", body: JSON.stringify({ ordered_ids: orderedIds }) },
+    token
+  );
+}
+
+export function listAvailableProcesses(token?: string | null) {
+  return apiFetch<SuiteProcess[]>("/api/v1/suites/available-processes", {}, token);
+}
+
+export function getLauncher(token?: string | null) {
+  return apiFetch<Launcher>("/api/v1/suites/launcher", {}, token);
+}
+
+export function listSuiteTemplates(token?: string | null) {
+  return apiFetch<SuiteTemplate[]>("/api/v1/suites/templates", {}, token);
+}
+
+export function cloneSuiteTemplate(templateId: string, token?: string | null) {
+  return apiFetch<{ suite_id: string; name: string; created_workflows: number }>(
+    `/api/v1/suites/templates/${templateId}/clone`,
+    { method: "POST" },
+    token
+  );
+}
+
 export function patchNotificationPreferences(
   body: Partial<NotificationPreferences>,
   token?: string | null

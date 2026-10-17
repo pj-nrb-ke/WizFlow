@@ -42,6 +42,14 @@ def clone_template(
     if workflow_name_taken(db, user.company_id, name):
         name = f"{name} (from template)"
 
+    # Carry the template's category/description into settings so grouping and filters
+    # have them after clone (WorkflowDefinition has no dedicated category column).
+    settings = dict(tpl.get("settings") or {})
+    if tpl.get("category"):
+        settings.setdefault("category", tpl["category"])
+    if tpl.get("description"):
+        settings.setdefault("description", tpl["description"])
+
     defn = WorkflowDefinition(
         company_id=user.company_id,
         family_id=_uuid.uuid4(),
@@ -49,7 +57,7 @@ def clone_template(
         form_schema=tpl.get("form_schema") or {},
         steps=tpl.get("steps") or [],
         routing_rules=tpl.get("routing_rules") or [],
-        settings=tpl.get("settings") or {},
+        settings=settings,
         status="draft",
         version=1,
     )

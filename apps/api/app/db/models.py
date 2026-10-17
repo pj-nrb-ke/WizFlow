@@ -1191,3 +1191,56 @@ class KnowledgeChunk(Base):
     idx: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     embedding: Mapped[list] = mapped_column(JSONB, nullable=False, default=list)
+
+
+class Suite(Base):
+    """A no-code "application": a branded container that groups several published
+    processes (workflow families) into one launcher for end users. A Suite does not
+    orchestrate processes — it bundles and orders them; each member process keeps its
+    own form, approval chain, and versioning."""
+
+    __tablename__ = "suites"
+    __table_args__ = (UniqueConstraint("company_id", "slug", name="uq_suites_company_slug"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(200), nullable=False)
+    slug: Mapped[str] = mapped_column(String(120), nullable=False)
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    icon: Mapped[str | None] = mapped_column(String(40), nullable=True)  # emoji or short glyph
+    accent: Mapped[str | None] = mapped_column(String(20), nullable=True)  # hex accent for the card
+    status: Mapped[str] = mapped_column(String(20), default="draft", index=True)  # draft | published
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    settings: Mapped[dict] = mapped_column(JSONB, nullable=False, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    items: Mapped[list["SuiteItem"]] = relationship(
+        back_populates="suite", cascade="all, delete-orphan", order_by="SuiteItem.position"
+    )
+
+
+class SuiteItem(Base):
+    """One member process of a Suite, referenced by workflow ``family_id`` (the logical
+    workflow, stable across versions). The current published version is resolved at read
+    time. ponytail: family_id is not an FK (not unique in workflow_definitions); a member
+    whose family has no published version is simply skipped in the launcher."""
+
+    __tablename__ = "suite_items"
+    __table_args__ = (UniqueConstraint("suite_id", "family_id", name="uq_suite_items_suite_family"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=_uuid)
+    company_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    suite_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("suites.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    family_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    position: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+
+    suite: Mapped[Suite] = relationship(back_populates="items")

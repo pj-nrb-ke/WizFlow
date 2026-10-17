@@ -39,6 +39,7 @@ export function AppLayout() {
 
   const primaryNav: NavItem[] = [
     { to: "/", label: "Home", end: true, Icon: IconHome },
+    { to: "/apps", label: "Apps", Icon: IconTemplates },
     { to: "/submit", label: "New request", Icon: IconPlusCircle },
     { to: "/requests", label: "My requests", Icon: IconClipboardList },
     { to: "/inbox", label: "Inbox", Icon: IconInbox },
@@ -46,6 +47,7 @@ export function AppLayout() {
 
   const buildItems: NavItem[] = [
     { to: "/workflows", label: "Workflows", Icon: IconWorkflow },
+    ...(showMasterData ? [{ to: "/suites", label: "Suites", Icon: IconTemplates }] : []),
     ...(showMasterData ? [{ to: "/app-builder", label: "App builder", Icon: IconSparkles }] : []),
     { to: "/ai", label: "AI creator", Icon: IconSparkles },
     { to: "/form-designer", label: "Form designer", Icon: IconForm },
