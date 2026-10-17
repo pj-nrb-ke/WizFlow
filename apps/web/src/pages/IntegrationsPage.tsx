@@ -35,6 +35,13 @@ type SecurityLogRow = {
   created_at: string;
 };
 
+type WizGateConn = {
+  site_id: string | null;
+  base_url: string;
+  company_db: string | null;
+  configured: boolean;
+};
+
 const KeyIcon = () => (
   <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
     <circle cx="7.5" cy="15.5" r="4.5" />
@@ -75,6 +82,14 @@ export function IntegrationsPage() {
   const [loading, setLoading] = useState(true);
   const [hookResults, setHookResults] = useState<Record<string, WebhookDelivery>>({});
   const [testingHookId, setTestingHookId] = useState<string | null>(null);
+  const [wizgate, setWizgate] = useState<WizGateConn | null>(null);
+  const [wgSiteId, setWgSiteId] = useState("");
+  const [wgCompanyDb, setWgCompanyDb] = useState("");
+  const [wgBaseUrl, setWgBaseUrl] = useState("");
+  const [wgKey, setWgKey] = useState("");
+  const [wgSaving, setWgSaving] = useState(false);
+  const [wgTest, setWgTest] = useState<{ ok: boolean; detail: string } | null>(null);
+  const [wgTesting, setWgTesting] = useState(false);
 
   const isAdmin = user?.roles.includes("company_admin");
 
@@ -83,16 +98,21 @@ export function IntegrationsPage() {
     setError("");
     try {
       const token = getToken();
-      const [u, k, w, l] = await Promise.all([
+      const [u, k, w, l, wg] = await Promise.all([
         apiFetch<UserRow[]>("/api/v1/admin/users", {}, token),
         apiFetch<ApiKeyRow[]>("/api/v1/admin/integrations/api-keys", {}, token),
         apiFetch<WebhookRow[]>("/api/v1/admin/integrations/webhooks", {}, token),
         apiFetch<SecurityLogRow[]>("/api/v1/admin/integrations/security-logs?limit=50", {}, token),
+        apiFetch<WizGateConn>("/api/v1/admin/integrations/wizgate", {}, token),
       ]);
       setUsers(u);
       setKeys(k);
       setHooks(w);
       setLogs(l);
+      setWizgate(wg);
+      setWgSiteId(wg.site_id ?? "");
+      setWgCompanyDb(wg.company_db ?? "");
+      setWgBaseUrl(wg.base_url ?? "");
       if (!keyUserId && u[0]) setKeyUserId(u[0].id);
     } catch (e) {
       setError(e instanceof ApiError ? e.detail ?? e.message : "Failed to load");
@@ -165,13 +185,57 @@ export function IntegrationsPage() {
     }
   }
 
+  async function saveWizgate(e: FormEvent) {
+    e.preventDefault();
+    setWgSaving(true);
+    setError("");
+    setWgTest(null);
+    try {
+      const body: Record<string, string> = {
+        site_id: wgSiteId.trim(),
+        company_db: wgCompanyDb.trim(),
+      };
+      if (wgBaseUrl.trim()) body.base_url = wgBaseUrl.trim();
+      if (wgKey.trim()) body.api_key = wgKey.trim();
+      const wg = await apiFetch<WizGateConn>(
+        "/api/v1/admin/integrations/wizgate",
+        { method: "PUT", body: JSON.stringify(body) },
+        getToken()
+      );
+      setWizgate(wg);
+      setWgKey("");
+    } catch (err) {
+      setError(err instanceof ApiError ? err.detail ?? err.message : "Save failed");
+    } finally {
+      setWgSaving(false);
+    }
+  }
+
+  async function testWizgate() {
+    setWgTesting(true);
+    setWgTest(null);
+    setError("");
+    try {
+      const res = await apiFetch<{ ok: boolean; detail: string }>(
+        "/api/v1/admin/integrations/wizgate/test",
+        { method: "POST" },
+        getToken()
+      );
+      setWgTest(res);
+    } catch (err) {
+      setWgTest({ ok: false, detail: err instanceof ApiError ? err.detail ?? err.message : "Test failed" });
+    } finally {
+      setWgTesting(false);
+    }
+  }
+
   if (!isAdmin) return <Navigate to="/" replace />;
 
   return (
     <div className="wf-analytics-page">
       <PageHeader
         title="Integrations"
-        subtitle="API keys, webhooks, and security audit — ERP connectors deferred."
+        subtitle="API keys, webhooks, accounting integration, and security audit."
         help={
           <HelpTip>
             Use API keys for external systems. Webhooks receive signed JSON when requests move through
@@ -348,6 +412,83 @@ export function IntegrationsPage() {
             })}
           </ul>
         )}
+      </section>
+
+      <section className="wf-panel mb-8">
+        <h2 className="text-lg font-semibold mb-2">WizGate — accounting integration</h2>
+        <p className="text-sm text-slate-600 mb-4">
+          Push approved requests straight into Sage, Tally, or QuickBooks via WizGate — add a{" "}
+          <code className="text-xs bg-slate-100 px-1 rounded">Post to WizGate</code> step to a workflow and
+          it posts after final approval.
+          {wizgate?.configured ? (
+            <span className="ml-1 font-medium text-green-700">Connected.</span>
+          ) : (
+            <span className="ml-1 text-slate-500">Not configured yet.</span>
+          )}
+        </p>
+        <form onSubmit={saveWizgate} className="grid gap-3 sm:grid-cols-2 mb-3">
+          <label className="text-sm text-slate-700">
+            Site ID
+            <input
+              className="wf-input mt-1 w-full"
+              placeholder="customer connector GUID"
+              value={wgSiteId}
+              onChange={(e) => setWgSiteId(e.target.value)}
+              required
+            />
+          </label>
+          <label className="text-sm text-slate-700">
+            Company DB <span className="text-slate-400">(Sage)</span>
+            <input
+              className="wf-input mt-1 w-full"
+              placeholder="e.g. KENSMETAL2022"
+              value={wgCompanyDb}
+              onChange={(e) => setWgCompanyDb(e.target.value)}
+            />
+          </label>
+          <label className="text-sm text-slate-700">
+            API key <span className="text-slate-400">(wgk_…, write-only)</span>
+            <input
+              type="password"
+              className="wf-input mt-1 w-full"
+              placeholder={wizgate?.configured ? "•••••• (leave blank to keep current)" : "wgk_…"}
+              value={wgKey}
+              onChange={(e) => setWgKey(e.target.value)}
+              autoComplete="new-password"
+            />
+          </label>
+          <label className="text-sm text-slate-700">
+            Base URL <span className="text-slate-400">(advanced)</span>
+            <input
+              className="wf-input mt-1 w-full"
+              placeholder="https://api.wizgate.app"
+              value={wgBaseUrl}
+              onChange={(e) => setWgBaseUrl(e.target.value)}
+            />
+          </label>
+          <div className="sm:col-span-2 flex flex-wrap items-center gap-2">
+            <button type="submit" className="wf-btn-primary text-sm" disabled={wgSaving}>
+              {wgSaving ? "Saving…" : "Save connection"}
+            </button>
+            <button
+              type="button"
+              className="text-sm px-3 py-1.5 border border-slate-200 rounded-lg hover:bg-slate-50 disabled:opacity-50"
+              onClick={() => void testWizgate()}
+              disabled={wgTesting || !wizgate?.configured}
+            >
+              {wgTesting ? "Testing…" : "Test connection"}
+            </button>
+            {wgTest && (
+              <span className={`text-xs font-medium ${wgTest.ok ? "text-green-700" : "text-red-600"}`}>
+                {wgTest.detail}
+              </span>
+            )}
+          </div>
+        </form>
+        <p className="text-xs text-slate-500">
+          The key is stored encrypted and never shown again. Issue a read-write key in WizGate, scoped to this
+          site.
+        </p>
       </section>
 
       <section className="wf-panel">
