@@ -8,7 +8,7 @@ export type WorkflowTemplate = {
   id: string;
   name: string;
   description: string;
-  category: TemplateCategory;
+  category: string;
   tags?: string[];
   step_count?: number;
 };

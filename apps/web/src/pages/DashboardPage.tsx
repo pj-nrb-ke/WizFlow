@@ -6,7 +6,7 @@ import { useAuth } from "../context/AuthContext";
 import { useAppTheme } from "../context/ThemeContext";
 import { apiFetch, InboxItem, Notification, RequestSummary, WorkflowSummary } from "../lib/api";
 import { getToken } from "../lib/auth";
-import { canAccessReports } from "../lib/roles";
+import { canAccessReports, canManageMasterData } from "../lib/roles";
 import { THEME_META } from "../lib/themes";
 
 export function DashboardPage() {
@@ -50,8 +50,10 @@ export function DashboardPage() {
   ];
 
   const showAnalytics = canAccessReports(user?.roles);
+  const canBuild = canManageMasterData(user?.roles);
 
   const actions = [
+    { to: "/apps", title: "Apps", desc: "Browse applications & start a request", icon: "▦" },
     { to: "/submit", title: "Submit request", desc: "Start petty cash, purchase, leave…", icon: "＋" },
     { to: "/inbox", title: "Approval inbox", desc: "Review items waiting on you", icon: "✉" },
     { to: "/templates", title: "Templates", desc: "Ready-made office workflows", icon: "▣" },
@@ -60,6 +62,9 @@ export function DashboardPage() {
     { to: "/workflows", title: "Workflows", desc: "Publish, test, themes", icon: "⚙" },
     { to: "/custom-workflow", title: "Custom workflow", desc: "Approvers, initiators, forms", icon: "⇄" },
     { to: "/ai", title: "AI creator", desc: "Draft a process in plain English", icon: "✦" },
+    ...(canBuild
+      ? [{ to: "/suites", title: "Suites", desc: "Group processes into applications", icon: "◫" }]
+      : []),
     { to: "/settings", title: "Settings", desc: "Theme and account preferences", icon: "⚙" },
     ...(showAnalytics
       ? [
