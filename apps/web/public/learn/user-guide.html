@@ -1,0 +1,100 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>User Guide · WizFlow Learning</title><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap"><link rel="stylesheet" href="learn.css"></head><body><div class="topbar"><span class="brand"><svg viewBox="0 0 56 56" width="26" height="26" aria-hidden="true"><rect width="56" height="56" rx="14" fill="#EEEDFE"/><line x1="23" y1="20" x2="37.5" y2="28" stroke="#534AB7" stroke-width="3.2" stroke-linecap="round"/><line x1="23" y1="36" x2="37.5" y2="28" stroke="#534AB7" stroke-width="3.2" stroke-linecap="round"/><circle cx="19" cy="19" r="5" fill="#fff" stroke="#534AB7" stroke-width="3.2"/><circle cx="19" cy="37" r="5" fill="#fff" stroke="#534AB7" stroke-width="3.2"/><circle cx="38" cy="28" r="6.5" fill="#534AB7"/></svg> WizFlow</span><span class="tag">Learning Resources</span><a class="back" href="index.html">← All resources</a></div><div class="wrap"><main class="doc"><h1>WizFlow User Guide</h1>
+<p>The complete reference to WizFlow — the no-code approvals and workflow platform. New here? Start with the <strong>Quick Start</strong>. Need a quick recipe? See the <strong>How-Tos</strong>. Prefer video? See the <strong>chapters</strong> in Learning Resources.</p>
+<p>WizFlow has three kinds of users, and this guide is organised so each can jump to what they need:
+- <strong>Everyone</strong> submits and tracks requests, and approves what's assigned to them.
+- <strong>Managers / builders</strong> create forms, workflows, applications and processes — all without code.
+- <strong>Administrators</strong> manage people, roles, company data, branding, security and integrations.</p>
+<hr />
+<h2>1. Getting around</h2>
+<p>After you sign in you land on <strong>Home</strong>, your daily dashboard: a welcome summary, key counts (pending approvals, open requests, live workflows), recent requests, an inbox preview, and <strong>Quick actions</strong>. The left <strong>sidebar</strong> is grouped into:
+- <strong>Core</strong> — Home, Apps, New request, My requests, Inbox.
+- <strong>Build</strong> — Workflows, Suites, App builder, AI creator, Form designer, Custom workflow, Process Designer, Data, Knowledge, Templates.
+- <strong>Insights</strong> — Analytics, Process Intel, Reports (managers/admins).
+- <strong>Manage</strong> — Checklists, Reminders, Recurring Schedules, Master data, Integrations, AI Controls, Admin, Settings.
+- <strong>Help</strong> and <strong>Learning Resources</strong>.</p>
+<p>What you see depends on your role; everyday users see Core and Help.</p>
+<hr />
+<h2>2. For everyone</h2>
+<h3>Apps</h3>
+<p><strong>Apps</strong> is the launcher. Processes are grouped into <strong>applications</strong> (Suites) — for example an <em>Expense Management</em> app holding petty cash, purchases and travel. Open an app, then pick the process you need. Anything not yet grouped appears under <strong>Other requests</strong>.</p>
+<h3>Submitting a request</h3>
+<p>Opening a process shows a <strong>guided form</strong>. Forms are designed to ask only for what matters, with dropdowns, dates, amounts and calculated totals handled for you. You can:
+- <strong>Attach</strong> a receipt, PDF, photo or CSV.
+- <strong>Record a voice note</strong> — WizFlow transcribes and tidies it, and keeps the audio with the request.
+- Add a <strong>note</strong> for the approver.</p>
+<p>Press <strong>Submit request</strong>. WizFlow routes it down the approval chain automatically and gives it a <strong>reference number</strong>. Your progress auto-saves as a <strong>draft</strong> on the device until you submit.</p>
+<h3>My requests</h3>
+<p>Everything you've submitted lives here, filterable by status (All, Drafts, In progress, Returned, Approved, Rejected) and searchable by reference or workflow. Open any request to see:
+- <strong>Request data</strong> — everything you entered.
+- <strong>Approval chain</strong> — the steps and who's responsible.
+- <strong>Status</strong> — the current step, who it's pending with, and what happens next.
+- <strong>Timeline</strong> — a full, exportable audit trail (CSV or PDF).</p>
+<p>If an approver <strong>returns</strong> a request for a change, it appears under <em>Returned</em> with their reason; edit and resubmit. If they <strong>request more info</strong>, answer their question right on the request without starting over.</p>
+<h3>Inbox (approving)</h3>
+<p>Requests waiting on you appear in your <strong>Approval inbox</strong>, newest first, with amount and originator at a glance; filter by workflow, date, amount, department or priority. Select one to see the full request on the right, plus:
+- <strong>AI copilot</strong> — click <em>Analyze request</em> for a plain-language summary, missing-info and policy flags, similar past cases, and a recommended decision. It's advisory — you decide.
+- <strong>Approve</strong> to pass it on, <strong>Reject/Return</strong> to send it back with a reason, or <strong>Request info</strong> to ask a question while keeping it in progress.</p>
+<p>When you approve, the request advances to the next approver automatically. Some steps are <strong>parallel</strong> (several people must approve) or <strong>claimable</strong> (first to claim handles it).</p>
+<hr />
+<h2>3. Building (no code)</h2>
+<h3>Form designer</h3>
+<p>Build a form visually: drag controls onto the canvas and set their properties. Controls include text, button, dropdown (listbox), combobox, radio, date, time, label, currency, yes/no, section, attachment, <strong>master-data list</strong>, <strong>employee selector</strong>, <strong>calculated (formula)</strong> and <strong>table/grid</strong>. For each field set its key, options (static, from master data, from your org's users, or an external API), whether it's required, and <strong>per-role visibility and editability</strong>. Save as a draft workflow or copy the JSON.</p>
+<h3>Custom workflow</h3>
+<p>Assemble who starts a request and who approves it, in order. Name the workflow, attach a published form, choose <strong>initiators</strong> (everyone, specific users, or groups), then drag an ordered <strong>approver chain</strong> of users, groups, or the dynamic <strong>"originator's manager"</strong> step. Save as a draft, then publish.</p>
+<h3>Workflows (publish, test, version)</h3>
+<p>The <strong>Workflows</strong> console lists your processes. For a selected workflow you can set its <strong>appearance</strong> (theme and form layout) and per-step <strong>SLA + escalation</strong>, make plain-English <strong>tune</strong> edits ("add finance approval above 5,000"), <strong>simulate</strong> with sample data (a health check gates publishing), <strong>publish</strong>, <strong>duplicate</strong>, <strong>create a new version</strong>, or <strong>roll back</strong>. Publishing a new version archives the old one and keeps it for audit.</p>
+<h3>AI creator</h3>
+<p>Describe a process in plain English and WizFlow drafts the form and approval steps for you to review, adjust and publish. Degrades gracefully to templates when AI is unavailable.</p>
+<h3>App builder</h3>
+<p>Paste or upload a requirements pack and WizFlow generates a reviewable plan — data entities, a form, steps and routing with traceability — then creates the data objects and a draft workflow for you to publish.</p>
+<h3>Suites (applications)</h3>
+<p>Group several <strong>published</strong> processes into one branded application your team launches from <strong>Apps</strong>. Start from a ready-made suite (Expense Management, Procurement, HR &amp; People, IT &amp; Facilities) or build your own: name it, set an icon and accent colour, drag processes in and order them, then publish. Only published processes appear to end users. Suites group and launch — each process keeps its own form, approvers and versioning.</p>
+<h3>Process Designer (BPMN)</h3>
+<p>A full BPMN 2.0 canvas for anything beyond a straight line of approvals. Start blank, from a template, or <strong>Draft with AI</strong>; drag tasks, approvals and decision <strong>gateways</strong> and connect them; set each task's <strong>assignee</strong> and mode, the request <strong>form fields</strong>, <strong>service steps</strong> (notify, webhook, AI, document, record), and <strong>branch conditions</strong> in the binding panel; use the <strong>Copilot</strong> to rewrite the diagram from a sentence. Then <strong>Publish as app</strong> (compiles to a normal workflow) or <strong>Run as native app</strong> for parallel/event/loop processes.</p>
+<h3>Data &amp; Knowledge</h3>
+<p><strong>Data</strong> is a low-code store of typed business objects (customers, vehicles, invoices…) that workflows can write to via a <em>record</em> step and reference from forms. <strong>Knowledge</strong> lets you attach policies and SOPs that ground the AI copilot's answers, with sources cited.</p>
+<h3>Templates</h3>
+<p>A gallery of ready-made workflows by category (Finance, HR, Operations, Procurement, Legal, IT). <strong>Use template</strong> copies one into your company as a draft to customise and publish.</p>
+<hr />
+<h2>4. Automation &amp; operations</h2>
+<ul>
+<li><strong>Recurring Schedules</strong> — launch a workflow (or checklist) automatically on a calendar rule, to chosen people or groups.</li>
+<li><strong>Reminders</strong> — recurring task nudges with compliance tracking and CSV export.</li>
+<li><strong>Checklists</strong> — reusable checklists for routine, repeatable work.</li>
+</ul>
+<hr />
+<h2>5. Insights (managers &amp; admins)</h2>
+<ul>
+<li><strong>Analytics</strong> — executive summary, workflow performance, financial totals, SLA and bottlenecks, workload and scorecards, with date and workflow filters.</li>
+<li><strong>Process Intel</strong> — mines your request history for cycle time, rework rate, variants and bottlenecks, with an AI narrative and a suggested improvement.</li>
+<li><strong>Reports</strong> — operational report views and exports.</li>
+</ul>
+<hr />
+<h2>6. Integrations</h2>
+<p><strong>Integrations</strong> (admins) connects WizFlow to outside systems:
+- <strong>WizGate</strong> — push approved requests into on-premise accounting systems (Sage, QuickBooks, Tally). Configure the connection, then add a <strong>Post-to-WizGate</strong> step on a workflow; after final approval the approved data is posted automatically, with the result recorded on the request.
+- <strong>Webhooks &amp; API keys</strong> — send request data to your own endpoints, or let external systems submit requests.
+- <strong>AI Controls</strong> — a governed gateway for all AI: per-feature toggles, a global and per-company kill switch, model routing and a monthly budget cap.</p>
+<hr />
+<h2>7. Administration</h2>
+<ul>
+<li><strong>Users &amp; roles</strong> — invite people, set built-in roles (company admin, manager, approver, originator) or custom roles with specific permissions, and set each user's <strong>manager</strong> (used by dynamic approval steps).</li>
+<li><strong>Master data</strong> — the shared lookup lists forms draw on: departments, branches, cost centres, vendors, projects, expense types and approval limits.</li>
+<li><strong>Branding</strong> — your logo and brand colour, applied across the web app, public forms, PDFs and emails (two-level branding keeps "Powered by WizFlow" at the foot).</li>
+<li><strong>Company setup</strong> — a guided onboarding wizard for new companies.</li>
+</ul>
+<hr />
+<h2>8. Security &amp; your account</h2>
+<ul>
+<li><strong>Settings</strong> — choose a <strong>theme</strong> and default <strong>form layout</strong>, change your <strong>password</strong>, manage <strong>two-factor authentication (2FA)</strong>, and set <strong>notification preferences</strong> (email, in-app, push).</li>
+<li><strong>Sessions</strong> — resetting your password or "log out everywhere" revokes all active sessions.</li>
+<li>Accounts can be <strong>locked</strong> after repeated failed sign-ins (with the IP rate limiter) for protection.</li>
+</ul>
+<hr />
+<h2>9. Public &amp; guest forms</h2>
+<p>Share a workflow as a <strong>public form</strong> via a tokenised link so people without an account can submit (for example, external vendors or customers). Guests can upload attachments, and dropdowns resolve to real options server-side. Approvers can also act on a request from a secure <strong>approval link</strong> in their email.</p>
+<hr />
+<h2>10. On mobile</h2>
+<p>The WizFlow mobile app mirrors the everyday experience — submit requests (including voice notes and photos), track them, and approve from your inbox with push notifications. <strong>Learning Resources</strong> are available in the app too; the video chapters stream from the server so they don't bloat the app.</p>
+<hr />
+<p>Need more? Use <strong>Help</strong> in the sidebar, the <strong>How-Tos</strong> for step-by-step recipes, or the <strong>video chapters</strong> — all in Learning Resources.</p></main><p class="foot">WizFlow Learning Resources · Need more help? Use the Help section in the app.</p></div></body></html>

@@ -178,8 +178,15 @@ export function AppLayout() {
               </div>
             )}
 
-            {/* Help */}
+            {/* Help & Learning */}
             <div className="wf-sidebar-section">
+              <NavLink
+                to="/learning"
+                className={({ isActive }) => `wf-sidebar-link${isActive ? " active" : ""}`}
+              >
+                <IconTemplates size={16} />
+                <span>Learning Resources</span>
+              </NavLink>
               <NavLink
                 to="/help"
                 className={({ isActive }) => `wf-sidebar-link${isActive ? " active" : ""}`}
