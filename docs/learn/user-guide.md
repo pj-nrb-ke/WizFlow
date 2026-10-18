@@ -27,11 +27,15 @@ What you see depends on your role; everyday users see Core and Help.
 ### Apps
 **Apps** is the launcher. Processes are grouped into **applications** (Suites) — for example an *Expense Management* app holding petty cash, purchases and travel. Open an app, then pick the process you need. Anything not yet grouped appears under **Other requests**.
 
+![The Apps launcher — applications your team opens from one place](videos/ch5/shots/apps.jpg)
+
 ### Submitting a request
 Opening a process shows a **guided form**. Forms are designed to ask only for what matters, with dropdowns, dates, amounts and calculated totals handled for you. You can:
 - **Attach** a receipt, PDF, photo or CSV.
 - **Record a voice note** — WizFlow transcribes and tidies it, and keeps the audio with the request.
 - Add a **note** for the approver.
+
+![A clean, guided request form](videos/ch2/shots/form.jpg)
 
 Press **Submit request**. WizFlow routes it down the approval chain automatically and gives it a **reference number**. Your progress auto-saves as a **draft** on the device until you submit.
 
@@ -45,7 +49,11 @@ Everything you've submitted lives here, filterable by status (All, Drafts, In pr
 If an approver **returns** a request for a change, it appears under *Returned* with their reason; edit and resubmit. If they **request more info**, answer their question right on the request without starting over.
 
 ### Inbox (approving)
-Requests waiting on you appear in your **Approval inbox**, newest first, with amount and originator at a glance; filter by workflow, date, amount, department or priority. Select one to see the full request on the right, plus:
+Requests waiting on you appear in your **Approval inbox**, newest first, with amount and originator at a glance; filter by workflow, date, amount, department or priority.
+
+![The approval inbox, with the AI copilot panel](videos/ch3/shots/inbox.jpg)
+
+Select one to see the full request on the right, plus:
 - **AI copilot** — click *Analyze request* for a plain-language summary, missing-info and policy flags, similar past cases, and a recommended decision. It's advisory — you decide.
 - **Approve** to pass it on, **Reject/Return** to send it back with a reason, or **Request info** to ask a question while keeping it in progress.
 
@@ -72,6 +80,8 @@ Paste or upload a requirements pack and WizFlow generates a reviewable plan — 
 
 ### Suites (applications)
 Group several **published** processes into one branded application your team launches from **Apps**. Start from a ready-made suite (Expense Management, Procurement, HR & People, IT & Facilities) or build your own: name it, set an icon and accent colour, drag processes in and order them, then publish. Only published processes appear to end users. Suites group and launch — each process keeps its own form, approvers and versioning.
+
+![Building a Suite — drag processes in, brand it, publish](videos/ch5/shots/suites-builder.jpg)
 
 ### Process Designer (BPMN)
 A full BPMN 2.0 canvas for anything beyond a straight line of approvals. Start blank, from a template, or **Draft with AI**; drag tasks, approvals and decision **gateways** and connect them; set each task's **assignee** and mode, the request **form fields**, **service steps** (notify, webhook, AI, document, record), and **branch conditions** in the binding panel; use the **Copilot** to rewrite the diagram from a sentence. Then **Publish as app** (compiles to a normal workflow) or **Run as native app** for parallel/event/loop processes.

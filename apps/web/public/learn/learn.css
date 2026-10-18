@@ -23,6 +23,7 @@ a:hover{text-decoration:underline}
 .doc code{background:#eef2ff;color:#3730a3;padding:.1em .4em;border-radius:5px;font-size:.92em}
 .doc hr{border:none;border-top:1px solid var(--line);margin:2em 0}
 .doc strong{color:#0f172a}
+.doc img{max-width:100%;height:auto;border:1px solid var(--line);border-radius:10px;margin:1.1em 0;box-shadow:0 2px 10px rgba(15,23,42,.07)}
 /* index */
 .hero h1{font-size:clamp(1.8rem,5vw,2.4rem);color:var(--brand);margin:.1em 0 .25em}
 .hero p{color:var(--muted);font-size:1.05rem;max-width:40em;margin:0}
