@@ -70,9 +70,15 @@ def _norm_form_fields(fields) -> list[dict]:
             continue
         seen.add(key)
         ftype = f.get("type") if f.get("type") in _FORM_TYPES else "text"
+        # Option fields: the form renderers draw a real dropdown for "listbox"/"combobox",
+        # but fall back to a free-text box for "select" — so a user can type an invalid
+        # value that the entity then rejects. Emit "listbox" + {value,label} options.
+        is_choice = ftype == "select"
+        if is_choice:
+            ftype = "listbox"
         clean = {"key": key, "type": ftype, "label": f.get("label") or key.replace("_", " ").title(), "required": bool(f.get("required"))}
-        if ftype == "select":
-            clean["options"] = [str(o) for o in (f.get("options") or [])]
+        if is_choice:
+            clean["options"] = [{"value": str(o), "label": str(o)} for o in (f.get("options") or [])]
         out.append(clean)
     return out
 

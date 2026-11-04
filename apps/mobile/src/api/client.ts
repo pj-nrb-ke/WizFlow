@@ -9,6 +9,12 @@ export class ApiError extends Error {
   }
 }
 
+/** Invoked when an authenticated request returns 401 (session expired/invalid). */
+let onUnauthorized: (() => void) | null = null;
+export function setUnauthorizedHandler(fn: (() => void) | null): void {
+  onUnauthorized = fn;
+}
+
 export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
@@ -29,6 +35,7 @@ export async function apiFetch<T>(
     } catch {
       /* ignore */
     }
+    if (res.status === 401 && token) onUnauthorized?.();
     throw new ApiError(detail, res.status);
   }
   if (res.status === 204) return undefined as T;
@@ -257,6 +264,7 @@ export async function apiUpload(
     } catch {
       /* ignore */
     }
+    if (res.status === 401 && token) onUnauthorized?.();
     throw new ApiError(detail, res.status);
   }
 }

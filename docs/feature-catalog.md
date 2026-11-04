@@ -58,7 +58,7 @@ _Generated 2026-07-05 from a live code audit of every module (frontend pages + b
 |----|---------|--------------------|--------|
 | WF-1 | Parallel approval branches | Route to two approvers at once (e.g. Finance **and** Compliance) and join. _(Was strictly sequential; now built.)_ | ✅ Done |
 | WF-2 | Advanced routing conditions | Date ranges, string / `IN` matching, and compound AND/OR logic. _(Was numeric-only; now built.)_ | ✅ Done |
-| WF-3 | Dynamic assignees | Assign to "originator's manager", "department head", etc., instead of hardcoded roles/users. | M |
+| WF-3 | Dynamic assignees | Route a step to the **originator's manager** (new `users.manager_id` + a manager dropdown in Admin → Users + an "Originator's manager" step in the Custom workflow builder, resolved server-side). _(Department-head deferred — users aren't linked to departments yet; native-BPMN also a follow-up.)_ | ✅ Done |
 | WF-4 | SLA escalation enforcement | Auto-escalate / reassign / notify when a step breaches its SLA. _(Settings existed but were unenforced; now enforced on the scheduler loop.)_ | ✅ Done |
 | WF-5 | Per-task delegation / reassignment | Wire delegation into the live approval flow so a single task can be reassigned mid-approval. | M |
 | WF-6 | Bulk approve/reject in guest inbox | Multi-select accept/reject for guest submissions (currently one at a time). | S |
@@ -73,7 +73,7 @@ _Generated 2026-07-05 from a live code audit of every module (frontend pages + b
 
 | ID | Feature | What it adds & why | Effort |
 |----|---------|--------------------|--------|
-| REQ-1 | "Request more info" action | Ask the originator a question without rejecting or returning the request. Approvers can only comment while approving/rejecting today. | M |
+| REQ-1 | "Request more info" action | Approver asks the originator a question without rejecting or returning — a "Request info" button in the Inbox + an answer banner for the originator. Modelled as timeline events (no new status/table/migration). _(Was: approvers could only comment while approving/rejecting.)_ | ✅ Done |
 | REQ-2 | Discussion thread | Nested comments on a request open to both originator and approvers. Comments today are single notes on an action. | M–L |
 | REQ-3 | Originator cancel / withdraw | Let the submitter cancel an in-flight request. Not possible today. | S |
 | REQ-4 | True bulk approve/reject endpoint | Atomic backend batch action; the Inbox currently loops per-request, which is slow for large batches. | S–M |
@@ -232,4 +232,4 @@ _Generated 2026-07-05 from a live code audit of every module (frontend pages + b
 
 ---
 
-_85 candidates across 13 modules — 9 now **✅ delivered** (WF-1, WF-2, WF-4, ADM-1, AUTH-2, SET-3, FORM-5, SET-1, ANL-1), plus 2 new modules (Low-Code Data, BPMN App Builder) added by the no-code→low-code program. Tell me which ID(s) to build next and I'll take it from there._
+_85 candidates across 13 modules — 11 now **✅ delivered** (WF-1, WF-2, WF-3, WF-4, REQ-1, ADM-1, AUTH-2, SET-3, FORM-5, SET-1, ANL-1), plus 2 new modules (Low-Code Data, BPMN App Builder) added by the no-code→low-code program. Tell me which ID(s) to build next and I'll take it from there._

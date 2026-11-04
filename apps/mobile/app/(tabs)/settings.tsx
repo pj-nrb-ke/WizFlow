@@ -133,6 +133,14 @@ export default function SettingsScreen() {
         <Text style={styles.company}>{user?.company_name}</Text>
       </View>
 
+      <Text style={styles.section}>Help & learning</Text>
+      <Link href="/learning" asChild>
+        <Pressable style={styles.linkRow}>
+          <Text style={styles.linkLabel}>Learning Resources</Text>
+          <Text style={styles.linkRight}>›</Text>
+        </Pressable>
+      </Link>
+
       {showManager ? (
         <>
           <Text style={styles.section}>Manager tools</Text>

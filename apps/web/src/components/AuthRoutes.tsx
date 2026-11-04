@@ -27,6 +27,9 @@ import { IntegrationsPage } from "../pages/IntegrationsPage";
 import { AiControlsPage } from "../pages/AiControlsPage";
 import { KnowledgePage } from "../pages/KnowledgePage";
 import { AppBuilderPage } from "../pages/AppBuilderPage";
+import { AppsPage } from "../pages/AppsPage";
+import { SuitesPage } from "../pages/SuitesPage";
+import { LearningResourcesPage } from "../pages/LearningResourcesPage";
 import { ProcessIntelPage } from "../pages/ProcessIntelPage";
 import { MasterDataPage } from "../pages/MasterDataPage";
 import { HelpPage } from "../pages/HelpPage";
@@ -97,6 +100,8 @@ export function AppRoutes() {
       <Route element={<RequireAuth />}>
         <Route element={<AppLayout />}>
           <Route index element={<DashboardPage />} />
+          <Route path="apps" element={<AppsPage />} />
+          <Route path="suites" element={<SuitesPage />} />
           <Route path="workflows" element={<WorkflowsPage />} />
           <Route path="form-designer" element={<FormDesignerPage />} />
           <Route path="custom-workflow" element={<CustomWorkflowPage />} />
@@ -125,6 +130,7 @@ export function AppRoutes() {
           <Route path="checklists" element={<ChecklistsPage />} />
           <Route path="settings" element={<SettingsPage />} />
           <Route path="help" element={<HelpPage />} />
+          <Route path="learning" element={<LearningResourcesPage />} />
         </Route>
       </Route>
       <Route path="*" element={<CatchAllRoute />} />

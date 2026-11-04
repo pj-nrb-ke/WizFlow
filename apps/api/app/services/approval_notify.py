@@ -7,9 +7,10 @@ from uuid import UUID
 
 from sqlalchemy.orm import Session
 
-from app.db.models import User, WorkflowDefinition, WorkflowInstance
+from app.db.models import Company, User, WorkflowDefinition, WorkflowInstance
 from app.services import approval_tokens
 from app.services.brevo_mail import send_approval_email
+from app.services.company_settings import branding_from_settings
 from app.services.notifications import notify_users
 
 logger = logging.getLogger("wizflow.approval_notify")
@@ -31,7 +32,13 @@ def notify_approvers_for_step(
     user_ids: list[UUID] = []
     for a in instance.assignees:
         if a.get("user_id"):
-            user_ids.append(UUID(a["user_id"]))
+            uid = UUID(a["user_id"])
+            # The originator can't approve their own request (self-approval guard),
+            # so don't send them an "approval needed" email — they get a progress
+            # update via notify_originator_decision instead.
+            if uid == instance.originator_user_id:
+                continue
+            user_ids.append(uid)
 
     notify_users(
         db,
@@ -42,6 +49,10 @@ def notify_approvers_for_step(
         instance_id=instance.id,
         send_email=False,
     )
+
+    company = db.get(Company, instance.company_id)
+    branding = branding_from_settings(company.settings if company else None)
+    client_name = company.name if company else None
 
     for uid in user_ids:
         user = db.get(User, uid)
@@ -67,6 +78,8 @@ def notify_approvers_for_step(
             originator_name=summary["originator_name"],
             request_preview=summary["request_preview"],
             approval_url=url,
+            client_logo_url=branding.get("logo_url"),
+            client_name=client_name,
         )
 
 
@@ -89,22 +102,32 @@ def notify_originator_decision(
     actor_name = actor.full_name if actor else "An approver"
 
     ref = instance.reference_number or ""
-    if action == "approved":
+    # Callers pass the present-tense action ("approve"/"reject"); accept the
+    # past-tense form too so this never silently no-ops again.
+    if action in ("approve", "approved"):
         if instance.status == "approved":
             status_label = "fully approved"
+            title = f"Request fully approved: {instance.workflow_name}"
         else:
-            status_label = "approved at current step — awaiting next approver"
-        title = f"Request approved: {instance.workflow_name}"
-    elif action == "rejected":
+            step_name = next(
+                (s.get("name") for s in (defn.steps or []) if s.get("id") == instance.current_step_id),
+                None,
+            )
+            status_label = (
+                f"approved and moved to the '{step_name}' step"
+                if step_name
+                else "approved at the current step — awaiting the next approver"
+            )
+            title = f"Request moved forward: {instance.workflow_name}"
+    elif action in ("reject", "rejected"):
         status_label = "rejected"
         title = f"Request rejected: {instance.workflow_name}"
     else:
         return
 
     body = (
-        f"{actor_name} {status_label} your request"
+        f"Your request{f' {ref}' if ref else ''} was {status_label} by {actor_name}"
         + (f' — "{comment}"' if comment else "")
-        + (f" ({ref})" if ref else "")
         + "."
     )
     notify_users(
@@ -122,6 +145,8 @@ def notify_originator_decision(
 
     app_url = settings.app_url.rstrip("/")
     view_url = f"{app_url}/requests/{instance.id}"
+    company = db.get(Company, instance.company_id)
+    branding = branding_from_settings(company.settings if company else None)
     send_request_status_email(
         to_email=originator.email,
         to_name=originator.full_name,
@@ -131,4 +156,6 @@ def notify_originator_decision(
         actor_name=actor_name,
         comment=comment,
         view_url=view_url,
+        client_logo_url=branding.get("logo_url"),
+        client_name=company.name if company else None,
     )

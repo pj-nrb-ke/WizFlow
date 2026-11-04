@@ -38,6 +38,7 @@ from app.routers import (
     reports,
     requests,
     saved_views,
+    suites,
     templates,
     user_groups,
     users,
@@ -107,6 +108,7 @@ v1.include_router(master_data.router)
 v1.include_router(invitations.router)
 v1.include_router(drafts.router)
 v1.include_router(saved_views.router)
+v1.include_router(suites.router)
 v1.include_router(delegations.router)
 v1.include_router(phase2.router)
 v1.include_router(reminders.router)

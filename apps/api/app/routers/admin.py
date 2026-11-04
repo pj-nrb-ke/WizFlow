@@ -31,6 +31,7 @@ from app.schemas.org import (
     UserCreate,
     UserOut,
     UserRolesUpdate,
+    UserUpdate,
 )
 from app.schemas.phase1 import (
     CompanyBranding,
@@ -53,7 +54,7 @@ ADMIN_ROLES = ("company_admin",)  # retained for back-compat imports; gates use 
 
 def _user_out(user: User) -> UserOut:
     roles = [ur.role.slug for ur in user.user_roles if ur.role]
-    return UserOut(id=user.id, email=user.email, full_name=user.full_name, is_active=user.is_active, roles=roles)
+    return UserOut(id=user.id, email=user.email, full_name=user.full_name, is_active=user.is_active, roles=roles, manager_id=user.manager_id)
 
 
 def _role_out(role: Role) -> RoleOut:
@@ -286,6 +287,35 @@ def create_user(
     db_user = db.scalar(
         select(User)
         .where(User.id == new_user.id)
+        .options(joinedload(User.user_roles).joinedload(UserRole.role))
+    )
+    return _user_out(db_user)
+
+
+@router.patch("/users/{user_id}", response_model=UserOut)
+def update_user(
+    user_id: UUID,
+    body: UserUpdate,
+    user: CurrentUser = Depends(require_permission(perms.USERS_MANAGE)),
+    db: Session = Depends(get_db),
+) -> UserOut:
+    """Update a user's manager (WF-3 dynamic assignees)."""
+    target = db.get(User, user_id)
+    if not target or target.company_id != user.company_id:
+        raise HTTPException(status_code=404, detail="User not found")
+    if "manager_id" in body.model_fields_set:
+        mgr_id = body.manager_id
+        if mgr_id is not None:
+            if mgr_id == user_id:
+                raise HTTPException(status_code=400, detail="A user cannot be their own manager")
+            mgr = db.get(User, mgr_id)
+            if not mgr or mgr.company_id != user.company_id:
+                raise HTTPException(status_code=400, detail="Manager must be a user in your company")
+        target.manager_id = mgr_id
+    db.commit()
+    db_user = db.scalar(
+        select(User)
+        .where(User.id == target.id)
         .options(joinedload(User.user_roles).joinedload(UserRole.role))
     )
     return _user_out(db_user)

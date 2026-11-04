@@ -9,6 +9,8 @@ type Props = {
   onReject: () => void;
   showReturn?: boolean;
   onReturn?: () => void;
+  showRequestInfo?: boolean;
+  onRequestInfo?: () => void;
   requestId?: string;
 };
 
@@ -22,6 +24,8 @@ export function ApprovalActions({
   onReject,
   showReturn = false,
   onReturn,
+  showRequestInfo = false,
+  onRequestInfo,
   requestId,
 }: Props) {
   return (
@@ -62,6 +66,16 @@ export function ApprovalActions({
             className="px-4 py-2 bg-amber-500 text-white text-sm rounded-lg disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-amber-700"
           >
             Return
+          </button>
+        )}
+        {showRequestInfo && onRequestInfo && (
+          <button
+            type="button"
+            disabled={!canApprove || needsClaim || busy}
+            onClick={onRequestInfo}
+            className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm rounded-lg disabled:opacity-50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-800"
+          >
+            Request info
           </button>
         )}
         {requestId && (

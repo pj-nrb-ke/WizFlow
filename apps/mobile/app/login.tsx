@@ -16,8 +16,8 @@ import { colors } from "../src/theme/colors";
 
 export default function LoginScreen() {
   const { user, login } = useAuth();
-  const [email, setEmail] = useState("admin@demo.wizflow.biz");
-  const [password, setPassword] = useState("changeme");
+  const [email, setEmail] = useState(__DEV__ ? "admin@demo.wizflow.biz" : "");
+  const [password, setPassword] = useState(__DEV__ ? "changeme" : "");
   const [code, setCode] = useState("");
   const [needsCode, setNeedsCode] = useState(false);
   const [error, setError] = useState("");

@@ -65,7 +65,7 @@ function SortableApprover({
         </svg>
       </button>
       <span className="text-xs px-1.5 py-0.5 rounded bg-slate-100 text-slate-600">
-        {item.type === "user" ? "User" : "Group"}
+        {item.type === "user" ? "User" : item.type === "group" ? "Group" : "Dynamic"}
       </span>
       <span className="flex-1 text-sm font-medium text-slate-800 truncate">{item.label}</span>
       <button
@@ -175,6 +175,19 @@ export function CustomWorkflowPage() {
     ]);
   }
 
+  function addManagerStep() {
+    if (chain.some((c) => c.type === "dynamic" && c.value === "originator_manager")) return;
+    setChain((prev) => [
+      ...prev,
+      {
+        type: "dynamic",
+        value: "originator_manager",
+        label: "Originator's manager",
+        sortId: `dynamic-mgr-${Date.now()}`,
+      },
+    ]);
+  }
+
   function onDragEnd(e: DragEndEvent) {
     setActiveDrag(null);
     const { active, over } = e;
@@ -218,7 +231,7 @@ export function CustomWorkflowPage() {
             name: name.trim(),
             attached_form_workflow_id: formId,
             initiator,
-            approver_chain: chain.map(({ type, id }) => ({ type, id })),
+            approver_chain: chain.map(({ type, id, value }) => ({ type, id, value })),
           }),
         },
         getToken()
@@ -402,6 +415,14 @@ export function CustomWorkflowPage() {
             }}
           >
             Add group
+          </button>
+          <button
+            type="button"
+            className="wf-btn-secondary text-sm"
+            onClick={addManagerStep}
+            title="Route this step to the request originator's manager"
+          >
+            + Originator&rsquo;s manager
           </button>
         </div>
 

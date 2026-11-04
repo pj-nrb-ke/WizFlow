@@ -6,6 +6,8 @@ EVENT_LABELS: dict[str, str] = {
     "step.approved": "Step approved",
     "step.rejected": "Step rejected",
     "step.returned": "Returned to originator",
+    "step.info_requested": "Information requested",
+    "request.info_answered": "Information provided",
     "step.claimed": "Task claimed",
     "step.timer_elapsed": "Timer elapsed — auto-advanced",
     "step.service_done": "Automated action completed",

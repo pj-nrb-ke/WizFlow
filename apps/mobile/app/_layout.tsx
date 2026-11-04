@@ -26,6 +26,7 @@ export default function RootLayout() {
         <Stack.Screen name="workflows" options={{ title: "Workflows" }} />
         <Stack.Screen name="workflow/[id]" options={{ title: "Workflow" }} />
         <Stack.Screen name="guest-submissions/[id]" options={{ title: "Guest submissions" }} />
+        <Stack.Screen name="learning" options={{ title: "Learning Resources" }} />
       </Stack>
     </AuthProvider>
   );

@@ -265,6 +265,8 @@ def _act(
             instance_engine.reject_request(db, inst, user.id, comment)
         elif action == "return":
             instance_engine.return_request(db, inst, user.id, comment)
+        elif action == "request-info":
+            instance_engine.request_info(db, inst, user.id, comment)
         else:
             raise HTTPException(status_code=400, detail="Unknown action")
     except instance_engine.RequestError as e:
@@ -287,22 +289,22 @@ def _act(
             defn=defn,
             step_id=inst.current_step_id,
         )
-    elif action in ("reject", "return") and inst.originator_user_id:
+    elif action == "return" and inst.originator_user_id:
         notify_users(
             db,
             company_id=inst.company_id,
             user_ids=[inst.originator_user_id],
-            title=f"Request {action}ed: {inst.workflow_name}",
-            body=comment or f"Your request was {action}ed.",
+            title=f"Request returned: {inst.workflow_name}",
+            body=comment or "Your request was returned.",
             instance_id=inst.id,
         )
-    elif action == "approve" and inst.status == "approved" and inst.originator_user_id:
+    elif action == "request-info" and inst.originator_user_id:
         notify_users(
             db,
             company_id=inst.company_id,
             user_ids=[inst.originator_user_id],
-            title=f"Request approved: {inst.workflow_name}",
-            body="Your request has been fully approved.",
+            title=f"More info requested: {inst.workflow_name}",
+            body=comment or "An approver asked for more information on your request.",
             instance_id=inst.id,
         )
 
@@ -339,6 +341,17 @@ def return_request_route(
     db: Session = Depends(get_db),
 ) -> WorkflowInstanceOut:
     return _act(db, request_id, user, "return", body.comment if body else None)
+
+
+@router.post("/requests/{request_id}/request-info", response_model=WorkflowInstanceOut)
+def request_info_route(
+    request_id: UUID,
+    body: ApprovalAction | None = None,
+    user: CurrentUser = Depends(require_company),
+    db: Session = Depends(get_db),
+) -> WorkflowInstanceOut:
+    """Approver asks the originator a question without rejecting or returning."""
+    return _act(db, request_id, user, "request-info", body.comment if body else None)
 
 
 @router.post("/requests/{request_id}/attachments", response_model=AttachmentOut, status_code=201)

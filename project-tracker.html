@@ -71,7 +71,7 @@
 <body>
 <div class="wrap">
   <h1>WizFlow — Project Tracker</h1>
-  <p class="sub">No-code platform roadmap · branch <code>feature/parity-enterprise</code> · generated <span id="gen"></span></p>
+  <p class="sub">No-code platform roadmap · branch <code>main</code> · generated <span id="gen"></span></p>
   <div class="vision">
     <b>Vision:</b> a 100%-no-code platform where <b>managers turn business logic into working apps</b> — describe, record, or upload a requirement and an AI copilot builds it step-by-step. Simple on top, a deep engine underneath.
   </div>
@@ -141,6 +141,16 @@ const DATA = [
       { name: "D3 · Knowledge & RAG grounding", desc: "Ground the copilots in approved company knowledge: attach policies/SOPs/manuals to a workspace, embedded and retrieved with pgvector inside the Postgres we already run (no new datastore). Answers cite their source; retrieval is permission-aware. Turns plausible AI into trustworthy AI and is the prerequisite for anything agentic.", status: "done", eff: "L" },
       { name: "D4 · AI-generated apps from requirements packs", desc: "The differentiator. Upload a requirements pack (SOPs, sample forms, spreadsheets) → AI synthesises a whole working app at once: data entities, request forms, BPMN, routing rules and roles, with traceability back to the source text. Extends the existing AI-from-requirements + bpmn_compile + data model + record step rather than starting fresh. Reviewed as a plan, then created as data entities + a draft workflow the human publishes through the normal gated flow. BPMN per-task native forms (BPMN-1) kept as a separate follow-up to protect the vertical's focus.", status: "done", eff: "XL" },
       { name: "D5 · Lite process intelligence + improvement loop", desc: "Close the observe→improve loop cheaply: a process-insights view computed from the request + bpmn_instance history we already persist (variants, bottleneck step, cycle time, rework rate) — not a separate mining engine. AI narrates what it sees and drafts one concrete workflow change, routed through the normal publish/approval flow. No new event store.", status: "done", eff: "L" },
+    ]},
+
+  { phase: "E · Feature-catalog enhancements", sub: "Targeted gap-closers picked by ID from the live-code feature catalog (docs/feature-catalog.md). Delivered 2026-10-07 – 2026-10-09.",
+    items: [
+      { name: "FORM-5 · Public-form field-type parity", desc: "Public forms now reuse the shared field renderer, so table, calculated, time, combobox, master-data dropdown and employee selector all render (they previously degraded to plain text inputs). Dynamic option sources (master data, org users) are resolved server-side so the unauthenticated page shows real dropdowns. Verified live on prod.", status: "done", eff: "M" },
+      { name: "SET-1 · Password change + reset", desc: "Self-service change password in Settings → requires the current password (POST /auth/change-password). The forgot-password reset flow already shipped. No new migration. Live on prod.", status: "done", eff: "S" },
+      { name: "ANL-1 · Phase-2 analytics tabs", desc: "Workload, Process-journey/SLA and Scorecards tabs verified complete front + back (the catalog's 'stubbed' note was stale). Bonus: fixed a timezone bug that 500'd the Overview trends tile when a date filter was set.", status: "done", eff: "M" },
+      { name: "WF-3 · Dynamic assignees (originator's manager)", desc: "Approval steps can route to the request originator's manager instead of a fixed role or user. New users.manager_id (migration 032) + a Manager dropdown in Admin → Users; an Originator's-manager step in the Custom workflow builder; resolved server-side at step entry. Deferred: department head (no user↔department link yet) and native-BPMN execution. Live on prod.", status: "done", eff: "M" },
+      { name: "REQ-1 · Request more info", desc: "An approver can ask the originator a question without rejecting or returning — the request stays in progress. Modelled as timeline events (no new status, table, or migration); a Request-info button in the Inbox plus an answer banner on the request for the originator, with notifications both ways. Live on prod.", status: "done", eff: "M" },
+      { name: "Feenote monthly auto-send", desc: "Auto-send the Feenote workflow to consultants on the 15th each month via Recurring Schedules. Scheduler is live — awaiting a decision: invite consultants as users vs a public form link.", status: "planned", eff: "S" },
     ]},
 ];
 

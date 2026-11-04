@@ -16,7 +16,10 @@ npx expo start
 | `EXPO_PUBLIC_API_URL` | `https://api.wizflow.biz` or LAN `http://192.168.x.x:8010` |
 | `EXPO_PUBLIC_WEB_URL` | `https://app.wizflow.biz` |
 
-## Demo login
+## Demo login (local dev seed only)
+
+These accounts exist only in the local seed database — **not in production**. The
+release APK ships with a blank login form (prefill is gated behind `__DEV__`).
 
 - `admin@demo.wizflow.biz` / `changeme`
 - `originator@demo.wizflow.biz` / `changeme`

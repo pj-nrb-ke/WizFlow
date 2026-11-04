@@ -40,6 +40,7 @@ import {
 import { getToken } from "../lib/auth";
 import { HelpTip } from "../components/HelpTip";
 import { WorkflowPreviewModal, PreviewStep } from "../components/WorkflowPreviewModal";
+import { WizGateStepPanel } from "../components/WizGateStepPanel";
 import { ThemeSwatches } from "../components/ThemeSwitcher";
 import { StatusBadge } from "../components/StatusBadge";
 import {
@@ -837,6 +838,8 @@ export function WorkflowsPage() {
                   </div>
                 )}
               </div>
+
+              <WizGateStepPanel workflow={selected} onSaved={(id) => void openWorkflow(id)} />
 
               <WorkflowPreviewModal
                 open={showVisualPreview}

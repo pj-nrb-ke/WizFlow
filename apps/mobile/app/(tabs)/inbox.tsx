@@ -123,7 +123,6 @@ export default function InboxScreen() {
               style={[styles.card, active && styles.cardActive, overdue && styles.cardOverdue]}
               onPress={() => {
                 if (tablet) setSelectedId(item.request_id);
-                else router.push(`/approval/${item.request_id}`);
               }}
             >
               <View style={styles.cardTop}>

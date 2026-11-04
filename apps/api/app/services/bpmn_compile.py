@@ -118,6 +118,8 @@ def _assignee_for(task: ET.Element, binding: dict | None = None) -> dict:
         atype = binding.get("type") or "role"
         if atype == "users":
             return {"type": "users", "user_ids": binding.get("user_ids") or [], "mode": binding.get("mode") or "claim"}
+        if atype == "dynamic":
+            return {"type": "dynamic", "value": binding.get("value") or "originator_manager", "mode": binding.get("mode") or "claim"}
         return {"type": "role", "value": binding.get("value") or "manager", "mode": binding.get("mode") or "claim"}
     node = _wf(task, "assignee")
     if node is None:

@@ -7,7 +7,7 @@ import { useAuth } from "../context/AuthContext";
 export function LoginPage() {
   const navigate = useNavigate();
   const { refreshUser } = useAuth();
-  const [email, setEmail] = useState("admin@demo.wizflow.biz");
+  const [email, setEmail] = useState(import.meta.env.DEV ? "admin@demo.wizflow.biz" : "");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [code, setCode] = useState("");
@@ -55,7 +55,9 @@ export function LoginPage() {
           </div>
           <div className="wf-card p-8">
             <h2 className="wf-page-title text-xl mb-1">Sign in</h2>
-            <p className="text-sm text-slate-500 mb-6">Demo workspace</p>
+            <p className="text-sm text-slate-500 mb-6">
+              {import.meta.env.DEV ? "Demo workspace" : "Welcome back"}
+            </p>
             <form onSubmit={onSubmit} className="space-y-4">
               <div>
                 <label className="block text-sm font-medium text-slate-700 mb-1" htmlFor="email">
@@ -81,7 +83,7 @@ export function LoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="changeme"
+                    placeholder={import.meta.env.DEV ? "changeme" : undefined}
                     className="wf-input pr-10"
                   />
                   <button
@@ -145,9 +147,11 @@ export function LoginPage() {
                 Forgot your password?
               </Link>
             </p>
-            <p className="mt-4 text-xs text-slate-400 text-center">
-              admin@demo.wizflow.biz / changeme
-            </p>
+            {import.meta.env.DEV && (
+              <p className="mt-4 text-xs text-slate-400 text-center">
+                admin@demo.wizflow.biz / changeme
+              </p>
+            )}
           </div>
         </div>
       </div>

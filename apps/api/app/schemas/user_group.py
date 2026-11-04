@@ -37,8 +37,9 @@ class OrgUserOut(BaseModel):
 
 
 class ApproverChainItem(BaseModel):
-    type: str = Field(pattern="^(user|group)$")
-    id: UUID
+    type: str = Field(pattern="^(user|group|dynamic)$")
+    id: UUID | None = None
+    value: str | None = None  # for type="dynamic", e.g. "originator_manager"
 
 
 class InitiatorConfig(BaseModel):

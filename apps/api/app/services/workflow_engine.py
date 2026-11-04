@@ -12,7 +12,7 @@ class WorkflowValidationError(ValueError):
 
 
 # Service steps run automatically and *do* something (then auto-advance).
-SERVICE_STEP_TYPES = {"notify", "webhook", "ai", "document", "record"}
+SERVICE_STEP_TYPES = {"notify", "webhook", "ai", "document", "record", "wizgate"}
 # Steps that run automatically (no human assignee); the scheduler progresses them.
 # Timers wait; service steps act. Both are driven by phase2_automation.
 AUTOMATED_STEP_TYPES = {"timer"} | SERVICE_STEP_TYPES
@@ -51,8 +51,15 @@ def _validate_assignee(step: dict) -> None:
             raise WorkflowValidationError(
                 f"Step '{step.get('id')}' mode must be one of: {', '.join(sorted(ASSIGNMENT_MODES))}"
             )
+    elif atype == "dynamic":
+        if assignee.get("value") != "originator_manager":
+            raise WorkflowValidationError(
+                f"Step '{step.get('id')}' has an unsupported dynamic assignee"
+            )
     else:
-        raise WorkflowValidationError(f"Step '{step.get('id')}' assignee type must be 'role' or 'users'")
+        raise WorkflowValidationError(
+            f"Step '{step.get('id')}' assignee type must be 'role', 'users', or 'dynamic'"
+        )
 
 
 def validate_definition(defn: WorkflowDefinition) -> None:
@@ -79,6 +86,8 @@ def validate_definition(defn: WorkflowDefinition) -> None:
                 raise WorkflowValidationError(f"Document step '{step.get('id')}' needs a template_id")
             if t == "record" and not str(step.get("entity_slug") or "").strip():
                 raise WorkflowValidationError(f"Record step '{step.get('id')}' needs an entity_slug")
+            if t == "wizgate" and not str(step.get("operation") or "").strip():
+                raise WorkflowValidationError(f"WizGate step '{step.get('id')}' needs an operation")
             # notify: message is optional (defaults to a generic update)
         else:
             _validate_assignee(step)

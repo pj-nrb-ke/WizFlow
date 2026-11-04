@@ -45,8 +45,13 @@ class UserOut(BaseModel):
     full_name: str
     is_active: bool
     roles: list[str]
+    manager_id: UUID | None = None
 
     model_config = {"from_attributes": True}
+
+
+class UserUpdate(BaseModel):
+    manager_id: UUID | None = None
 
 
 class RoleOut(BaseModel):

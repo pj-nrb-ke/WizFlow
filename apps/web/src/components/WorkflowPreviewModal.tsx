@@ -20,6 +20,7 @@ function assigneeLabel(a?: PreviewStep["assignee"]): string {
   if (a.type === "role") return `Role: ${a.value ? ROLE_LABELS[a.value] ?? a.value : "—"}`;
   if (a.type === "users") return a.user_ids?.length ? `${a.user_ids.length} user(s)` : "Specific users";
   if (a.type === "group") return "User group";
+  if (a.type === "dynamic") return a.value === "originator_manager" ? "Originator's manager" : "Dynamic";
   return "Assigned approver";
 }
 

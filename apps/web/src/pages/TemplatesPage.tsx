@@ -3,25 +3,23 @@ import { useNavigate } from "react-router-dom";
 import { HelpTip } from "../components/HelpTip";
 import { ApiError } from "../lib/api";
 import { getToken } from "../lib/auth";
-import {
-  cloneTemplate,
-  fetchTemplates,
-  TEMPLATE_CATEGORIES,
-  type TemplateCategory,
-  type WorkflowTemplate,
-} from "../lib/templates";
+import { cloneTemplate, fetchTemplates, type WorkflowTemplate } from "../lib/templates";
 
-const CATEGORY_STYLES: Record<TemplateCategory, string> = {
+const CATEGORY_STYLES: Record<string, string> = {
   Finance: "bg-emerald-50 text-emerald-800 border-emerald-200",
   HR: "bg-violet-50 text-violet-800 border-violet-200",
   Operations: "bg-sky-50 text-sky-800 border-sky-200",
   Compliance: "bg-amber-50 text-amber-900 border-amber-200",
+  Procurement: "bg-blue-50 text-blue-800 border-blue-200",
+  Legal: "bg-rose-50 text-rose-800 border-rose-200",
+  IT: "bg-cyan-50 text-cyan-800 border-cyan-200",
 };
+const DEFAULT_CATEGORY_STYLE = "bg-slate-50 text-slate-700 border-slate-200";
 
 export function TemplatesPage() {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState<WorkflowTemplate[]>([]);
-  const [category, setCategory] = useState<TemplateCategory | "All">("All");
+  const [category, setCategory] = useState<string>("All");
   const [query, setQuery] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -46,6 +44,11 @@ export function TemplatesPage() {
       );
     });
   }, [templates, category, query]);
+
+  const categories = useMemo(
+    () => Array.from(new Set(templates.map((t) => t.category))).sort(),
+    [templates]
+  );
 
   async function useTemplate(tpl: WorkflowTemplate) {
     setError("");
@@ -102,7 +105,7 @@ export function TemplatesPage() {
           >
             All
           </button>
-          {TEMPLATE_CATEGORIES.map((c) => (
+          {categories.map((c) => (
             <button
               key={c}
               type="button"
@@ -151,7 +154,7 @@ export function TemplatesPage() {
               <div className="flex items-start justify-between gap-2 mb-2">
                 <h2 className="font-semibold text-slate-800 leading-snug">{tpl.name}</h2>
                 <span
-                  className={`shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded border ${CATEGORY_STYLES[tpl.category]}`}
+                  className={`shrink-0 text-[10px] font-bold uppercase tracking-wide px-2 py-0.5 rounded border ${CATEGORY_STYLES[tpl.category] ?? DEFAULT_CATEGORY_STYLE}`}
                 >
                   {tpl.category}
                 </span>

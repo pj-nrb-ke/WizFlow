@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from app.core import permissions as perms
 from app.core.deps import CurrentUser, require_permission
-from app.db.models import ApiKey, WebhookDelivery, WebhookEndpoint
+from app.db.models import ApiKey, Company, WebhookDelivery, WebhookEndpoint
 from app.db.session import get_db
 from app.schemas.integrations import (
     ApiKeyCreate,
@@ -19,8 +19,12 @@ from app.schemas.integrations import (
     WebhookCreated,
     WebhookDeliveryOut,
     WebhookOut,
+    WizGateConnectionOut,
+    WizGateConnectionUpdate,
+    WizGateTestOut,
 )
 from app.services import api_keys as api_key_service
+from app.services import company_settings, wizgate_client
 from app.services.security_audit import list_security_logs, log_security_event
 from app.services.webhooks import (
     WEBHOOK_EVENTS,
@@ -236,3 +240,54 @@ def security_logs(
     db: Session = Depends(get_db),
 ) -> list[SecurityAuditOut]:
     return list_security_logs(db, user.company_id, limit=limit)
+
+
+@router.get("/wizgate", response_model=WizGateConnectionOut)
+def get_wizgate_connection(
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
+    db: Session = Depends(get_db),
+) -> WizGateConnectionOut:
+    company = db.get(Company, user.company_id)
+    return WizGateConnectionOut(**company_settings.wizgate_from_settings(company.settings if company else None))
+
+
+@router.put("/wizgate", response_model=WizGateConnectionOut)
+def update_wizgate_connection(
+    body: WizGateConnectionUpdate,
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
+    db: Session = Depends(get_db),
+) -> WizGateConnectionOut:
+    company = db.get(Company, user.company_id)
+    if not company:
+        raise HTTPException(status_code=404, detail="Company not found")
+    company.settings = company_settings.merge_wizgate(company.settings, body.model_dump(exclude_unset=True))
+    log_security_event(
+        db,
+        action="wizgate.config_updated",
+        company_id=user.company_id,
+        actor_user_id=user.id,
+        resource_type="wizgate",
+        resource_id="wizgate",
+        detail={"site_id": body.site_id, "company_db": body.company_db, "key_set": bool(body.api_key)},
+    )
+    db.commit()
+    db.refresh(company)
+    return WizGateConnectionOut(**company_settings.wizgate_from_settings(company.settings))
+
+
+@router.post("/wizgate/test", response_model=WizGateTestOut)
+def test_wizgate_connection(
+    user: CurrentUser = Depends(require_permission(perms.INTEGRATIONS_MANAGE)),
+    db: Session = Depends(get_db),
+) -> WizGateTestOut:
+    company = db.get(Company, user.company_id)
+    creds = company_settings.wizgate_credentials(company.settings if company else None)
+    if not creds:
+        return WizGateTestOut(ok=False, detail="No WizGate connection configured yet.")
+    try:
+        wizgate_client.test_connection(
+            base_url=creds["base_url"], api_key=creds["api_key"], site_id=creds["site_id"]
+        )
+    except wizgate_client.WizGateError as e:
+        return WizGateTestOut(ok=False, detail=str(e)[:300])
+    return WizGateTestOut(ok=True, detail="Connected to WizGate.")

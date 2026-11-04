@@ -549,10 +549,21 @@
     border: 1px solid rgb(var(--wf-card-border));
     border-radius: var(--wf-radius);
     font-family: var(--wf-font-body);
-    @apply w-full px-3 py-2 text-sm bg-white focus:outline-none;
+    background: rgb(var(--wf-input-bg, 255 255 255));
+    color: rgb(15 23 42);
+    box-shadow: 0 1px 2px rgb(15 23 42 / 0.04);
+    transition: border-color 0.15s ease, box-shadow 0.15s ease, background 0.15s ease;
+    @apply w-full px-3 py-2.5 text-sm focus:outline-none;
+  }
+  .wf-input::placeholder {
+    color: rgb(148 163 184);
+  }
+  .wf-input:hover:not(:disabled):not(:focus) {
+    border-color: rgb(var(--wf-brand-400));
   }
   .wf-input:focus {
-    box-shadow: 0 0 0 3px rgb(var(--wf-brand-500) / 0.25);
+    border-color: rgb(var(--wf-brand-500));
+    box-shadow: 0 0 0 3px rgb(var(--wf-brand-500) / 0.18), 0 1px 2px rgb(15 23 42 / 0.05);
   }
   .wf-input:focus-visible {
     outline: 2px solid rgb(var(--wf-brand-500));
@@ -645,6 +656,37 @@
     color: rgb(var(--wf-brand-700));
     @apply text-sm font-semibold uppercase tracking-wide mb-3 pb-2 border-b;
     border-color: rgb(var(--wf-card-border));
+  }
+
+  /* —— Modern form layout: responsive grid + grouped panels —— */
+  .wf-form-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1rem 1.25rem;
+    align-items: start;
+  }
+  @media (min-width: 640px) {
+    .wf-form-grid {
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+  }
+  /* Long-form controls (textareas, tables, sections) span the full width. */
+  .wf-form-grid > .wf-field-full {
+    grid-column: 1 / -1;
+  }
+
+  .wf-form-panel {
+    background: rgb(var(--wf-accent-muted) / 0.6);
+    border: 1px solid rgb(var(--wf-card-border));
+    border-radius: var(--wf-radius-lg);
+    box-shadow: var(--wf-shadow);
+    padding: 1.15rem 1.25rem 1.3rem;
+  }
+  .wf-form-panel + .wf-form-panel {
+    margin-top: 1rem;
+  }
+  html.dark .wf-form-panel {
+    background: rgb(255 255 255 / 0.03);
   }
 
   /* —— Home page —— */
@@ -1421,6 +1463,15 @@ html.dark {
   --wf-card-border: 51 65 85;
   --wf-header-bg: 15 23 42;
   --wf-accent-muted: 30 41 59;
+  --wf-input-bg: 2 6 23;
+}
+
+html.dark .wf-input {
+  color: rgb(226 232 240);
+  border-color: rgb(51 65 85);
+}
+html.dark .wf-input::placeholder {
+  color: rgb(100 116 139);
 }
 
 html.dark .text-slate-800 {

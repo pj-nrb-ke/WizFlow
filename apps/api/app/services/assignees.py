@@ -123,12 +123,27 @@ def _pick_round_robin(
     return picked
 
 
+def _originator_manager(db: Session, company_id: UUID, originator_user_id: UUID | None) -> list[User]:
+    """Resolve the originator's manager (WF-3 dynamic assignee)."""
+    if not originator_user_id:
+        return []
+    originator = db.get(User, originator_user_id)
+    mgr_id = originator.manager_id if originator else None
+    if not mgr_id:
+        return []
+    mgr = db.get(User, mgr_id)
+    if mgr and mgr.company_id == company_id and mgr.is_active:
+        return [mgr]
+    return []
+
+
 def resolve_step_assignment(
     db: Session,
     *,
     company_id: UUID,
     step: dict,
     family_id: UUID | None = None,
+    originator_user_id: UUID | None = None,
 ) -> StepAssignment:
     assignee = step.get("assignee") or {}
     atype = assignee.get("type")
@@ -145,6 +160,10 @@ def resolve_step_assignment(
         raw_ids = assignee.get("user_ids") or []
         uuids = [UUID(x) if isinstance(x, str) else x for x in raw_ids]
         users = _users_by_created_at(db, company_id, uuids)
+    elif atype == "dynamic":
+        value = assignee.get("value") or "originator_manager"
+        if value == "originator_manager":
+            users = _originator_manager(db, company_id, originator_user_id)
 
     if not users:
         return StepAssignment(assignees=[], assignment_mode=None, candidate_user_ids=[])

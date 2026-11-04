@@ -43,7 +43,13 @@ export function useBackgroundSync(token: string | null, onSynced?: () => void) {
           try {
             await apiFetch(
               `/api/v1/workflows/${item.workflowId}/submit`,
-              { method: "POST", body: JSON.stringify({ data: item.data }) },
+              {
+                method: "POST",
+                body: JSON.stringify({
+                  data: item.data,
+                  ...(item.comment ? { comment: item.comment } : {}),
+                }),
+              },
               token
             );
             await dequeueSubmit(item.id);

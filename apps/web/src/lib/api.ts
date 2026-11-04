@@ -370,7 +370,12 @@ export type UserGroup = {
 
 export type OrgDirectory = { users: OrgUser[]; groups: UserGroup[] };
 
-export type ApproverChainItem = { type: "user" | "group"; id: string; label?: string };
+export type ApproverChainItem = {
+  type: "user" | "group" | "dynamic";
+  id?: string;
+  value?: string; // for type="dynamic", e.g. "originator_manager"
+  label?: string;
+};
 
 export type InitiatorConfig = {
   everyone: boolean;
@@ -567,6 +572,117 @@ export function listWorkflowTemplates(token?: string | null) {
   return apiFetch<WorkflowTemplate[]>("/api/v1/templates", {}, token);
 }
 
+// ── Suites: no-code "applications" that group published processes ─────────────
+export type SuiteProcess = {
+  family_id: string;
+  workflow_id: string | null;
+  name: string;
+  status: string;
+  description: string | null;
+  category: string | null;
+  position: number;
+  can_initiate: boolean;
+};
+
+export type Suite = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  icon: string | null;
+  accent: string | null;
+  status: string;
+  position: number;
+  item_count: number;
+  items: SuiteProcess[];
+  created_at: string;
+  updated_at: string;
+};
+
+export type SuiteLauncher = {
+  id: string;
+  name: string;
+  slug: string;
+  description: string | null;
+  icon: string | null;
+  accent: string | null;
+  processes: SuiteProcess[];
+};
+
+export type Launcher = { suites: SuiteLauncher[]; ungrouped: SuiteProcess[] };
+
+export type SuiteTemplate = {
+  id: string;
+  name: string;
+  description: string;
+  icon: string | null;
+  process_names: string[];
+  process_count: number;
+};
+
+export function listSuites(token?: string | null) {
+  return apiFetch<Suite[]>("/api/v1/suites", {}, token);
+}
+
+export function getSuite(id: string, token?: string | null) {
+  return apiFetch<Suite>(`/api/v1/suites/${id}`, {}, token);
+}
+
+export function createSuite(
+  body: { name: string; description?: string | null; icon?: string | null; accent?: string | null; family_ids?: string[] },
+  token?: string | null
+) {
+  return apiFetch<Suite>("/api/v1/suites", { method: "POST", body: JSON.stringify(body) }, token);
+}
+
+export function updateSuite(
+  id: string,
+  body: { name?: string; description?: string | null; icon?: string | null; accent?: string | null; status?: string },
+  token?: string | null
+) {
+  return apiFetch<Suite>(`/api/v1/suites/${id}`, { method: "PATCH", body: JSON.stringify(body) }, token);
+}
+
+export function setSuiteItems(id: string, familyIds: string[], token?: string | null) {
+  return apiFetch<Suite>(
+    `/api/v1/suites/${id}/items`,
+    { method: "PUT", body: JSON.stringify({ family_ids: familyIds }) },
+    token
+  );
+}
+
+export function deleteSuite(id: string, token?: string | null) {
+  return apiFetch<void>(`/api/v1/suites/${id}`, { method: "DELETE" }, token);
+}
+
+export function reorderSuites(orderedIds: string[], token?: string | null) {
+  return apiFetch<void>(
+    "/api/v1/suites/reorder",
+    { method: "POST", body: JSON.stringify({ ordered_ids: orderedIds }) },
+    token
+  );
+}
+
+export function listAvailableProcesses(token?: string | null) {
+  return apiFetch<SuiteProcess[]>("/api/v1/suites/available-processes", {}, token);
+}
+
+export function getLauncher(token?: string | null) {
+  return apiFetch<Launcher>("/api/v1/suites/launcher", {}, token);
+}
+
+export function listSuiteTemplates(token?: string | null) {
+  return apiFetch<SuiteTemplate[]>("/api/v1/suites/templates", {}, token);
+}
+
+export function cloneSuiteTemplate(templateId: string, token?: string | null) {
+  return apiFetch<{ suite_id: string; name: string; created_workflows: number }>(
+    `/api/v1/suites/templates/${templateId}/clone`,
+    { method: "POST" },
+    token
+  );
+}
+
 export function patchNotificationPreferences(
   body: Partial<NotificationPreferences>,
   token?: string | null
@@ -742,7 +858,19 @@ export type MisActionRow = {
 };
 
 export type Department = { id: string; name: string; code: string | null; created_at: string };
-export type UserRow = { id: string; email: string; full_name: string; is_active: boolean; roles: string[] };
+export type UserRow = { id: string; email: string; full_name: string; is_active: boolean; roles: string[]; manager_id: string | null };
+
+export function updateUser(
+  userId: string,
+  body: { manager_id: string | null },
+  token?: string | null
+) {
+  return apiFetch<UserRow>(
+    `/api/v1/admin/users/${userId}`,
+    { method: "PATCH", body: JSON.stringify(body) },
+    token
+  );
+}
 
 /** Shared query params for analytics endpoints. */
 export type AnalyticsFilterParams = {
@@ -1229,6 +1357,8 @@ export type PublicFormSchema = {
   workflow_id: string;
   workflow_name: string;
   company_name: string;
+  logo_url?: string | null;
+  brand_color?: string | null;
   form_schema: Record<string, unknown>;
   settings: Record<string, unknown>;
 };
