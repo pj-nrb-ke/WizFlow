@@ -9,6 +9,20 @@ on:
 jobs:
   api:
     runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: wizflow
+          POSTGRES_PASSWORD: wizflow
+          POSTGRES_DB: wizflow_dev
+        ports:
+          - 5433:5432
+        options: >-
+          --health-cmd "pg_isready -U wizflow -d wizflow_dev"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -16,6 +30,11 @@ jobs:
           python-version: "3.12"
       - name: Install API dependencies
         run: pip install -r apps/api/requirements.txt
+      - name: Run migrations
+        working-directory: apps/api
+        run: alembic upgrade head
+        env:
+          PYTHONPATH: .
       - name: API smoke tests
         run: pytest tests/api -q
         env:
